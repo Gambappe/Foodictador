@@ -65,6 +65,14 @@ describe('L1 template narrator', () => {
     expect(JSON.stringify(second)).toBe(JSON.stringify(first));
   });
 
+  it('never cites a cohort below KFLOOR — the floor holds on the template path too', async () => {
+    const copy = await narrator.write(ranked(), facts({ citation: { driver: 'budget_ceiling', k: 2 } }));
+    expect(copy.reasonLine).not.toContain('2 of them');
+    expect(copy.reasonLine).not.toContain('budget ceiling');
+    // Falls through to the plain variant rather than citing a cohort of two.
+    expect(copy.reasonLine).toContain('a quiet fit');
+  });
+
   it('cites the cohort by phrase and count, never the enum token', async () => {
     const copy = await narrator.write(ranked(), facts({ citation: { driver: 'spice_tolerance_low', k: 6 } }));
     expect(copy.reasonLine).toContain('6');

@@ -10,6 +10,7 @@
 
 import type { Narrator } from '../contracts/modules.js';
 import type { CardCopy, NarratorFacts, RankedPlace } from '../contracts/types.js';
+import { KFLOOR } from '../kernel/cohorts.js';
 import { CATALOG, DRIVER_PHRASES, renderTemplate } from './catalog.js';
 
 /** Display form of a dish id — the narrator has no corpus to look names up in. */
@@ -17,10 +18,21 @@ function dishName(dishId: string): string {
   return dishId.replaceAll('_', ' ');
 }
 
+/**
+ * The citation floor, enforced at the choke point every narrator path ends in:
+ * live-narrator fallbacks (flag, transport failure, double rejection) all
+ * delegate here, so a cohort below KFLOOR is never cited on ANY exit — not
+ * just the model path (design v0.8 §7 [C4]; K6's matched() is the authoritative
+ * producer, this is the last line).
+ */
+function flooredCitation(facts: NarratorFacts): NarratorFacts['citation'] {
+  return facts.citation && facts.citation.k >= KFLOOR ? facts.citation : undefined;
+}
+
 function reasonLine(ranked: RankedPlace[], facts: NarratorFacts): string {
   const pick = ranked[0]?.place.name ?? 'Somewhere quiet';
   const claim = facts.inducedClaim;
-  const citation = facts.citation;
+  const citation = flooredCitation(facts);
 
   let line: string;
   if (citation && claim !== undefined) {
