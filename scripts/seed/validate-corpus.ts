@@ -38,7 +38,11 @@ export function validateCorpus(raw: unknown, expectedSize: number = CORPUS_SIZE)
   const dishOwners = new Map<string, string>();
 
   places.forEach((place, index) => {
-    const where = `places[${index}] (${String((place as { id?: unknown }).id ?? '?')})`;
+    // Only a string id is safe to interpolate: String() on an object yields
+    // "[object Object]", which makes the error message useless exactly when a malformed
+    // entry is what you are trying to find.
+    const rawId: unknown = (place as { id?: unknown }).id;
+    const where = `places[${index}] (${typeof rawId === 'string' ? rawId : '?'})`;
     if (typeof place.id !== 'string' || !SLUG_RE.test(place.id)) {
       problems.push(`${where}: id must be a lowercase slug`);
     } else if (slugs.has(place.id)) {
