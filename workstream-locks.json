@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T08:40:45.500Z",
+  "updated_at": "2026-07-25T08:40:50.999Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -325,12 +325,12 @@
       ],
       "mock_start_ok": false,
       "note": "UI-only by design (§6) — nothing downstream may depend on this being correct, only on it being schema-valid; M5 is what guarantees blocking. A blocked topic must make zero model calls, and with no API key the module must not attempt a request.",
-      "status": "claimed",
+      "status": "in_review",
       "owner": "claude-session-12uj0q",
       "branch": "claude/app-design-task-impl-12uj0q",
-      "pr": null,
+      "pr": "https://github.com/Gambappe/Foodictador/pull/15",
       "claimed_at": "2026-07-25T08:37:50.712Z",
-      "updated_at": "2026-07-25T08:37:50.712Z"
+      "updated_at": "2026-07-25T08:40:50.998Z"
     },
     "L3": {
       "title": "Live narrator on claude-sonnet-5: facts-only prompt, choose-from-corpus contract, linter gate -> one regenerate -> template fallback",
