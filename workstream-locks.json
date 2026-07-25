@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T16:50:49.618Z",
+  "updated_at": "2026-07-25T17:05:56.496Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -885,12 +885,12 @@
       ],
       "mock_start_ok": false,
       "note": "Split out of P0.8, which did the durability half. D-7 makes the relay hold every read for ever rather than for minutes, so coarse timestamps move from the [prod] list to required — but neither fix fits inside infra/relay/**. (a) Coarsening received_at changes RelayEntry in src/contracts/types.ts (frozen, integrator only) AND breaks M7's sweeper, which computes a seconds-precision settle window from that exact field; M9 is rewriting the sweeper now, hence the dependency. (b) Requiring the token on GET /reads contradicts P0.4's tested 'reads stay open' and breaks M4's client, which sends no token on list(). Whoever takes this needs to decide (a) or (b) with the integrator first, because (a) is a contract change and (b) is an API change. Doing half — coarsening the field while the sweeper still needs seconds — breaks the sweeper and leaves the channel open through ?since= anyway. Analysis is written up in infra/relay/README.md under 'Known gap'.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "fable-session-0dd9z8",
+      "branch": "feat/p0.9-e26-ordering",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T10:50:46.650Z"
+      "claimed_at": "2026-07-25T17:05:56.496Z",
+      "updated_at": "2026-07-25T17:05:56.496Z"
     },
     "G8": {
       "title": "SL-26 fix: the CLI acceptance gate must actually drive src/cli — all seven DAG G5 steps through the real dispatcher",
