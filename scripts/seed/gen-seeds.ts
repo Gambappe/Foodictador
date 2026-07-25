@@ -16,18 +16,26 @@
  *
  * Artifacts: data/seeds/reads.json (canonical), data/seeds/manifest.json
  * (per-driver counts + places, consumed by X6/G4's cross-check), and
- * data/seeds/induction-set.json (all seed reads — the relay-only pool M6
- * serves; the full set so a relay-only census still matches the manifest).
+ * data/seeds/induction-set.json — DERIVED, not copied (S5, closing SL-17):
+ * the exact conversations `PoolStore.writeReads` feeds the substrate, plus the
+ * ask-path probe a gate can hold a live induced claim against. It used to be a
+ * byte copy of reads.json, which made every check against it arithmetically
+ * incapable of failing.
  */
 
 import { writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
+import type { MemoryClient } from '../../src/contracts/modules.js';
 import type { Driver, Place, Read, Signal, UsualProfile } from '../../src/contracts/types.js';
 import { DEMO_CONTEXT } from '../../src/contracts/types.js';
-import { matched } from '../../src/kernel/cohorts.js';
+import { createLogger } from '../../src/config/logger.js';
+import { POOL_QUERY } from '../../src/cli/ask.js';
+import { UNMATCHABLE_DRIVERS, matched } from '../../src/kernel/cohorts.js';
 import { parseRead } from '../../src/kernel/read.js';
 import { scorePlaces, type ScoreInput } from '../../src/kernel/score.js';
+import { createPoolStore } from '../../src/memory/pool.js';
+import { placeNames } from '../../src/memory/readProse.js';
 import { loadCorpus } from './validate-corpus.js';
 import { loadProfiles, type DemoProfile } from './validate-profiles.js';
 
@@ -281,7 +289,6 @@ export interface ManifestEntry {
 export interface SeedArtifacts {
   reads: Read[];
   manifest: ManifestEntry[];
-  inductionSet: Read[];
 }
 
 export function generateSeeds(): SeedArtifacts {
@@ -302,11 +309,135 @@ export function generateSeeds(): SeedArtifacts {
     }))
     .sort((a, b2) => a.driver.localeCompare(b2.driver));
 
-  return { reads, manifest, inductionSet: reads };
+  return { reads, manifest };
 }
 
-function main(): void {
-  const { reads, manifest, inductionSet } = generateSeeds();
+// ---------------------------------------------------------------------------
+// The induction set (S5)
+
+export interface InductionConversation {
+  convId: string;
+  payloads: string[];
+}
+
+export interface InductionEvidence {
+  driver: Driver;
+  k: number;
+  /** D-5: a driver no demo profile can evidence can never be cited from a card. */
+  citable: boolean;
+  placeNames: string[];
+}
+
+export interface InductionSet {
+  derivedFrom: string;
+  /**
+   * The ask-path induction probe: the EXACT query `confit ask` issues, plus the
+   * place names any claim faithfully induced from this seed could ground in.
+   * This is what G7's "induction yields a usable claim" gate holds a live
+   * answer against — a claim naming none of these was not induced from our seed.
+   */
+  probe: { query: string; expectedPlaceNames: string[] };
+  conversations: InductionConversation[];
+  evidence: InductionEvidence[];
+}
+
+/**
+ * A MemoryClient that records what `writeReads` would send and refuses everything
+ * else. The derivation runs the REAL PoolStore against it, so the artifact is the
+ * substrate feed byte-for-byte — grouping, conv ids and prose all come from the
+ * production path, and a change to any of them shows up as artifact drift in CI
+ * rather than as a committed fiction.
+ */
+function recordingClient(): {
+  client: MemoryClient;
+  batches: Array<{ convId: string; payloads: string[] }>;
+} {
+  const batches: Array<{ convId: string; payloads: string[] }> = [];
+  const refuse = (method: string) => (): Promise<never> =>
+    Promise.reject(
+      new Error(`induction derivation: PoolStore.writeReads must not call ${method}`),
+    );
+  return {
+    batches,
+    client: {
+      ingest: refuse('ingest'),
+      ingestBatch: (_scope, payloads, convId) => {
+        batches.push({ convId, payloads: [...payloads] });
+        return Promise.resolve({ jobId: `derived:${convId}` });
+      },
+      search: refuse('search'),
+      remove: refuse('remove'),
+      jobStatus: refuse('jobStatus'),
+    },
+  };
+}
+
+/**
+ * Derives data/seeds/induction-set.json from the seed reads (S5, closing SL-17).
+ *
+ * The old artifact was `reads.json` twice, so any check comparing "what the pool
+ * holds" against it was comparing the seed with itself — arithmetically incapable
+ * of failing, which SL-17 demonstrated with XTrace entirely unreachable. This one
+ * is the pool's actual INPUT (the conversations `load-seeds` sends, produced by
+ * the same `writeReads` it calls) plus the probe to interrogate its OUTPUT.
+ */
+export async function deriveInductionSet(reads: Read[]): Promise<InductionSet> {
+  const corpus = loadCorpus();
+  const lookup = placeNames(corpus);
+  const { client, batches } = recordingClient();
+  const poolLog: string[] = [];
+  const pool = createPoolStore({
+    client,
+    logger: createLogger((line) => poolLog.push(line)),
+    placeName: lookup,
+  });
+  await pool.writeReads(reads);
+
+  // A read the pool skipped (unknown place) is a read the artifact would silently
+  // omit — the seed validators make this unreachable, so reaching it is a bug.
+  const skips = poolLog.filter((line) => line.includes('skipping'));
+  if (skips.length > 0) {
+    throw new Error(`gen-seeds: derivation dropped read(s):\n${skips.join('\n')}`);
+  }
+
+  const byDriver = new Map<Driver, Read[]>();
+  for (const read of reads) {
+    byDriver.set(read.driver, [...(byDriver.get(read.driver) ?? []), read]);
+  }
+  const evidence: InductionEvidence[] = [...byDriver.entries()]
+    .map(([driver, group]) => ({
+      driver,
+      k: group.length,
+      citable: !UNMATCHABLE_DRIVERS.includes(driver),
+      placeNames: [
+        ...new Set(
+          group.map((read) => {
+            const name = lookup(read.place);
+            if (name === undefined) {
+              throw new Error(`gen-seeds: ${read.place} unresolvable after the skip check`);
+            }
+            return name;
+          }),
+        ),
+      ].sort(),
+    }))
+    .sort((a, b2) => a.driver.localeCompare(b2.driver));
+
+  return {
+    derivedFrom:
+      'data/seeds/reads.json through PoolStore.writeReads — the exact substrate feed, not a copy',
+    probe: {
+      query: POOL_QUERY,
+      expectedPlaceNames: [...new Set(evidence.flatMap((entry) => entry.placeNames))].sort(),
+    },
+    conversations: batches.map((batch) => ({ convId: batch.convId, payloads: batch.payloads })),
+    evidence,
+  };
+}
+
+async function main(): Promise<void> {
+  const { reads, manifest } = generateSeeds();
+  const inductionSet = await deriveInductionSet(reads);
   const write = (name: string, payload: unknown): void => {
     writeFileSync(
       new URL(`../../data/seeds/${name}`, import.meta.url),
@@ -315,14 +446,15 @@ function main(): void {
   };
   write('reads.json', { reads });
   write('manifest.json', { generatedFrom: `prng ${PRNG_SEED}`, demoNow: DEMO_NOW, manifest });
-  write('induction-set.json', { reads: inductionSet });
+  write('induction-set.json', inductionSet);
   process.stderr.write(
-    `seeds OK: ${reads.length} reads, ${manifest.length} drivers — artifacts written to data/seeds/\n`,
+    `seeds OK: ${reads.length} reads, ${manifest.length} drivers, ` +
+      `${inductionSet.conversations.length} induction conversation(s) — artifacts written to data/seeds/\n`,
   );
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main();
+  void main();
 }
 
 export { type UsualProfile };
