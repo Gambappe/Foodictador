@@ -24,7 +24,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { MemoryClient, Relay } from '../../contracts/modules.js';
 import type { MemoryRow, ProposedRead, Read } from '../../contracts/types.js';
 import { sampleUsual } from '../../contracts/fixtures/index.js';
-import { StubSettingsStore } from '../../contracts/stubs/index.js';
+import { StubSettingsStore, StubProseBuffer } from '../../contracts/stubs/index.js';
 import { createLogger } from '../../config/logger.js';
 import { createPoolStore } from '../../memory/pool.js';
 import { createUserStore } from '../../memory/user.js';
@@ -83,7 +83,12 @@ function recordingRelay() {
 function realHarness(offLimits: string[]) {
   const s = substrate();
   const logger = createLogger(() => {});
-  const user = createUserStore({ client: s.client, settings: new StubSettingsStore(), logger });
+  const user = createUserStore({
+    client: s.client,
+    settings: new StubSettingsStore(),
+    buffer: new StubProseBuffer(),
+    logger,
+  });
   const pool = createPoolStore({ client: s.client, logger, placeName: (id: string) => id.replaceAll('_', ' ') });
   const { relay, entries } = recordingRelay();
 

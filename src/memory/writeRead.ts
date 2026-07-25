@@ -41,6 +41,15 @@ export interface WriteReadInput {
 export interface WriteReadReport {
   read_id: string;
   wrote: { relay: boolean; pool: boolean; job: boolean; prose: boolean };
+  /**
+   * Confessions now waiting to be sent, after this one (M20).
+   *
+   * `0` means this confession's batch went to XTrace; a positive number means it is HELD
+   * until the batch fills or `pass sweep` runs. `wrote.prose` alone cannot say which, and
+   * telling a user their words reached their memory while they sit in a buffer is a false
+   * receipt — deferral is not loss, but the receipt has to name which one it is.
+   */
+  proseBuffered: number;
   /** Honest per-target accounting for the caller to surface (X2). */
   warnings: string[];
 }
@@ -102,14 +111,17 @@ export async function writeRead(
     }
   }
 
-  // 4. Prose last — personal tier, raw and unmodified ([E11]).
+  // 4. Prose last — personal tier, raw and unmodified ([E11]). Buffered rather than sent
+  // immediately (M20): XTrace makes an episode per ingest CALL, so one-at-a-time ingests can
+  // only ever produce per-confession paraphrases.
+  let proseBuffered = 0;
   try {
-    await deps.user.writeProse(input.profile, input.text);
+    proseBuffered = (await deps.user.writeProse(input.profile, input.text)).buffered;
     wrote.prose = true;
   } catch (error) {
     warnings.push(`prose write failed — personal memory not recorded: ${message(error)}`);
     deps.logger.line(`writeRead: prose write failed for ${read.read_id}: ${message(error)}`);
   }
 
-  return { read_id: read.read_id, wrote, warnings };
+  return { read_id: read.read_id, wrote, proseBuffered, warnings };
 }

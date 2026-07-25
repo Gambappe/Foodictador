@@ -3,6 +3,7 @@ export { StubMemoryClient } from './memoryClient.js';
 export { StubPoolStore } from './poolStore.js';
 export { StubUserStore } from './userStore.js';
 export { StubSettingsStore } from './settingsStore.js';
+export { StubProseBuffer } from './proseBuffer.js';
 export { StubRelay } from './relay.js';
 export { StubPoolView } from './poolView.js';
 export { StubExtractor } from './extractor.js';

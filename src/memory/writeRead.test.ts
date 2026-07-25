@@ -48,7 +48,7 @@ function fakes(failures: Failures = {}) {
       calls.push(`user.writeProse:${profile}:${text}`);
       return failures.prose
         ? Promise.reject(new Error('user tier down'))
-        : Promise.resolve({ jobId: 'job-p' });
+        : Promise.resolve({ buffered: 0, jobId: 'job-p' });
     },
     usual: () => Promise.resolve(null),
     setUsual: () => Promise.resolve(),

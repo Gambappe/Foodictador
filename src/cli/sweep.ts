@@ -33,6 +33,14 @@ export function watchIntervalMs(settleWindowSeconds: number): number {
 
 export interface SweepCommandDeps {
   sweep: (now: string) => Promise<SweepReport>;
+  /**
+   * Sends any buffered confessions, whatever the count (M20).
+   *
+   * Here because this command already owns the deferred substrate work, and because the
+   * buffer's size threshold alone would leave a profile's last few confessions unsent
+   * indefinitely. Returns how many were sent.
+   */
+  flushProse?: () => Promise<number>;
   now?: () => string;
   sleep?: (ms: number) => Promise<void>;
   /** Registers the interrupt callback; defaults to `process.once('SIGINT')`. */
@@ -72,6 +80,27 @@ export function sweepPayload(report: SweepReport): Record<string, unknown> {
   };
 }
 
+/**
+ * Flushes the confession buffer, and never lets that failure take the sweep down.
+ *
+ * A sweep exists to keep the substrate consistent; refusing to report the pool's state
+ * because a confession batch could not be sent would trade the useful half for the
+ * best-effort one. D-10 sanctions losing confessions, so this cannot be the fatal step.
+ */
+async function flushProse(deps: SweepCommandDeps, context: CommandContext): Promise<number> {
+  if (deps.flushProse === undefined) return 0;
+  try {
+    return await deps.flushProse();
+  } catch (error) {
+    context.logger.line(
+      `sweep: confession flush failed, sweep continues: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    return 0;
+  }
+}
+
 export function createSweepCommand(deps: SweepCommandDeps): CommandHandler {
   const now = deps.now ?? (() => new Date().toISOString());
   const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
@@ -83,10 +112,11 @@ export function createSweepCommand(deps: SweepCommandDeps): CommandHandler {
 
   return async (context: CommandContext): Promise<CommandResult> => {
     if (!context.argv.flags.has('watch')) {
+      const prose = await flushProse(deps, context);
       const report = await deps.sweep(now());
       return {
-        lines: reportLines(report, 'Sweep report:'),
-        data: { mode: 'once', ...sweepPayload(report) },
+        lines: [...reportLines(report, 'Sweep report:'), `  confessions sent:     ${prose}`],
+        data: { mode: 'once', ...sweepPayload(report), confessions_sent: prose },
       };
     }
 
@@ -154,6 +184,9 @@ export const sweepCommand: CommandHandler = (context: CommandContext) => {
     logger: graph.logger,
     settleWindowSeconds: graph.settleWindowSeconds,
   });
-  const handler = createSweepCommand({ sweep: (nowIso) => sweeper.sweepOnce(nowIso) });
+  const handler = createSweepCommand({
+    sweep: (nowIso) => sweeper.sweepOnce(nowIso),
+    flushProse: () => graph.user.flushProse(),
+  });
   return handler(context);
 };

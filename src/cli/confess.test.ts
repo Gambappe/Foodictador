@@ -73,7 +73,7 @@ function harness(options: {
     personalClaim: () => Promise.resolve(''),
     writeProse: vi.fn(() => {
       calls.prose += 1;
-      return Promise.resolve({ jobId: 'job-prose' });
+      return Promise.resolve({ buffered: 0, jobId: 'job-prose' });
     }),
     // Returns null for an unprovisioned profile, exactly as the contract declares. The
     // first version of this harness threw instead, which let the command's own null
@@ -282,6 +282,7 @@ describe('the CommandHandler adapter', () => {
         relayToken: 't',
         anthropicApiKey: null,
         settleWindowSeconds: 480,
+        proseBufferPath: '/tmp/confit-test-prose.json',
       },
       flags: {
         get: () => ({

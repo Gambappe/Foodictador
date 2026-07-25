@@ -21,7 +21,23 @@ export interface AppConfig {
    * range; gate zero (P0.5) measures the real number and records it here (DAG D-3).
    */
   settleWindowSeconds: number;
+  /**
+   * Where confession prose waits until several can share one ingest call (M20).
+   *
+   * Optional and defaulted, unlike the four required vars: a missing buffer path must not
+   * stop `confess` from running, and the consequence of the default is a file in the working
+   * directory rather than a failure. Overridable with `CONFIT_PROSE_BUFFER` so an operator
+   * can put it somewhere they control — the path is logged on first write.
+   *
+   * Local by design (D-10, and see `src/memory/proseBuffer.ts`): a buffer is only ever
+   * flushed by a process on the machine that wrote it, and raw confessions must not sit on
+   * the relay, whose single shared token reads everything.
+   */
+  proseBufferPath: string;
 }
+
+/** Beside the working directory, dot-prefixed so it is obviously not a deliverable. */
+const DEFAULT_PROSE_BUFFER_PATH = '.confit/prose-buffer.json';
 
 const REQUIRED_VARS = [
   ['xtraceBaseUrl', 'XTRACE_BASE_URL'],
@@ -70,5 +86,6 @@ export function loadConfig(env: Env = process.env): AppConfig {
     relayToken: read('RELAY_TOKEN'),
     anthropicApiKey: present(env, 'ANTHROPIC_API_KEY'),
     settleWindowSeconds,
+    proseBufferPath: present(env, 'CONFIT_PROSE_BUFFER') ?? DEFAULT_PROSE_BUFFER_PATH,
   };
 }

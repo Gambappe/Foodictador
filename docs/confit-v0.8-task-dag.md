@@ -216,6 +216,19 @@ What (c) required in code, none of it cosmetic:
 
 `M19` is closed by this decision rather than built. If (a) is ever wanted, the cost is a `UsualProfile` contract change, a `PlaceTag` contract change, and a re-audit of all 40 corpus records — where a place mistagged as free of an allergen is exactly the failure the feature would exist to prevent, and no test can catch it.
 
+**D-10 — Losing a confession is acceptable; batching them is not optional.** Decided by the product owner, on the question D-8 left open and M16 made concrete.
+
+Two findings framed the choice. First, XTrace retention is `~11/16` and non-deterministic, and `verifyPendingProse` cannot detect a drop because it clears on `jobStatus === 'complete'` — which means the extraction *job* finished, not that the memory survived. Second, and measured twice: **episodes are generated per ingest call, not per accumulated conversation.** Four separate POSTs sharing one `conv_id` still produced four per-POST paraphrases with the `conv_id` recorded, so grouping alone does nothing; the guide's R4 "batch by session/day" means *one POST with several messages*, which is exactly what M12 did for the pool.
+
+The owner's ruling: **the loss is fine, the batching is the point.** So:
+
+- **`M17` is closed by decision, not built.** A spool sized for a delivery *guarantee* — atomic writes, retrievability verification, stuck-item escalation — is machinery for a promise the owner has declined to make. What survives is the far smaller thing batching actually requires.
+- **`M20` becomes the work.** Confession prose is buffered and ingested as one grouped POST, so the personal synthesis spans several confessions instead of paraphrasing one. Losing the buffer is explicitly acceptable, which removes the atomicity, the verification and the escalation.
+- **The buffer is local, not on the relay.** It has no cross-device requirement: unlike settings (`pass provision` here, `ask` there) and unlike the pool (cross-device by design), a buffer is only ever flushed by a process on the machine that wrote it. Sharing it would put raw confessions on a service where one token reads everything, and buy nothing.
+- **`M10` stays independent.** Surfacing `result.memories_created[]` was going to fall out of M17's verification; with M17 closed it does not, so the ingest ledger remains its own task.
+
+One consequence the owner should see rather than discover: a buffered confession has **not** reached XTrace when `confess` prints its receipt, so `your memory ok (your words, your tier only)` becomes untrue at the moment it is printed. Deferral is not loss, but the receipt must say which of the two it is. Fixed with the copy, not with more machinery.
+
 **D-6 — `AskEngine` is declared, stubbed, and implemented by nobody.** Found while implementing K4. `src/contracts/modules.ts` declares `AskEngine.ask(input) → Card`, P0.2 ships a fixture stub for it, and no task in lane K builds it: K1 is the read validator, K2 off-limits, K3 rotation, K4 scoring, K5 the linter, K6 cohorts. Meanwhile X3's spec has the CLI doing exactly that job — "assemble the card — candidates from the corpus, reads from `PoolView`, cohort counts from K6, suppressions from K3, scores from K4, copy from L3."
 
 That directly contradicts §1's "no behaviour may live in a front end", and it would leave the UI lane (U3) with a choice between importing from `src/cli/**` and reimplementing the assembly. It also splits ownership of the card's shape across two lanes, which is how the two front ends drift apart.

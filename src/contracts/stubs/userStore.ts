@@ -1,5 +1,5 @@
-import type { UserStore } from '../modules.js';
-import type { JobHandle, MealLogEntry, UsualProfile } from '../types.js';
+import type { ProseWrite, UserStore } from '../modules.js';
+import type { MealLogEntry, UsualProfile } from '../types.js';
 
 /** In-memory per-profile store. */
 export class StubUserStore implements UserStore {
@@ -15,10 +15,18 @@ export class StubUserStore implements UserStore {
   private readonly prose = new Map<string, string[]>();
   private seq = 0;
 
-  writeProse(profile: string, text: string): Promise<JobHandle> {
+  /**
+   * Records the text and reports it SENT.
+   *
+   * The stub does not model buffering, deliberately: batching is M20's policy and a stub that
+   * reimplemented it would be a second copy free to drift from the real one. What a caller
+   * needs from this stub is that the confession was accepted — `proseBuffer.test.ts` owns the
+   * batching rules.
+   */
+  writeProse(profile: string, text: string): Promise<ProseWrite> {
     this.prose.set(profile, [...(this.prose.get(profile) ?? []), text]);
     this.seq += 1;
-    return Promise.resolve({ jobId: `prose-job-${this.seq}` });
+    return Promise.resolve({ buffered: 0, jobId: `prose-job-${this.seq}` });
   }
 
   usual(profile: string): Promise<UsualProfile | null> {

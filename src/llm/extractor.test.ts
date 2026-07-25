@@ -107,6 +107,7 @@ describe('L2 chip preview', () => {
       relayToken: 't',
       anthropicApiKey: null,
       settleWindowSeconds: 480,
+      proseBufferPath: '/tmp/confit-test-prose.json',
     };
     const flags = createFlagStore(initialFlags(config, logger), logger);
     const { requests, client } = mockClient([]);

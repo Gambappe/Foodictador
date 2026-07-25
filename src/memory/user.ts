@@ -36,8 +36,9 @@
  * the failure D-8 exists to prevent.
  */
 
-import type { MemoryClient, SettingsStore, UserStore } from '../contracts/modules.js';
-import type { JobHandle, MealLogEntry, UsualProfile } from '../contracts/types.js';
+import type { MemoryClient, ProseWrite, SettingsStore, UserStore } from '../contracts/modules.js';
+import { BATCH_SIZE, type ProseBuffer } from './proseBuffer.js';
+import type { MealLogEntry, UsualProfile } from '../contracts/types.js';
 import type { Logger } from '../config/logger.js';
 
 /**
@@ -63,30 +64,27 @@ const MEAL_LOG_KEY = 'meal_log';
 const PERSONAL_TOP_K = 40;
 const PERSONAL_EPISODE_SLOTS = 4;
 
-/** One verify-and-retry round per pending prose item, per §6. */
-const MAX_PROSE_RETRIES = 1;
-
-interface PendingProse {
-  profile: string;
-  text: string;
-  jobId: string;
-  retries: number;
-}
-
 export interface UserStoreDeps {
   /** XTrace, for the confession prose only — the EXPERIENCES half of D-8. */
   client: MemoryClient;
+  /** Holds confessions until several can share one ingest call (M20, D-10). */
+  buffer: ProseBuffer;
   /** The durable store, for what the user DECLARED. Not XTrace, and that is the point. */
   settings: SettingsStore;
   logger: Logger;
 }
 
-/** UserStore plus the process-lifetime prose bookkeeping the contract can't carry. */
+/**
+ * UserStore plus the flush the contract cannot carry.
+ *
+ * `verifyPendingProse` and `dropUnconfirmedProse` used to live here. They are gone: they
+ * implemented verify-and-retry against a delivery guarantee D-10 declined to make, and
+ * `grep` found **no caller anywhere outside their own tests** — so the retry never ran in
+ * production either. Deleting them is a simplification, not a regression.
+ */
 export interface UserStoreHandle extends UserStore {
-  /** Poll every pending prose job; re-ingest failures (once), keep the rest pending. */
-  verifyPendingProse(): Promise<void>;
-  /** Drop whatever is still unconfirmed — call at process end; warns per item. */
-  dropUnconfirmedProse(): number;
+  /** Send every buffered confession regardless of count. Returns how many were sent. */
+  flushProse(): Promise<number>;
 }
 
 /**
@@ -151,14 +149,31 @@ function parseMealLogEntry(value: unknown): MealLogEntry | null {
 }
 
 export function createUserStore(deps: UserStoreDeps): UserStoreHandle {
-  const pending: PendingProse[] = [];
 
   return {
-    async writeProse(profile: string, text: string): Promise<JobHandle> {
-      // [E11]: the payload IS the text — byte-identical, nothing added.
-      const handle = await deps.client.ingest(profile, text);
-      pending.push({ profile, text, jobId: handle.jobId, retries: 0 });
-      return handle;
+    /**
+     * Buffers the confession, and sends the batch once one has accumulated (M20).
+     *
+     * NOT ingested immediately, and that is the change: XTrace generates an episode per ingest
+     * call, so one-at-a-time ingests can only ever produce per-confession paraphrases —
+     * measured, 8 confessions gave 8 episodes across 8 conv_ids. [E11] is untouched: the text
+     * is buffered byte-identical and sent byte-identical, so buffering changes WHEN a
+     * confession is ingested, never WHAT.
+     */
+    async writeProse(profile: string, text: string): Promise<ProseWrite> {
+      const flush = deps.buffer.append(profile, text);
+      if (flush === null) {
+        const held = deps.buffer.pending(profile);
+        deps.logger.line(
+          `user: confession held for ${profile} — ${String(held)}/${String(BATCH_SIZE)} until the batch is sent`,
+        );
+        return { buffered: held };
+      }
+      const handle = await deps.client.ingestBatch(flush.profile, flush.texts, flush.convId);
+      deps.logger.line(
+        `user: sent ${String(flush.texts.length)} confession(s) for ${profile} as one conversation (${flush.convId})`,
+      );
+      return { buffered: 0, jobId: handle.jobId };
     },
 
     /**
@@ -249,39 +264,32 @@ export function createUserStore(deps: UserStoreDeps): UserStoreHandle {
       await deps.settings.put(profile, MEAL_LOG_KEY, entries);
     },
 
-    async verifyPendingProse(): Promise<void> {
-      for (let i = pending.length - 1; i >= 0; i--) {
-        const item = pending[i];
-        if (!item) continue;
-        const status = await deps.client.jobStatus(item.jobId);
-        if (status === 'complete') {
-          pending.splice(i, 1);
-        } else if (status === 'failed') {
-          if (item.retries >= MAX_PROSE_RETRIES) {
-            deps.logger.line(
-              `user: prose for profile ${item.profile} failed after retry — dropped unconfirmed`,
-            );
-            pending.splice(i, 1);
-          } else {
-            // The retry half of verify-and-retry: same raw text, new job.
-            const handle = await deps.client.ingest(item.profile, item.text);
-            item.jobId = handle.jobId;
-            item.retries += 1;
-          }
+    /**
+     * Sends every buffered confession, whatever the count — what `pass sweep` calls.
+     *
+     * One ingest call per profile per flush, which is the whole point (M20): XTrace generates
+     * an episode per call, so a batch is what gives the personal synthesis something to
+     * synthesise ACROSS. Failures are logged and the text is already gone from the buffer —
+     * D-10 sanctions that loss, and holding until confirmed is the delivery guarantee this
+     * design deliberately does not build.
+     */
+    async flushProse(): Promise<number> {
+      let sent = 0;
+      for (const flush of deps.buffer.drain()) {
+        try {
+          await deps.client.ingestBatch(flush.profile, flush.texts, flush.convId);
+          sent += flush.texts.length;
+          deps.logger.line(
+            `user: sent ${String(flush.texts.length)} confession(s) for ${flush.profile} as one conversation (${flush.convId})`,
+          );
+        } catch (error) {
+          deps.logger.line(
+            `user: flush FAILED for ${flush.profile} — ${String(flush.texts.length)} confession(s) lost, ` +
+              `which D-10 accepts: ${error instanceof Error ? error.message : String(error)}`,
+          );
         }
-        // 'pending'/'unknown': keep holding the text — verified-drop, never TTL.
       }
-    },
-
-    dropUnconfirmedProse(): number {
-      const dropped = pending.length;
-      for (const item of pending) {
-        deps.logger.line(
-          `user: dropping unconfirmed prose for profile ${item.profile} — process ending before the substrate confirmed it`,
-        );
-      }
-      pending.length = 0;
-      return dropped;
+      return sent;
     },
   };
 }

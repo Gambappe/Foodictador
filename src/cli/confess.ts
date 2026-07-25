@@ -93,13 +93,28 @@ interface WroteFlags {
   prose: boolean;
 }
 
-function targetLines(wrote: WroteFlags): string[] {
+/**
+ * The per-target receipt.
+ *
+ * `your memory` distinguishes SENT from HELD (M20). It used to read
+ * `ok (your words, your tier only)` unconditionally, which became untrue the moment
+ * confessions started being buffered so several could share one ingest call — the words are
+ * on this machine, not in XTrace, at the moment the line is printed. Deferral is not loss,
+ * and D-10 accepts the loss anyway, but a receipt that overstates what happened is the same
+ * defect as `forget` printing "Deleted from Confit" over two skipped targets.
+ */
+function targetLines(wrote: WroteFlags, proseBuffered: number): string[] {
   const mark = (ok: boolean): string => (ok ? 'ok' : 'FAILED');
+  const memory = !wrote.prose
+    ? 'FAILED (your words were not recorded)'
+    : proseBuffered === 0
+      ? 'ok     (your words, sent to your tier only)'
+      : `held   (with ${proseBuffered} of yours — sent together, or on the next sweep)`;
   return [
     `  relay          ${mark(wrote.relay)}   (makes it visible on other devices now)`,
     `  pool           ${mark(wrote.pool)}   (settles over the next few minutes)`,
     `  ingest handle  ${mark(wrote.job)}   (best-effort; the sweeper falls back without it)`,
-    `  your memory    ${mark(wrote.prose)}   (your words, your tier only)`,
+    `  your memory    ${memory}`,
   ];
 }
 
@@ -169,7 +184,7 @@ export async function confess(deps: ConfessDeps, input: ConfessInput): Promise<C
       ...preview,
       '',
       `Added to the pot as ${result.read_id}.`,
-      ...targetLines(result.wrote),
+      ...targetLines(result.wrote, result.proseBuffered),
       ...result.warnings.map((warning) => `  ! ${warning}`),
       ...(pooled ? [] : ['', 'This read is NOT pooled — the relay write failed.']),
     ],

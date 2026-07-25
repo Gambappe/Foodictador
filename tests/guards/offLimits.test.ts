@@ -20,7 +20,7 @@ import { describe, expect, it } from 'vitest';
 import type { MemoryClient, Relay } from '../../src/contracts/modules.js';
 import type { MemoryRow, Read, UsualProfile } from '../../src/contracts/types.js';
 import { sampleUsual } from '../../src/contracts/fixtures/index.js';
-import { StubSettingsStore } from '../../src/contracts/stubs/index.js';
+import { StubSettingsStore, StubProseBuffer } from '../../src/contracts/stubs/index.js';
 import { createLogger } from '../../src/config/logger.js';
 import { createPoolStore, POOL_SCOPE } from '../../src/memory/pool.js';
 import { createUserStore } from '../../src/memory/user.js';
@@ -83,7 +83,15 @@ async function harness(offLimits: string[]) {
   const substrate = fakeSubstrate();
   const { relay, entries } = fakeRelay();
   const pool = createPoolStore({ client: substrate.client, logger, placeName: (id: string) => id.replaceAll('_', ' ') });
-  const user = createUserStore({ client: substrate.client, settings: new StubSettingsStore(), logger });
+  // The buffer is exposed because M20 made it the destination the prose actually reaches
+  // first. Counting XTrace rows alone would make every zero-assertion below trivially true.
+  const buffer = new StubProseBuffer();
+  const user = createUserStore({
+    client: substrate.client,
+    settings: new StubSettingsStore(),
+    buffer,
+    logger,
+  });
 
   // The topic list travels the real path: written through setUsual — the only
   // write path for off-limits topics — and read back through usual().
@@ -97,6 +105,8 @@ async function harness(offLimits: string[]) {
     storedOffLimits,
     relayEntries: entries,
     countRows: substrate.countRows,
+    /** Confessions held for batching. See the note on `buffer` above. */
+    buffered: (profileId: string) => buffer.pending(profileId),
   };
 }
 
@@ -117,6 +127,10 @@ describe('G2: a flagged topic yields zero new records in BOTH tiers', () => {
     expect(h.countRows(POOL_SCOPE) - poolRowsBefore).toBe(0); // no pool read
     expect(h.relayEntries).toHaveLength(0); // no relay entry
     expect(h.countRows('A') - userRowsBefore).toBe(0); // no user-scope prose
+    // AND nothing buffered. M20 made prose batched, which turned the row-count assertion
+    // above into a tautology — a blocked confession sitting in the buffer would have passed
+    // it, then been ingested on the next flush. [E24] means nowhere, including "not yet".
+    expect(h.buffered('A')).toBe(0);
   });
 
   it('the block is case- and accent-insensitive end to end', async () => {
@@ -130,6 +144,7 @@ describe('G2: a flagged topic yields zero new records in BOTH tiers', () => {
     });
     expect(result).toEqual({ blocked: true });
     expect(h.countRows('A')).toBe(before);
+    expect(h.buffered('A')).toBe(0);
     expect(h.relayEntries).toHaveLength(0);
   });
 
@@ -144,6 +159,7 @@ describe('G2: a flagged topic yields zero new records in BOTH tiers', () => {
     });
     expect(result).toEqual({ blocked: true });
     expect(h.countRows('A')).toBe(before);
+    expect(h.buffered('A')).toBe(0);
     expect(h.countRows(POOL_SCOPE)).toBe(0);
     expect(h.relayEntries).toHaveLength(0);
   });
@@ -161,7 +177,11 @@ describe('G2: a flagged topic yields zero new records in BOTH tiers', () => {
     expect(result.wrote).toEqual({ relay: true, pool: true, job: true, prose: true });
     expect(h.relayEntries).toHaveLength(1);
     expect(h.countRows(POOL_SCOPE)).toBe(1);
-    expect(h.countRows('A') - userRowsBefore).toBe(1); // exactly the prose
+    // The prose is BUFFERED, not yet in XTrace (M20) — batched so several confessions can
+    // share one ingest call. So the control asserts it reached the personal-tier path, which
+    // is what makes the zero-assertions above meaningful.
+    expect(h.buffered('A')).toBe(1);
+    expect(h.countRows('A') - userRowsBefore).toBe(0);
   });
 
   it('editing the topic away via setUsual unblocks — the list is live, not cached', async () => {

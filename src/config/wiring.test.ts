@@ -19,6 +19,7 @@ const withKey: AppConfig = {
   relayToken: 'rt',
   anthropicApiKey: 'sk-test',
   settleWindowSeconds: 480,
+  proseBufferPath: '/tmp/confit-test-prose.json',
 };
 
 const withoutKey: AppConfig = { ...withKey, anthropicApiKey: null };

@@ -124,9 +124,31 @@ export interface SettingsStore {
   put(profile: string, key: string, value: unknown): Promise<void>;
 }
 
+/**
+ * What a confession write did — buffered, or sent as part of a batch (M20).
+ *
+ * A `JobHandle` is no longer the right answer, because most calls do not produce a job: the
+ * confession is held so several can share one ingest call. `confess` prints this, so it must
+ * distinguish "held" from "sent" — telling a user their words reached their memory when they
+ * are sitting in a buffer is a false receipt, and deferral is not loss.
+ */
+export interface ProseWrite {
+  /** Confessions now waiting to be sent, after this call. `0` means this call sent them. */
+  buffered: number;
+  /** Present only when this call triggered a flush. */
+  jobId?: string;
+}
+
 export interface UserStore {
-  /** Ingests the confession as raw prose, unmodified ([E11]). */
-  writeProse(profile: string, text: string): Promise<JobHandle>;
+  /**
+   * Buffers the confession, byte-identical, and sends the batch when one has accumulated.
+   *
+   * [E11] is untouched — buffering changes WHEN a confession is ingested, never WHAT. It is
+   * batched because XTrace generates an episode per ingest CALL: measured, eight
+   * one-at-a-time confessions produced eight per-confession paraphrases across eight
+   * `conv_id`s, and a shared `conv_id` across separate POSTs does not merge them (M20).
+   */
+  writeProse(profile: string, text: string): Promise<ProseWrite>;
   /**
    * XTrace's synthesis over THIS user's own confessions — D-8's second input (M16).
    *
