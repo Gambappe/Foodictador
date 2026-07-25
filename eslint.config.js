@@ -15,7 +15,10 @@ export default tseslint.config(
   js.configs.recommended,
 
   {
-    files: ['**/*.ts'],
+    // `.tsx` included (P0.7): without it the UI lane's files fall through to the plain
+    // JS config, which cannot parse TSX — and a parse error is reported as one lint
+    // problem per file, so a whole lane can look "almost clean" while being unchecked.
+    files: ['**/*.ts', '**/*.tsx'],
     extends: [...tseslint.configs.recommendedTypeChecked],
     languageOptions: {
       parserOptions: {
@@ -57,7 +60,11 @@ export default tseslint.config(
 
   {
     // The UI runs in a browser; a node: import there is a build error waiting to happen.
+    // `.test.ts` under src/ui is exempt (P0.7): it runs under the node project, and U1's
+    // purity check has to read the source text it is asserting about. Rendered tests are
+    // `.test.tsx`, run under jsdom, and stay covered.
     files: ['src/ui/**/*.ts', 'src/ui/**/*.tsx'],
+    ignores: ['src/ui/**/*.test.ts'],
     rules: {
       'no-restricted-imports': [
         'error',
