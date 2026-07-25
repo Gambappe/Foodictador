@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T13:20:19.508Z",
+  "updated_at": "2026-07-25T13:20:21.150Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -993,12 +993,12 @@
       ],
       "mock_start_ok": false,
       "note": "D-8's missing middle. writeProse ingests every confession to the profile scope and NOTHING queries it back — grep finds no synthesis query against a profile scope anywhere, so the personal tier has been pure cost since it was written. Add UserStore.inducedClaim(profile, query) (episodes over the user's own confessions, same shape as PoolStore.inducedClaim) and thread it onto the ask path. CONTRACT CHANGE: NarratorFacts.inducedClaim is singular and would now have two callers — the personal claim ('what you keep doing') and the group claim ('what people like you keep doing') are different promises and must be separate fields, or one silently replaces the other. Also raise INDUCTION_TOP_K's lesson here: facts sort before episodes, so a profile scope thick with prose facts can push its episode past the cut — measure the index before picking k.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "claude-session-014n6NYRN6Rb",
+      "branch": "claude/upload-code-artifact-zop9uz",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T12:23:04.442Z"
+      "claimed_at": "2026-07-25T13:20:21.150Z",
+      "updated_at": "2026-07-25T13:20:21.150Z"
     },
     "M17": {
       "title": "Durable confession spool: verify prose is RETRIEVABLE, not merely 'complete', and re-ingest what XTrace dropped",
