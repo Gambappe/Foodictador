@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T09:04:24.747Z",
+  "updated_at": "2026-07-25T09:05:14.309Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -480,13 +480,13 @@
         "P0.2"
       ],
       "mock_start_ok": false,
-      "note": null,
+      "note": "TRUNK BREAKAGE, found and fixed by claude-session-014n6NYRN6Rb while merging X1: scripts/seed/validate-corpus.ts:41 failed 'npm run lint' on the default branch — String() applied to a possibly-object id, flagged by @typescript-eslint/no-base-to-string, which yields '[object Object]' precisely when a malformed entry is what you are hunting. S1 was merged with the lint gate red, meaning npm run lint was not run or was ignored. Fixed in the X1 PR (one line, error-message path only) because a red trunk blocks every subsequent PR; lane ownership was crossed deliberately and is flagged here. Run all four gates before merging: typecheck, lint, test, build.",
       "status": "done",
       "owner": "fable-session-0dd9z8",
       "branch": "feat/s1-corpus",
       "pr": null,
       "claimed_at": "2026-07-25T08:57:34.639Z",
-      "updated_at": "2026-07-25T08:59:41.512Z"
+      "updated_at": "2026-07-25T09:05:14.308Z"
     },
     "S4": {
       "title": "Demo profiles: UsualProfile + meal log for accounts A and B, validator; B's log rich enough for K3 to fit half-lives",
