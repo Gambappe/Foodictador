@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T08:54:13.082Z",
+  "updated_at": "2026-07-25T08:54:26.019Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -292,13 +292,13 @@
         "M4"
       ],
       "mock_start_ok": false,
-      "note": "Front-end copy is 'deleted from Confit' — never imply cryptographic enforcement (design v0.8 §7).",
-      "status": "claimed",
+      "note": "user-scope target is skipped-with-reason until the ingest ledger exists (src/memory/README.md) — integrator follow-up",
+      "status": "done",
       "owner": "fable-session-0dd9z8",
       "branch": "feat/m8-forget",
       "pr": null,
       "claimed_at": "2026-07-25T08:52:02.271Z",
-      "updated_at": "2026-07-25T08:52:02.271Z"
+      "updated_at": "2026-07-25T08:54:26.019Z"
     },
     "L1": {
       "title": "Template narrator + copy catalog keyed by reason key: reason, rotation, usual and cohort-miss lines, all linter-clean",
