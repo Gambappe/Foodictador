@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T18:04:59.755Z",
+  "updated_at": "2026-07-25T18:05:38.760Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -884,13 +884,13 @@
         "M9"
       ],
       "mock_start_ok": false,
-      "note": "DECISION (D-12, recording in DAG): neither pure (a) nor pure (b) — the open surface coarsens, the authenticated surface keeps today's semantics. GET /reads stays open (P0.4's disclosure posture survives) but serves day-precision received_at, read_id order (arrival-independent), no ingest_job_id/pool_memories, and rejects ?since= with 401 naming [E26]. The same route with Authorization: Bearer <token> serves exactly today's view (precise, arrival-ordered, since-filterable) — M4's client sends the token on list()/stats(), so RelayEntry, the sweeper, PoolView and all counting are UNCHANGED. /stats open floors oldest age to day multiples. Historical ordering becomes unreconstructible from the open surface; live-poll correlation remains the accepted+disclosed slice risk. Building on top of the #65 merge to avoid a second relay conflict wave.",
-      "status": "claimed",
+      "note": "Merged as #73. D-12: dual-view relay — open surface serves no ordering (day stamps, read_id order, no since, no metadata), x-relay-token header serves the operator view unchanged; sweeper/PoolView/contracts untouched. README Known-gap section is now the closure record.",
+      "status": "done",
       "owner": "fable-session-0dd9z8",
       "branch": "feat/p0.9-e26-ordering",
       "pr": null,
       "claimed_at": "2026-07-25T17:05:56.496Z",
-      "updated_at": "2026-07-25T17:05:58.077Z"
+      "updated_at": "2026-07-25T18:05:38.760Z"
     },
     "G8": {
       "title": "SL-26 fix: the CLI acceptance gate must actually drive src/cli — all seven DAG G5 steps through the real dispatcher",
