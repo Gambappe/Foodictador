@@ -42,6 +42,45 @@ Consequences worth knowing before you touch anything here:
 Design v0.8 is superseded on this point ([E9], [E12], [E14], [E21]) — DAG §4 D-7 is
 authoritative until a v0.9 absorbs it.
 
+## M11: declared settings left XTrace, and `ask`/`confess` started working
+
+DAG §4 D-8's split, implemented. `UsualProfile` and the meal log now live in a durable keyed
+store (the relay — see `infra/relay/README.md`); the confession prose stays in XTrace, which is
+what it is good at.
+
+**This was not a quality improvement, it was a repair.** `usual()` returned `null` on every
+cross-process read against the live substrate, and every CLI invocation is a new process — so
+`confit ask` said *"Profile B has no Usual yet"* however many times you provisioned, and
+`confit confess` returned `{"kind":"no_profile"}`, because it reads `usual()` for the
+off-limits list. Both of the product's two commands, dead, for the whole life of the code.
+
+Root cause: three prostheses for three primitives XTrace does not have. A `kind` field used as
+a *search query* instead of addressing, `written_at` ordering to arbitrate the duplicates a
+missing upsert guarantees, and a JSON body to survive extraction. All three fail together,
+because extraction drops the tag **and** the JSON — probed live, `0` rows carrying
+`confit:usual` and `0` verbatim-JSON rows across three queries on two profiles.
+
+Deleted with the move: `findTagged`, `parseTagged`, `newestParsed`, `replaceTagged`,
+`written_at` ordering, and both write-through caches. Every one existed only to work around the
+absence of a keyed store. The boundary parsers (`parseUsualProfile`, `parseMealLogEntry`) stay
+untouched — they were the part that was right, and SL-04 hardened them.
+
+Two behaviours are new rather than ported:
+
+- **A read failure PROPAGATES.** It must not soften to `null`, because X2 reads `null` as "not
+  provisioned" — an unreachable store reported as an empty off-limits list is precisely the
+  failure D-8 moved this data to avoid. `settingsIntegrity.test.ts` asserts the confession
+  cannot be written when the store is unreachable, which is also the fix for **SL-35** (that
+  guard was titled "fails CLOSED" while asserting the write went through — true of the old
+  store, which could not do better).
+- **`setUsual` parses on the way IN.** It is the only write path for off-limits topics (G2, X7,
+  U4), so a caller with a hand-built object does not get to put an unhonourable constraint into
+  durable storage.
+
+Verified live end to end: `pass provision` → `confess` (7×) → `pass census` (k=7, citable) →
+`ask --profile B`, which printed a full card with all four design v0.8 §5 lines for the first
+time.
+
 ## M12/M14: induction needs grouped conversations AND prose. Measured.
 
 The one role XTrace kept after D-7 and M11 is cross-record synthesis. It was not working, and

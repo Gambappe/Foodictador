@@ -20,6 +20,11 @@
 
 import type { Read } from '../../src/contracts/types.js';
 
+/** NUL-joined, so no profile id can spell another profile's key. */
+function settingsKey(profile: string, key: string): string {
+  return `${profile}\u0000${key}`;
+}
+
 export interface StoredEntry {
   read: Read;
   received_at: string;
@@ -39,6 +44,16 @@ export interface RelayStoreOptions {
 
 export class RelayStore {
   private entries = new Map<string, StoredEntry>();
+  /**
+   * Per-profile settings, keyed `<profile>\u0000<key>`.
+   *
+   * Here rather than in a separate service because D-8 needs a durable store for declared
+   * settings and this is the one that exists — P0.8 already made every mutation atomic and
+   * fsynced before it is acknowledged, which is exactly the guarantee an allergy list needs.
+   * NUL as the separator so a profile id containing the separator cannot forge another
+   * profile's key.
+   */
+  private settings = new Map<string, unknown>();
   private readonly nowFn: () => Date;
   private readonly persistFn: PersistFn | null;
   /** Suppresses persistence while `restore` repopulates from disk. */
@@ -137,16 +152,32 @@ export class RelayStore {
     });
   }
 
+  settingsGet(profile: string, key: string): unknown {
+    return this.settings.get(settingsKey(profile, key)) ?? null;
+  }
+
+  settingsPut(profile: string, key: string, value: unknown): void {
+    this.mutate(() => {
+      this.settings.set(settingsKey(profile, key), value);
+    });
+  }
+
   serialize(): string {
-    return JSON.stringify({ entries: [...this.entries.values()] });
+    return JSON.stringify({
+      entries: [...this.entries.values()],
+      settings: Object.fromEntries(this.settings),
+    });
   }
 
   /** Skips structurally invalid entries rather than keying the map on undefined. */
   restore(json: string): { restored: number; skipped: number } {
-    const parsed = JSON.parse(json) as { entries?: unknown[] };
+    const parsed = JSON.parse(json) as { entries?: unknown[]; settings?: Record<string, unknown> };
     this.loading = true;
     try {
       this.entries.clear();
+      // Absent in any snapshot written before settings existed, and an empty object is the
+      // right reading of that — a pre-D-8 relay held no settings.
+      this.settings = new Map(Object.entries(parsed.settings ?? {}));
       let skipped = 0;
       for (const raw of parsed.entries ?? []) {
         const entry = raw as StoredEntry | null;

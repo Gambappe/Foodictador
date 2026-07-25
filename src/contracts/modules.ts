@@ -92,6 +92,38 @@ export interface PoolStore {
   inducedClaim(query: string): Promise<string>;
 }
 
+/**
+ * Durable per-profile settings — the DECLARED half of DAG §4 D-8.
+ *
+ * A plain keyed store, because that is the primitive the settings path actually needs and
+ * never had. XTrace offers no addressing, no upsert and no byte fidelity, so M3 built three
+ * prostheses for them — a `kind` tag used as a search query, `written_at` ordering to pick
+ * between duplicates XTrace's missing upsert guarantees, and a JSON body to survive
+ * extraction. All three failed at once, because extraction drops the tag AND the JSON:
+ * `usual()` returned null on every live read, which took out `confit ask` and `confit
+ * confess` together.
+ *
+ * D-8's rule is what makes this a different interface rather than a fixed one: the user
+ * ASSERTED these facts and expects them honoured exactly. `offLimits` and `giConstraint` are
+ * allergy and medical data, and `~11/16` non-deterministic retention is not a quality
+ * question when a dropped topic means a confession that should have been blocked is written
+ * to the pool.
+ *
+ * Values are `unknown` on the way out on purpose: the caller parses at the boundary (§1), so
+ * a store that round-trips garbage cannot launder it into a type.
+ */
+export interface SettingsStore {
+  /**
+   * `null` means absent. Not ambiguous in practice: every value this store holds is an
+   * object or an array, so nothing stores a bare `null` for the reading to collide with.
+   * Typed `unknown` rather than `unknown | null` because `unknown` already admits null —
+   * the contract is in this sentence, not in the union.
+   */
+  get(profile: string, key: string): Promise<unknown>;
+  /** Overwrites. There is no merge: the caller owns the whole value for a key. */
+  put(profile: string, key: string, value: unknown): Promise<void>;
+}
+
 export interface UserStore {
   /** Ingests the confession as raw prose, unmodified ([E11]). */
   writeProse(profile: string, text: string): Promise<JobHandle>;
