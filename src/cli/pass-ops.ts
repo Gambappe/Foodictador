@@ -8,6 +8,7 @@
  * N1's rules. Every mutation prints exactly what it changed.
  */
 
+import { saveFlags } from '../config/flagStore.js';
 import type { Nudge, Relay, UserStore } from '../contracts/modules.js';
 import type { Flags } from '../contracts/flags.js';
 import type { FlagStore, Logger } from '../config/index.js';
@@ -268,7 +269,24 @@ export const resetHandler: CommandHandler = (context) => {
 };
 
 export const flagsHandler: CommandHandler = (context) => {
-  return Promise.resolve(runFlags(context.argv.values['set'], context.flags));
+  const result = runFlags(context.argv.values['set'], context.flags);
+  // Remembered across processes (SL-60). Every `confit` invocation is its own process, so
+  // mutating the in-process store alone made `--set` a no-op that printed a transition —
+  // `pool: live → relay-only`, and the next command read `live`. Persisted only when the
+  // command actually changed something, for the same reason `pass nudge` is: writing a fresh
+  // default over real state on a usage error is self-inflicted SL-23.
+  if (context.argv.values['set'] !== undefined && result.exit === undefined) {
+    try {
+      saveFlags(context.config, context.flags.get());
+    } catch (error) {
+      context.logger.line(
+        `flags: set applied for this command but NOT remembered: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+  return Promise.resolve(result);
 };
 
 export const nudgeHandler: CommandHandler = async (context) => {
