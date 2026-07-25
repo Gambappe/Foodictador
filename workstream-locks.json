@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T09:49:04.440Z",
+  "updated_at": "2026-07-25T09:49:17.662Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -790,12 +790,12 @@
       ],
       "mock_start_ok": false,
       "note": "Registered by claude-session-12uj0q while implementing U1, same reason P0.6 was registered: nothing owned it. U1 Owns only vite.config.ts, tailwind.config.ts, index.html and src/ui/**, but its Build line says 'add Vite, React 18, Tailwind' and its acceptance needs npm run build + a rendered-route test — all of which live in package.json, tsconfig.json, vitest.config.ts and eslint.config.js (lane P0, DAG §2). P0.1's own spec grants the dependency half ('the UI lane adds them at U1'); this task covers the config half so no U-lane PR silently edits integrator files.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "claude-session-12uj0q",
+      "branch": "claude/app-design-task-impl-12uj0q",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T09:49:04.439Z"
+      "claimed_at": "2026-07-25T09:49:17.662Z",
+      "updated_at": "2026-07-25T09:49:17.662Z"
     }
   }
 }
