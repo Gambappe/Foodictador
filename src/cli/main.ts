@@ -11,6 +11,14 @@
  */
 
 import { pathToFileURL } from 'node:url';
+import { askHandler } from './ask.js';
+import {
+  flagsHandler,
+  nudgeHandler,
+  provisionHandler,
+  resetHandler,
+  seedHandler,
+} from './pass-ops.js';
 import { loadConfig, createFlagStore, createLogger, initialFlags } from '../config/index.js';
 import type { AppConfig, FlagStore, Logger } from '../config/index.js';
 import {
@@ -85,6 +93,7 @@ export const COMMANDS: readonly CommandSpec[] = [
     options: ['profile'],
     requires: ['profile'],
     task: 'X3',
+    handler: askHandler,
   },
   {
     path: ['sweep'],
@@ -114,16 +123,29 @@ export const COMMANDS: readonly CommandSpec[] = [
     summary: 'create the demo profiles',
     options: ['profile'],
     task: 'X7',
+    handler: provisionHandler,
   },
-  { path: ['pass', 'seed'], summary: 'load the seed corpus into the pool and relay', task: 'X7' },
-  { path: ['pass', 'reset'], summary: 'clear the pool and relay', task: 'X7' },
+  {
+    path: ['pass', 'seed'],
+    summary: 'load the seed corpus into the pool and relay',
+    task: 'X7',
+    handler: seedHandler,
+  },
+  { path: ['pass', 'reset'], summary: 'clear the pool and relay', task: 'X7', handler: resetHandler },
   {
     path: ['pass', 'flags'],
     summary: 'show degrade flags, or set one with --set key=value',
     options: ['set'],
     task: 'X7',
+    handler: flagsHandler,
   },
-  { path: ['pass', 'nudge'], summary: 'arm the nudge with --arm', options: ['arm'], task: 'X7' },
+  {
+    path: ['pass', 'nudge'],
+    summary: 'arm the nudge with --arm',
+    options: ['arm'],
+    task: 'X7',
+    handler: nudgeHandler,
+  },
 ];
 
 function formatPath(spec: CommandSpec): string {
