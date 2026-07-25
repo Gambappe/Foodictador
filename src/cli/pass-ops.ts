@@ -216,11 +216,25 @@ export function runNudgeArm(nudge: Nudge, armed: boolean): CommandResult {
 // ---- integration wiring (handlers main.ts registers) ----
 
 import type { CommandContext, CommandHandler } from './main.js';
-import { createNudge } from '../nudge/nudge.js';
+import { createNudge, parseNudgeState } from '../nudge/nudge.js';
 import { loadSeeds, readSeedArtifact } from '../../scripts/seed/load-seeds.js';
 
-/** Demo-timer nudge: per-process state, matching design v0.8 §6. */
-const processNudge = createNudge();
+/**
+ * Where the nudge's state lives between processes (N2, closing SL-23).
+ *
+ * A pseudo-profile, because the nudge is DEVICE state, not profile state — `pass nudge
+ * --arm` takes no `--profile`, N1 keys firing on the device's local day, and the demo arms
+ * one timer for the room. The underscore prefix keeps it out of the namespace real profiles
+ * use (`A`, `B`); the settings path is the durable home declared data already trusts (D-8),
+ * which is exactly the guarantee "silenced forever" needs — a "never" that evaporates on
+ * process exit was SL-23's finding.
+ *
+ * The UI banner (`src/ui/screens.tsx`) still holds an in-memory nudge behind its
+ * NOT_CONNECTED backend; when a real backend lands, it should read and write THIS key
+ * rather than growing a second copy of the state.
+ */
+export const NUDGE_SETTINGS_PROFILE = '_device';
+export const NUDGE_SETTINGS_KEY = 'nudge-state';
 
 /** One graph per invocation, from P0.6's single wiring seam. */
 function wire(context: CommandContext) {
@@ -257,6 +271,21 @@ export const flagsHandler: CommandHandler = (context) => {
   return Promise.resolve(runFlags(context.argv.values['set'], context.flags));
 };
 
-export const nudgeHandler: CommandHandler = (context) => {
-  return Promise.resolve(runNudgeArm(processNudge, context.argv.flags.has('arm')));
+export const nudgeHandler: CommandHandler = async (context) => {
+  const { settings } = context.graph;
+  const stored = await settings.get(NUDGE_SETTINGS_PROFILE, NUDGE_SETTINGS_KEY);
+  const parsed = stored === null || stored === undefined ? null : parseNudgeState(stored);
+  if (stored !== null && stored !== undefined && parsed === null) {
+    context.logger.line(
+      'nudge: stored state was malformed — starting fresh rather than guessing at a half-parsed one',
+    );
+  }
+  const nudge = createNudge(parsed ?? undefined);
+  const result = runNudgeArm(nudge, context.argv.flags.has('arm'));
+  // Persist only when the command actually did something: a usage error mutated nothing,
+  // and writing a fresh default over real state on a typo would be self-inflicted SL-23.
+  if (result.exit === undefined) {
+    await settings.put(NUDGE_SETTINGS_PROFILE, NUDGE_SETTINGS_KEY, nudge.state());
+  }
+  return result;
 };

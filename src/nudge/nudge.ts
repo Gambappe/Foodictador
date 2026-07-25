@@ -64,3 +64,22 @@ export function createNudge(initial: Partial<NudgeState> = {}): Nudge {
     },
   };
 }
+
+/**
+ * Parse a persisted NudgeState at the boundary (N2, closing SL-23).
+ *
+ * The stored value comes back `unknown` from the SettingsStore on purpose — a store that
+ * round-trips garbage must not launder it into a type (§1). `null` means "do not trust
+ * this": the caller starts fresh and says so. Strict on shape and types, because a nudge
+ * that half-parses `silenced` could fire at someone who said never.
+ */
+export function parseNudgeState(value: unknown): NudgeState | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const { optedIn, silenced, armed, lastFiredDay } = record;
+  if (typeof optedIn !== 'boolean') return null;
+  if (typeof silenced !== 'boolean') return null;
+  if (typeof armed !== 'boolean') return null;
+  if (lastFiredDay !== null && typeof lastFiredDay !== 'string') return null;
+  return { optedIn, silenced, armed, lastFiredDay };
+}
