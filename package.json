@@ -26,7 +26,8 @@
     "confit": "tsx src/cli/main.ts",
     "gate0": "tsx scripts/gate0.ts",
     "gate:cli": "bash scripts/gate-cli.sh",
-    "dev": "vite"
+    "dev": "vite",
+    "preflight": "node scripts/preflight.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

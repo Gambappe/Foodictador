@@ -90,6 +90,6 @@ echo "────────────────────────�
 echo "Next:"
 echo "  1. Fill in the blanks in .confit.env"
 echo "  2. source .confit.env"
-echo "  3. bash scripts/preflight.sh      # must exit 0"
+echo "  3. npm run preflight              # must exit 0"
 echo
 echo "Read docs/demo-runbook.md before demo day, not on it."

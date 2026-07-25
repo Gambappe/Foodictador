@@ -1,7 +1,7 @@
 # Confit demo runbook
 
 Three laptops, one cloud-hosted relay. This is an operations document — read it before
-demo day, follow it on demo day. It is not executable; `scripts/preflight.sh` is the part
+demo day, follow it on demo day. It is not executable; `npm run preflight` is the part
 that enforces rather than explains.
 
 **The one thing to internalise:** every failure that ruins this demo is silent. A cohort
@@ -123,8 +123,12 @@ means something is wrong.
 ### T−1h — pre-flight, on every laptop
 
 ```bash
-bash scripts/preflight.sh
+npm run preflight
 ```
+
+Node, not bash — two of the three laptops are Windows and Git Bash is not a dependency
+worth adding to a machine whose job is to run one command on stage. Identical output and
+exit code on macOS and Windows.
 
 Must exit 0. It checks node ≥ 20, `dist/`, credentials, relay reachability, that the pool
 is not empty, and then the two invariants:
