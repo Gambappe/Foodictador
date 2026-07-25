@@ -168,9 +168,20 @@ function cmdInit({ flags }) {
   let seedTasks = {};
   if (flags.seed) {
     const seeded = JSON.parse(readFileSync(flags.seed, 'utf8'));
-    seedTasks = seeded.tasks ?? seeded;
+    // Same validation + normalization as `add-tasks`: ids/titles/deps are checked and
+    // every entry is born `available` and unowned — an init seed cannot smuggle claims.
+    const fresh = { tasks: {} };
+    mergeSeedTasks(fresh, seeded.tasks ?? seeded, new Date().toISOString());
+    seedTasks = fresh.tasks;
   }
   git(['worktree', 'prune']);
+  try {
+    // A previous init leaves a local branch behind (checkout --orphan creates one);
+    // drop it or the orphan checkout below refuses the name. Origin stays the truth.
+    git(['branch', '-D', LOCKS_BRANCH]);
+  } catch {
+    /* no stale local branch */
+  }
   const dir = mkdtempSync(path.join(tmpdir(), 'ws-locks-init-'));
   git(['worktree', 'add', '--detach', dir, 'HEAD']);
   try {

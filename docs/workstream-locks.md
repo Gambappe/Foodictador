@@ -128,7 +128,8 @@ init [--seed <file>] [--force]
 Bootstraps the `workstream-locks` branch. Already done for this repo (seeded from
 `docs/confit-tasks.seed.json`) — you should not need this unless you're intentionally
 resetting the whole registry (`--force`, destroys current state) or spinning up the same
-pattern in a different repo.
+pattern in a different repo. Seed files use the same shape and normalization as
+`add-tasks` — entries are validated and born `available`/unowned either way.
 
 ```
 status [taskId] [--json]
