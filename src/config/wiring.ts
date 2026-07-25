@@ -27,15 +27,7 @@ import type {
   Relay,
   UserStore,
 } from '../contracts/modules.js';
-import {
-  StubExtractor,
-  StubMemoryClient,
-  StubNarrator,
-  StubPoolStore,
-  StubPoolView,
-  StubRelay,
-  StubUserStore,
-} from '../contracts/stubs/index.js';
+import { StubExtractor, StubMemoryClient, StubRelay } from '../contracts/stubs/index.js';
 import { createMemoryClient, createFetchTransport } from '../memory/client.js';
 import { createPoolStore } from '../memory/pool.js';
 import { createPoolView } from '../memory/poolView.js';
@@ -123,11 +115,20 @@ export interface FixtureGraphOptions {
 }
 
 /**
- * The P0.2 stubs, wired the same shape as the live graph.
+ * A graph with no network, no API key and no XTrace credentials — what `gate:cli` runs.
  *
- * This is what `gate:cli` runs against: no network, no API key, no XTrace credentials.
- * Flags start all-`live` on purpose — the stubs *are* the implementations here, so
- * pretending to be degraded would hide which path the gate exercised.
+ * **Only the I/O leaves are stubbed.** `StubMemoryClient` (which really does round-trip
+ * rows per scope) and `StubRelay` stand in for the two things that would otherwise open a
+ * socket; `PoolStore`, `UserStore` and `PoolView` are the *real* M2/M3/M6 implementations
+ * on top of them, and copy comes from the real L1 template narrator.
+ *
+ * That distinction is the difference between a gate that proves something and a gate that
+ * proves the stubs agree with each other. `StubPoolView` in particular serves a static
+ * baseline, so a confession written during the run could never change what Ask returns —
+ * and "the cohort citation moved" is the one assertion the acceptance run exists to make.
+ *
+ * Flags start all-`live`: the implementations above the leaves are the real ones, so
+ * reporting degraded would misdescribe which path the gate exercised.
  */
 export function fixtureGraph(options: FixtureGraphOptions): AdapterGraph {
   const { logger } = options;
@@ -139,19 +140,23 @@ export function fixtureGraph(options: FixtureGraphOptions): AdapterGraph {
   );
 
   const client = new StubMemoryClient();
-  const pool = new StubPoolStore();
   const relay = new StubRelay(now);
+  const pool = createPoolStore({ client, logger });
+  const user = createUserStore({ client, logger });
+  const poolView = createPoolView({ pool, relay, flags, logger });
 
   return {
     client,
     pool,
-    user: new StubUserStore(),
+    user,
     relay,
-    poolView: new StubPoolView(),
+    poolView,
     extractor: new StubExtractor(),
-    narrator: new StubNarrator(),
+    // The real L1 narrator, not StubNarrator: template copy is the default production
+    // path when no key is present, so the gate should exercise it.
+    narrator: templateNarrator,
     flags,
     logger,
-    settleWindowSeconds: 0, // Nothing settles asynchronously in a stub graph.
+    settleWindowSeconds: 0, // Nothing settles asynchronously behind a stub client.
   };
 }
