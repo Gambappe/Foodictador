@@ -1,0 +1,11 @@
+node_modules
+dist
+.git
+.github
+coverage
+docs
+*.md
+.confit.env
+.confit.env.ps1
+relay.json
+relay.json.*

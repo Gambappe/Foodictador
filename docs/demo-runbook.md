@@ -48,6 +48,71 @@ each confession arrived.
 
 ---
 
+## Deploying the relay (Tailscale)
+
+On the cloud box, once — needs Docker and nothing else.
+
+**1. Make a Tailscale auth key** in the admin console (Settings → Keys). Tick *Ephemeral*
+off (you want the node to survive a restart) and *Reusable* on if you may redeploy. If you
+use the `tag:confit-relay` tag the compose file advertises, create that tag in your ACL
+policy first — `tailscaled` refuses a key whose tag does not exist.
+
+**2. Bring it up.**
+
+```bash
+git clone <repo> && cd infra/relay
+export TS_AUTHKEY=tskey-auth-...
+export RELAY_TOKEN=...          # the same value every laptop uses
+docker compose up -d
+docker compose logs -f relay    # expect: relay: listening on :8787 (durable → …)
+```
+
+**There is no `ports:` stanza in the compose file, and that is the point.** Nothing is
+published to the host, so the relay is on no public interface. It shares the Tailscale
+container's network namespace, which makes it reachable at `confit-relay:8787` from the
+tailnet and from nowhere else. If you ever find yourself adding `ports:` to make something
+work, stop — that undoes the entire security posture.
+
+**3. On each laptop**, join the same tailnet and point at the box:
+
+```bash
+tailscale up
+export RELAY_URL=http://confit-relay:8787   # MagicDNS; or use the tailnet IP
+npm run preflight
+```
+
+If preflight cannot reach the relay it will tell you to check `tailscale status` first —
+on this topology the tunnel is a likelier culprit than the box.
+
+### Why Tailscale rather than a public listener with TLS
+
+The operator token travels as an `x-relay-token` header on *every* request. P0.9 closed
+the ordering side channel on the open read view, but the token is still a shared bearer
+secret, and on conference wifi over plain HTTP it is readable. Tailscale encrypts it end
+to end and is outbound-only, so venue client isolation cannot block the laptops. A public
+box with a TLS proxy would also work; this is fewer moving parts and keeps the relay off
+the internet entirely.
+
+### The volume is the demo
+
+`relay-data` holds the snapshot. Under D-7 a read exists verbatim there and nowhere else —
+XTrace extracts prose rather than storing objects. **Losing that volume loses every
+confession, permanently.** `docker compose down` keeps it; `docker compose down -v`
+destroys it. Back it up if the demo content matters afterwards:
+
+```bash
+docker run --rm -v confit_relay-data:/d -v "$PWD":/b alpine \
+  tar czf /b/relay-backup.tgz -C /d .
+```
+
+The image is two-stage: it compiles from source rather than trusting a `dist/` someone
+built on a laptop, and the runtime layer is node plus ~2.5 MB of `dist/` with **no
+`node_modules` at all** — the compiled relay imports nothing outside node builtins. Tests
+are deleted before the runtime layer, since they are the only thing that would drag
+`vitest` into the image.
+
+---
+
 ## Environment
 
 **Relay box**
