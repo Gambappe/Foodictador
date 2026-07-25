@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T17:05:58.078Z",
+  "updated_at": "2026-07-25T17:11:11.069Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -1126,12 +1126,12 @@
       "depends_on": [],
       "mock_start_ok": false,
       "note": "Released unstarted: the real fix needs SettingsStore threaded onto AdapterGraph (src/config/wiring.ts, both liveGraph and fixtureGraph) since nudge state has no natural per-profile scope today (pass nudge --arm takes no --profile) — a design call (which scope key to persist under) plus a wiring change in a file another concurrent session is actively iterating on (M11/M19 touched wiring.ts and the settings store this same session). Left for a session that can coordinate on the wiring change rather than risk a collision.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "fable-session-0dd9z8",
+      "branch": "feat/n2-nudge-persistence",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T13:05:10.518Z"
+      "claimed_at": "2026-07-25T17:11:11.069Z",
+      "updated_at": "2026-07-25T17:11:11.069Z"
     },
     "M19": {
       "title": "Allergies have a durable home and no field to put them in: UsualProfile has no allergy, and offLimits does not filter recommendations",
