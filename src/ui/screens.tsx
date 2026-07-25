@@ -77,8 +77,9 @@ export function ConfessRoute({ backend }: { backend: UiBackend }) {
   const usual = useAsync<UsualProfile>(load);
 
   if (usual.state === 'loading') return <Loading what="Confess" />;
-  // The off-limits list is a safety input, not decoration: guessing `[]` because the
-  // profile did not load would offer to pool a topic the author had forbidden.
+  // The off-limits list gates RECORDING, not recommendations (D-9) — but it is still not
+  // decoration: guessing `[]` because the profile did not load would offer to pool a topic
+  // the author had forbidden.
   if (usual.state === 'failed') return <Unavailable what="Confess" error={usual.error} />;
 
   return (

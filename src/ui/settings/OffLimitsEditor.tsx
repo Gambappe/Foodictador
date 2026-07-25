@@ -66,6 +66,17 @@ export function OffLimitsEditor({ usual, onSave }: OffLimitsEditorProps) {
         A confession touching one of these is not recorded anywhere — not in the pot, and
         not in your own memory.
       </p>
+      {/*
+        D-9. This is the one screen where someone types "shellfish", and the heading above
+        invites them to read it as "keep me away from shellfish". It does not do that: it
+        gates what Confit RECORDS, not where Confit sends you. Confit does not screen menus
+        and the corpus carries no allergen data at all, so saying so here is the difference
+        between a limitation and a false promise.
+      */}
+      <p data-testid="off-limits-scope" className="mt-2 text-sm text-refusal">
+        This controls what Confit writes down, not where it sends you. Confit does not check
+        menus for allergens — please check for yourself.
+      </p>
 
       <form
         className="mt-3 flex gap-2"

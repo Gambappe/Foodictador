@@ -60,7 +60,12 @@ const DRIVER_PROSE: Record<Driver, string> = {
   portion_small: 'they want a smaller plate than they are given',
   solo_comfort: 'they are eating alone and would rather that went unremarked',
   gi_constraint: 'their stomach decides the menu',
-  allergy_constraint: 'something on the menu is genuinely unsafe for them',
+  // NOT "genuinely unsafe" (D-9). This prose is fed to an extractor and can come back as an
+  // induced claim on a card — measured live: "a repeated pattern in which people's ordering
+  // behavior was explained by something on the menu being genuinely unsafe". Confit does not
+  // screen allergens, so a card must never sound as though it knows what is safe to eat.
+  // Describes the avoidance, asserts nothing about safety.
+  allergy_constraint: 'there is something on the menu they have to avoid',
   sensory_shift: 'what tasted right to them has changed',
   companion_constraint: 'they were ordering around someone else at the table',
   emotional_exclusion: 'the place carries something they would rather not revisit',

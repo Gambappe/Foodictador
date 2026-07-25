@@ -177,3 +177,16 @@ describe('U4 acceptance: a topic added here blocks a later confess', () => {
     expect(entries).toHaveLength(1);
   });
 });
+
+describe('U4 off-limits — the scope disclaimer (D-9)', () => {
+  it('says off-limits gates recording, not recommendations', () => {
+    // THIS is the screen where someone types "shellfish". The heading invites the reading
+    // "keep me away from shellfish", and Confit cannot do that — the corpus has six place
+    // tags and none is an allergen. Saying so is the difference between a limitation and a
+    // false promise.
+    render(<OffLimitsEditor usual={{ ...sampleUsual, offLimits: ['shellfish'] }} onSave={() => Promise.resolve()} />);
+    const scope = screen.getByTestId('off-limits-scope');
+    expect(scope.textContent).toMatch(/not where it sends you/);
+    expect(scope.textContent).toMatch(/does not check menus for allergens/i);
+  });
+});
