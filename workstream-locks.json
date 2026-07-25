@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T08:30:43.615Z",
+  "updated_at": "2026-07-25T08:32:19.005Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -130,12 +130,12 @@
       ],
       "mock_start_ok": false,
       "note": "KFLOOR is NOT in constants.ts — K6 exports it from src/kernel/cohorts.ts (privacy invariant, lives with its enforcer). Import it; do not declare a second copy. CohortStat carries no per-read signal, so compute pool(p) from the raw reads filtered by the drivers matched() returns. See DAG §4 D-5: six of eleven drivers are currently unmatchable.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "claude-session-014n6NYRN6Rb",
+      "branch": "claude/upload-code-artifact-zop9uz",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T08:27:24.690Z"
+      "claimed_at": "2026-07-25T08:32:19.002Z",
+      "updated_at": "2026-07-25T08:32:19.002Z"
     },
     "K5": {
       "title": "Copy linter: banned-lexicon scan (quantity, weight, calories, progress, streaks, scores, totals) with lexicon as data in its own file",
