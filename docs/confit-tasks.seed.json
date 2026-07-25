@@ -1,0 +1,173 @@
+{
+  "comment": "Seed for scripts/workstream-lock.mjs — the task DAG from docs/confit-implementation-plan.md §4. `phase` is P0 for the all-hands Phase-0 tasks, otherwise the owning lane (A–F, §3.6). depends_on mirrors the task table's 'Depends on' column; prose-only dependencies are recorded as notes.",
+  "tasks": {
+    "T0.1": {
+      "title": "Repo bootstrap: Vite + React 18 + TS strict + Tailwind + zustand + vitest + Playwright; gate script stubs; deploy target wired",
+      "phase": "P0",
+      "depends_on": []
+    },
+    "T0.2": {
+      "title": "Contracts freeze: §3 files + working stubs + fixtures",
+      "phase": "P0",
+      "depends_on": []
+    },
+    "T0.3": {
+      "title": "x-vec spike: encrypted vector write + similarity round-trip; pass/fail verdict by 0:20",
+      "phase": "P0",
+      "depends_on": []
+    },
+    "T0.4": {
+      "title": "Pot-relay deployed with DEMO_TOKEN; curl round-trip from two machines",
+      "phase": "P0",
+      "depends_on": []
+    },
+    "A1": {
+      "title": "KeyService: PBKDF2-SHA256 → AES-256-GCM key; two hardcoded accounts",
+      "phase": "A",
+      "depends_on": ["T0.2"]
+    },
+    "A2": {
+      "title": "Vault: IndexedDB encrypted records; put/get for narrative/usual/meallog",
+      "phase": "A",
+      "depends_on": ["A1"]
+    },
+    "A3": {
+      "title": "x-vec vault adapter + local fallback behind flags.vaultBackend",
+      "phase": "A",
+      "depends_on": ["A2", "T0.3"]
+    },
+    "A4": {
+      "title": "Boundary interceptor (no vault-plaintext to pot/x-vec origins) + boundary.spec.ts",
+      "phase": "A",
+      "depends_on": ["A2"]
+    },
+    "A5": {
+      "title": "Destroy-my-key control: wipes key + vault; reveal shows unreadable store",
+      "phase": "A",
+      "depends_on": ["A3"],
+      "note": "stretch task (§4) — first to skip if the lane is behind"
+    },
+    "B1": {
+      "title": "PotAdapter interface + local impl + fixtures",
+      "phase": "B",
+      "depends_on": ["T0.2"]
+    },
+    "B2": {
+      "title": "Remote pot: x-vec collection primary, relay fallback, flags.potBackend",
+      "phase": "B",
+      "depends_on": ["B1", "T0.3", "T0.4"],
+      "note": "table lists T0.3/4 — either backend suffices in practice; The Pass flips flags.potBackend live (§2.2)"
+    },
+    "B3": {
+      "title": "census() + matched() with KFLOOR=5; never expose sub-floor cohorts",
+      "phase": "B",
+      "depends_on": ["B1"]
+    },
+    "B4": {
+      "title": "stats() for reveal, seed(), reset() glue to The Pass",
+      "phase": "B",
+      "depends_on": ["B2"]
+    },
+    "C1": {
+      "title": "Extractor: Haiku json_schema structured output, off-limits pre+post filters, retry → seeded fallback",
+      "phase": "C",
+      "depends_on": ["T0.2"]
+    },
+    "C2": {
+      "title": "Narrator: Sonnet structured card copy, facts-only prompt, linter check → regenerate → template",
+      "phase": "C",
+      "depends_on": ["T0.2"]
+    },
+    "C3": {
+      "title": "Embedder: MiniLM quantized in a worker, preload at unlock, null on failure",
+      "phase": "C",
+      "depends_on": ["T0.2"],
+      "note": "off the demo spine (§2.1a) — cut before any spine work"
+    },
+    "C4": {
+      "title": "Runtime copy-linter hook: banned-lexicon scan on every model string before render",
+      "phase": "C",
+      "depends_on": ["C2"]
+    },
+    "D1": {
+      "title": "Usual + meal log fixture shapes; provisioning payloads for accounts A/B",
+      "phase": "D",
+      "depends_on": ["T0.2"]
+    },
+    "D2": {
+      "title": "Rotation: half-life fit, suppressions, appetite",
+      "phase": "D",
+      "depends_on": ["D1"]
+    },
+    "D3": {
+      "title": "AskEngine: §3.4 scoring, pure + deterministic under demoMode",
+      "phase": "D",
+      "depends_on": ["D2", "F1"]
+    },
+    "D4": {
+      "title": "Nudge rules: opt-in default off, once/day guard, permanent silence, DemoBus arm",
+      "phase": "D",
+      "depends_on": ["T0.2"]
+    },
+    "E1": {
+      "title": "Shell: unlock screen, routes /confess /ask /reveal /settings /pass, design tokens",
+      "phase": "E",
+      "depends_on": ["T0.1", "T0.2"]
+    },
+    "E2": {
+      "title": "Confess: textarea → editable chips → Add to the pot → vault+pot writes; blocked-topic state",
+      "phase": "E",
+      "depends_on": ["E1", "C1", "A2"],
+      "mock_start_ok": true,
+      "note": "stub-first (§5.2): build against the stub extractor/vault; integrator wires live C1 at ~1:50"
+    },
+    "E3": {
+      "title": "Ask + Card: pick, reason, cohort citation, rotation/usual lines, cohort-miss, runners-up, I-went button",
+      "phase": "E",
+      "depends_on": ["E1", "D3", "C2", "B3"],
+      "mock_start_ok": true,
+      "note": "stub-first (§5.2): build against stub engine/narrator/cohorts; wired at Gate 2"
+    },
+    "E4": {
+      "title": "Reveal: N lessons pooled · 0 readable + raw vault blob viewer",
+      "phase": "E",
+      "depends_on": ["E1", "B4"]
+    },
+    "E5": {
+      "title": "Settings: off-limits editor (vault-stored), nudge opt-in",
+      "phase": "E",
+      "depends_on": ["E1"]
+    },
+    "E6": {
+      "title": "Nudge surface: quiet banner, dismiss, silence-forever",
+      "phase": "E",
+      "depends_on": ["E1", "D4"]
+    },
+    "F1": {
+      "title": "Corpus: 40 hand-picked local places per §3.1 schema, tuned for the demo city",
+      "phase": "F",
+      "depends_on": ["T0.2"]
+    },
+    "F2": {
+      "title": "Seeds: 220 lessons, every demo driver k∈[5,9], near-tie tuned for B; gen-seeds script",
+      "phase": "F",
+      "depends_on": ["F1", "B1"]
+    },
+    "F3": {
+      "title": "The Pass admin panel (§10): seed/reset, census, near-tie inspector, provisioning, toggles",
+      "phase": "F",
+      "depends_on": ["E1", "B3", "F2"]
+    },
+    "F4": {
+      "title": "CI wiring: §9 tests, npm run gate1 / gate2 real",
+      "phase": "F",
+      "depends_on": ["A4", "C1", "D4"]
+    },
+    "F5": {
+      "title": "Demo prep: devices provisioned, wifi tested, script printed, 3 rehearsals",
+      "phase": "F",
+      "depends_on": ["F3", "F4"],
+      "note": "plan says depends on 'all' (§4) — F3+F4 recorded per the DAG; in truth gated by the 4:00 freeze, stretch tasks (A5, C3) excluded"
+    }
+  }
+}
