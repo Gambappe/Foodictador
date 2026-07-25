@@ -27,6 +27,14 @@ import { DEMO_CONTEXT, DRIVERS } from '../contracts/types.js';
 import type { Flags } from '../contracts/flags.js';
 import type { Logger } from '../config/logger.js';
 import { UNMATCHABLE_DRIVERS, matched, missed } from '../kernel/cohorts.js';
+
+/**
+ * `snake_case` between lowercase letters — an enum token, whatever its spelling.
+ * Matches the assertion the acceptance gate makes about card lines, deliberately, so the
+ * guard and the check agree on what "a raw identifier" means.
+ */
+const RAW_IDENTIFIER = /[a-z]+_[a-z]+/;
+import { lint } from '../kernel/copylint.js';
 import { DRIVER_PHRASES } from '../llm/catalog.js';
 import type { UsualNoteKey } from '../kernel/askEngine.js';
 import { suppressions } from '../kernel/rotation.js';
@@ -138,7 +146,31 @@ export async function runAsk(deps: AskDeps): Promise<CommandResult> {
   let inducedClaim: string | undefined;
   if (deps.inducedClaim !== undefined && !degraded) {
     try {
-      inducedClaim = await deps.inducedClaim('what people quietly regret near here');
+      const claim = await deps.inducedClaim('what people quietly regret near here');
+      // LINT THE SUBSTRATE'S PROSE (defect L4).
+      //
+      // The induced claim is the only text on a card that Confit did not write. G3 lints the
+      // catalog, and `reason_induced_cited` interpolates this value INTO a linted template —
+      // so the sentence around it is checked and the sentence itself never was. Seen live on
+      // the first real card after M11 made `ask` reachable: "The key context was that the
+      // driver was "spice_tolerance_low"" — K5's banned lexicon, in front of a user.
+      //
+      // Dropped rather than scrubbed. A claim that failed the linter is a claim we do not
+      // understand well enough to edit, and the card is already built to stand without one:
+      // the catch below is the same degrade path.
+      const verdict = lint(claim);
+      if (!verdict.ok) {
+        deps.logger.line(
+          `ask: induced claim dropped — it carries ${verdict.hits.join(', ')} (K5 lexicon)`,
+        );
+      } else if (RAW_IDENTIFIER.test(claim)) {
+        // Belt and braces on the failure that actually happened: an enum token is not in
+        // K5's lexicon, it is a shape. M14 stops us FEEDING ids to the extractor, but the
+        // pool holds pre-M14 records (M15) and the claim is not ours either way.
+        deps.logger.line('ask: induced claim dropped — it carries a raw identifier');
+      } else {
+        inducedClaim = claim;
+      }
     } catch (error) {
       deps.logger.line(
         `ask: induction unavailable, card proceeds without it: ${error instanceof Error ? error.message : String(error)}`,

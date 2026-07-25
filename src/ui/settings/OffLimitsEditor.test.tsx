@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { MemoryClient, PoolStore, Relay } from '../../contracts/modules.js';
 import type { MemoryRow, Read, UsualProfile } from '../../contracts/types.js';
 import { sampleUsual } from '../../contracts/fixtures/index.js';
+import { StubSettingsStore } from '../../contracts/stubs/index.js';
 import { createLogger } from '../../config/logger.js';
 import { createPoolStore } from '../../memory/pool.js';
 import { createUserStore } from '../../memory/user.js';
@@ -122,7 +123,7 @@ describe('U4 acceptance: a topic added here blocks a later confess', () => {
   it('editor → real setUsual → real writeRead → nothing written anywhere', async () => {
     const s = substrate();
     const logger = createLogger(() => {});
-    const user = createUserStore({ client: s.client, logger });
+    const user = createUserStore({ client: s.client, settings: new StubSettingsStore(), logger });
     const pool: PoolStore = createPoolStore({ client: s.client, logger, placeName: (id: string) => id.replaceAll('_', ' ') });
     const { relay, entries } = recordingRelay();
 
@@ -158,7 +159,7 @@ describe('U4 acceptance: a topic added here blocks a later confess', () => {
   it('control: an unrelated confession still writes, so the block is the topic', async () => {
     const s = substrate();
     const logger = createLogger(() => {});
-    const user = createUserStore({ client: s.client, logger });
+    const user = createUserStore({ client: s.client, settings: new StubSettingsStore(), logger });
     const pool = createPoolStore({ client: s.client, logger, placeName: (id: string) => id.replaceAll('_', ' ') });
     const { relay, entries } = recordingRelay();
     await user.setUsual('A', { ...sampleUsual, offLimits: ['fasting'] });

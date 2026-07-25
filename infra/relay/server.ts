@@ -97,6 +97,56 @@ export function createRelayServer(options: RelayServerOptions): Server {
       return;
     }
 
+    // ---- settings: token required on READS too ----
+    //
+    // Deliberately unlike `/reads`, which P0.4 left open because a pool read carries no
+    // account linkage ([E26]). Settings do: they are one named profile's allergies and
+    // intolerances (D-8). An open GET here would publish them to anyone who can reach the
+    // relay — a different and much worse thing than the arrival-ordering side channel P0.9
+    // tracks.
+    //
+    // KNOWN LIMITATION, stated rather than left to be discovered: the relay has ONE token,
+    // so any client holding it can read ANY profile's settings. Acceptable for a two-profile
+    // demo operated by one person; NOT acceptable for real multi-user use, which needs
+    // per-profile credentials first. Nothing here pretends otherwise.
+    if (segments.length === 3 && segments[0] === 'settings') {
+      const profile = decodeURIComponent(segments[1] ?? '');
+      const key = decodeURIComponent(segments[2] ?? '');
+      if (profile === '' || key === '') {
+        send(res, 400, { error: 'settings path needs a profile and a key' });
+        return;
+      }
+      if (method === 'GET') {
+        // Header, not body: clients do not send a GET body, and requiring one would make
+        // this unreachable from curl and from M4's client alike.
+        if (req.headers['x-relay-token'] !== token) {
+          send(res, 401, { error: 'missing or invalid token' });
+          return;
+        }
+        send(res, 200, { profile, key, value: store.settingsGet(profile, key) });
+        return;
+      }
+      if (method === 'PUT') {
+        const settingsBody = (await readBody(req)) as Record<string, unknown>;
+        if (settingsBody['token'] !== token) {
+          send(res, 401, { error: 'missing or invalid token' });
+          return;
+        }
+        if (!('value' in settingsBody)) {
+          send(res, 400, { error: 'settings PUT needs a "value"' });
+          return;
+        }
+        // No schema check here on purpose. The relay is a store; the boundary parser lives
+        // in M3 (`parseUsualProfile`), which is where a malformed profile must be caught so
+        // one implementation owns the rule. A validator here would be a second, drifting copy.
+        store.settingsPut(profile, key, settingsBody['value']);
+        send(res, 204);
+        return;
+      }
+      send(res, 405, { error: `settings supports GET and PUT, not ${method}` });
+      return;
+    }
+
     // ---- mutations: token required ----
     const isMutation =
       (method === 'POST' && ['/reads', '/seed', '/reset'].includes(url.pathname)) ||
