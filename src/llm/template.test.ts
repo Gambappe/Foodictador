@@ -5,6 +5,7 @@ import type { NarratorFacts, RankedPlace } from '../contracts/types.js';
 import { lint } from '../kernel/copylint.js';
 import { CATALOG, DRIVER_PHRASES, renderTemplate, usualLineFor, type CatalogKey } from './catalog.js';
 import { USUAL_NOTE_KEYS } from '../kernel/askEngine.js';
+import { USUAL_PHRASES } from './catalog.js';
 import { TemplateNarrator, templateNarrator } from './template.js';
 
 /** Benign slot values for lint-rendering every template. */
@@ -197,5 +198,27 @@ describe('L1 template narrator', () => {
       if (line === undefined) throw new Error('expected every line to be present');
       expect(lint(line)).toEqual({ ok: true });
     }
+  });
+});
+
+describe('the usual-line phrases are linted too', () => {
+  it('passes every phrase through K5', () => {
+    // Defect SL-21: these ten strings are user-facing card copy but sit outside CATALOG,
+    // so G3's catalog sweep never reached them — the same blind spot SL-02 described,
+    // re-created by the fix for SL-01. `weight` and `portion control` are in the banned
+    // lexicon and a budget or portion phrase is exactly where they would appear.
+    for (const [key, phrase] of Object.entries(USUAL_PHRASES)) {
+      expect(lint(phrase), `${key}: ${phrase}`).toEqual({ ok: true });
+    }
+  });
+
+  it('ignores inherited object keys rather than indexing a function out of the prototype', () => {
+    // Defect SL-18: the filter used `note in USUAL_PHRASES`, and `in` walks the prototype
+    // chain — 'toString' passed it, then threw on .charAt; a mixed array printed
+    // "function toString() { [native code] }" onto a card.
+    for (const hostile of ['toString', 'constructor', 'valueOf', '__proto__', 'hasOwnProperty']) {
+      expect(usualLineFor([hostile])).toBeUndefined();
+    }
+    expect(usualLineFor(['portion_small', 'toString'])).toBe('Small plates.');
   });
 });

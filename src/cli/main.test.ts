@@ -318,12 +318,18 @@ describe('the registry matches the documented surface', () => {
     for (const spec of COMMANDS) expect(spec.task).toMatch(/^X\d$/);
   });
 
-  it('leaves no command orphaned: each has a handler or a task that owes one', () => {
-    // Deliberately NOT "every command is still a placeholder" — that version would go red
-    // the moment X2 lands, in a file X2 does not own (§2), handing its author a failure
-    // they cannot legally fix. The durable invariant is that no command is a dead end.
-    for (const spec of COMMANDS) {
-      expect(spec.handler !== undefined || spec.task.length > 0).toBe(true);
-    }
+  it('has no unreachable command — every one is wired to a real handler', () => {
+    // Defect SL-13: wiring is the integrator's job, and for a while the integrator had
+    // wired only the tasks it wrote itself, leaving confess, sweep, forget and pass
+    // census as placeholders that reported "not implemented" while their modules were
+    // merged and tested. Nothing caught it, because every module's own tests passed.
+    const placeholders = COMMANDS.filter((spec) => spec.handler === undefined).map((spec) =>
+      spec.path.join(' '),
+    );
+    expect(placeholders).toEqual([]);
+  });
+
+  it('still names an owning task for each command, so blame survives wiring', () => {
+    for (const spec of COMMANDS) expect(spec.task).toMatch(/^X\d$/);
   });
 });
