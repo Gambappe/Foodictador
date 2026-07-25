@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T08:57:05.420Z",
+  "updated_at": "2026-07-25T08:57:34.639Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -481,12 +481,12 @@
       ],
       "mock_start_ok": false,
       "note": null,
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "fable-session-0dd9z8",
+      "branch": "feat/s1-corpus",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T07:37:34.268Z"
+      "claimed_at": "2026-07-25T08:57:34.639Z",
+      "updated_at": "2026-07-25T08:57:34.639Z"
     },
     "S4": {
       "title": "Demo profiles: UsualProfile + meal log for accounts A and B, validator; B's log rich enough for K3 to fit half-lives",
