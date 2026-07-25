@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T09:01:45.843Z",
+  "updated_at": "2026-07-25T09:02:08.485Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -514,12 +514,12 @@
       ],
       "mock_start_ok": false,
       "note": "Blocked on a decision, not code: DAG §4 D-5. Six of eleven drivers cannot be matched to a UsualProfile, so reads carrying them can never be cited. Near-tie tuning depends on which way that resolves. Read D-5 before claiming.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "fable-session-0dd9z8",
+      "branch": "feat/s2-seed-generator",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T08:27:28.066Z"
+      "claimed_at": "2026-07-25T09:02:08.485Z",
+      "updated_at": "2026-07-25T09:02:08.485Z"
     },
     "S3": {
       "title": "Seed loader: push generated reads to the pool scope and relay, reporting any that did not land and closing with the settle window",
