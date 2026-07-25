@@ -3600,3 +3600,41 @@ the implementation. And rewrite the two stale paragraphs: `user.ts:9-12` should 
 buffered locally, that the buffer's loss is sanctioned by `D-10`, and that there is no retry —
 which is the interesting fact about this module and is currently stated only in the file it
 delegates to.
+
+---
+
+## Fourth pass — closed by the author, same PR
+
+Every finding above was fixed in `#65` before it merged, so the review changed the shipped code
+rather than the backlog. Recorded here because a defect log that only accumulates is a list of
+things nobody did.
+
+| id | closed by | note |
+| --- | --- | --- |
+| SL-39 | one file per confession | No shared document, so there is no read-modify-write to lose a race in. Two concurrent appends never write the same path. |
+| SL-40 | claim by `renameSync` | `rename` is atomic and fails `ENOENT` for the loser, so a confession has exactly one owner and the loser takes fewer rather than the same ones. |
+| SL-41 | `try` around `ingestBatch` in `writeProse` | Logs `LOST n buffered confession(s)` and throws a message naming `n`, so the count reaches both streams instead of neither. |
+| SL-42 | `MEMORY_RECEIPT` | Three states in the UI, matching the CLI. `held` says *where* the words are — "on this device" — not merely that they are late. |
+| SL-43 | flush in both branches | `--watch` flushes every pass and totals the count. Red-verified per branch: removing the `--once` call reds two tests, removing the `--watch` call reds the other two. |
+| SL-44 | `expect(BATCH_SIZE).toBe(4)` | Pinned to the value. The "failed send" test now asserts a fresh buffer sees nothing; the stray `await Promise.resolve()` is gone. |
+| SL-45 | `.gitignore` + honest comment | `.confit/` is ignored. `env.ts` no longer promises a log line that nothing wrote. |
+| SL-46 | per-entry parse | A JSON-valid, shape-invalid entry is one skipped file. One lost confession is `D-10`'s accepted loss; a permanently dark personal tier was not. |
+| SL-47 | convId from the claimed batch | Derived from an entry name that is unique by construction and already on disk, so nothing has to be remembered across the loss `D-10` sanctions. |
+| SL-48 | half | The two stale docblocks are rewritten. The commit-hygiene half is **not** retroactive — `24600d4` still carries the ruling and the implementation together. The `D-10` scope note added this round went in its own commit, which is the rule going forward. |
+
+**What the guards are.** Two structural assertions rather than a re-run of the race: *an append
+never touches an existing file*, and *a claimed confession cannot be claimed twice*. Both go red
+against the shared-document version (7 of 16 fail). A spawned-process race was written first and
+thrown away — against a correct implementation it proves only that the processes did not happen
+to collide, which is the kind of test that passes for the wrong reason.
+
+**The decision the review actually forced.** `D-10` says losing a confession is acceptable, and
+that sentence was doing work it was never given: it was used to defend destroying confessions
+when nothing had failed. `D-10` is scoped to losing **the buffer**. The general rule is now in
+the DAG next to the decision — *a decision that accepts a failure mode is not a licence for a
+different failure mode that resembles it* — because this will come up again, and the next author
+reaching for "the owner said this is fine" should find the boundary written down.
+
+**Measured after the fix.** Four real concurrent `confess` processes: all four accounted for
+(three `held`, one `ok`), buffer directory empty, one ingest call carrying all four texts under
+one `conv_id`. Before the fix the same shape lost three to five of six.
