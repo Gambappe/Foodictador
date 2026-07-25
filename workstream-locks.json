@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T10:13:42.793Z",
+  "updated_at": "2026-07-25T10:13:44.707Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -807,12 +807,12 @@
       ],
       "mock_start_ok": false,
       "note": "D-7: the relay is now the store of record. URGENT half first — M7's verified-drop is DATA LOSS against a durable relay and must stop deleting before anything else changes. Then PoolView stops unioning (relay is canonical), and PoolStore's readsForDriver goes: XTrace cannot return a read, only prose about one. See docs/gate0-results.md for the evidence and DAG §4 D-7 for the consequences.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "claude-session-014n6NYRN6Rb",
+      "branch": "claude/upload-code-artifact-zop9uz",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T10:13:02.714Z"
+      "claimed_at": "2026-07-25T10:13:44.707Z",
+      "updated_at": "2026-07-25T10:13:44.707Z"
     },
     "P0.8": {
       "title": "Relay durability (D-7): file-backed store with atomic writes; a restart must lose nothing",
