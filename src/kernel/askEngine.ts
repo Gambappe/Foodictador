@@ -42,11 +42,15 @@ import type { AskInput } from '../contracts/modules.js';
 export const RUNNERS_UP_COUNT = 2;
 
 /**
- * `NarratorFacts.inducedClaim` comes from M2's async `inducedClaim()`. A pure engine
- * cannot fetch it, so the caller passes it in if it has one.
+ * Both synthesised claims come from async substrate calls (M2 over the pool, M3 over the
+ * user's own scope). A pure engine cannot fetch either, so the caller passes in what it has.
+ *
+ * Two fields rather than one because they make different promises — one is about strangers,
+ * one is about the reader — and D-8 counts them as separate inputs to a recommendation.
  */
 export interface AskEngineInput extends AskInput {
-  inducedClaim?: string;
+  poolClaim?: string;
+  personalClaim?: string;
 }
 
 interface AskPlanBase {
@@ -179,16 +183,18 @@ export function planAsk(input: AskEngineInput): AskPlan {
   const miss =
     citation === undefined ? strongest(missed(input.usual, input.reads, KFLOOR)) : undefined;
 
-  const hasClaim = input.inducedClaim !== undefined && input.inducedClaim.trim() !== '';
+  // Non-empty, not merely defined: M2's `inducedClaim()` and M3's `personalClaim()` both
+  // return '' to mean "no claim". Testing `!== undefined` let '' through, and the narrator
+  // then picked the *induced* reason template — producing a headline that opened with a space
+  // and asserted "is where THAT leads" with no antecedent.
+  const hasText = (value: string | undefined): value is string =>
+    value !== undefined && value.trim() !== '';
 
   const facts: NarratorFacts = {
     ...(citation !== undefined ? { citation: { driver: citation.driver, k: citation.k } } : {}),
     ...(miss !== undefined ? { cohortMiss: { driver: miss.driver } } : {}),
-    // Non-empty, not merely defined: M2's `inducedClaim()` returns '' to mean "no claim"
-    // (src/memory/pool.ts). Testing `!== undefined` let '' through, and the narrator then
-    // picked the *induced* reason template — producing a headline sentence that opened with
-    // a space and asserted "is where THAT leads" with no antecedent.
-    ...(hasClaim ? { inducedClaim: input.inducedClaim } : {}),
+    ...(hasText(input.poolClaim) ? { poolClaim: input.poolClaim } : {}),
+    ...(hasText(input.personalClaim) ? { personalClaim: input.personalClaim } : {}),
     // Every current suppression, NOT just the pick's dishes. The rotation line exists to
     // explain what was *not* chosen — design v0.8 §5's own example is "Not ramen — twice
     // this week already", about a dish the diner did not get — so filtering to the pick

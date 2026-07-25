@@ -144,7 +144,7 @@ describe('L3 live narrator', () => {
     await narrator.write(
       ranked(),
       facts({
-        inducedClaim: 'Hygiene complaints under-predict loyalty here.',
+        poolClaim: 'Hygiene complaints under-predict loyalty here.',
         citation: { driver: 'spice_tolerance_low', k: 6 },
         suppressions: [{ dishId: 'shoyu_ramen', reasonKey: 'eaten_twice_recently' }],
         usualNotes: ['A counter seat, early evening.'],

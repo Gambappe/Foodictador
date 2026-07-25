@@ -6,7 +6,7 @@ export class StubNarrator implements Narrator {
   write(ranked: RankedPlace[], facts: NarratorFacts): Promise<CardCopy> {
     const pick = ranked[0];
     const name = pick ? pick.place.name : 'somewhere quiet';
-    const base = facts.inducedClaim ?? `A quiet pattern in the pot points at ${name}.`;
+    const base = facts.poolClaim ?? `A quiet pattern in the pot points at ${name}.`;
     const copy: CardCopy = {
       reasonLine: facts.citation
         ? `${base} People who share ${facts.citation.driver.replaceAll('_', ' ')} said so — ${facts.citation.k} of them now.`

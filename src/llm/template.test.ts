@@ -55,7 +55,7 @@ describe('L1 template narrator', () => {
   it('same inputs produce byte-identical copy across runs and instances', async () => {
     const input = facts({
       citation: { driver: 'spice_tolerance_low', k: 6 },
-      inducedClaim: 'Hygiene complaints under-predict loyalty here.',
+      poolClaim: 'Hygiene complaints under-predict loyalty here.',
       suppressions: [{ dishId: 'shoyu_ramen', reasonKey: 'eaten_twice_recently' }],
       usualNotes: ['The counter seat you always take.'],
     });
@@ -87,7 +87,7 @@ describe('L1 template narrator', () => {
       ranked(),
       facts({
         citation: { driver: 'gi_constraint', k: 5 },
-        inducedClaim: 'Hygiene complaints under-predict loyalty here.',
+        poolClaim: 'Hygiene complaints under-predict loyalty here.',
       }),
     );
     expect(copy.reasonLine.startsWith('Hygiene complaints')).toBe(true);
@@ -169,7 +169,7 @@ describe('L1 template narrator', () => {
     // Independent of the engine's own guard: '' must never produce " X is where that
     // leads tonight." — a sentence that opens with a space and has no antecedent.
     for (const empty of ['', '  ']) {
-      const copy = await narrator.write(ranked(), facts({ inducedClaim: empty }));
+      const copy = await narrator.write(ranked(), facts({ poolClaim: empty }));
       expect(copy.reasonLine.startsWith(' ')).toBe(false);
       expect(copy.reasonLine).not.toContain('that leads');
     }
@@ -186,7 +186,7 @@ describe('L1 template narrator', () => {
       ranked(),
       facts({
         citation: { driver: 'budget_ceiling', k: 7 },
-        inducedClaim: 'The lunch menu is the honest menu here.',
+        poolClaim: 'The lunch menu is the honest menu here.',
         cohortMiss: { driver: 'sensory_shift' },
         suppressions: [{ dishId: 'al_pastor', reasonKey: 'eaten_twice_recently' }],
         usualNotes: ['portion_small', 'solo_comfortable'],

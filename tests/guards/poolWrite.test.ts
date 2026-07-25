@@ -157,6 +157,7 @@ describe('G1: the legitimate writeRead path passes through guarded stores', () =
     const { pool, writes } = recordingPool();
     const { relay, puts } = recordingRelay();
     const user = {
+      personalClaim: () => Promise.resolve(''),
       writeProse: () => Promise.resolve({ jobId: 'p' }),
       usual: () => Promise.resolve(null),
       setUsual: () => Promise.resolve(),

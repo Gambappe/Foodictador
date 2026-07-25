@@ -50,6 +50,19 @@ import type { Logger } from '../config/logger.js';
 const USUAL_KEY = 'usual';
 const MEAL_LOG_KEY = 'meal_log';
 
+/**
+ * Reservation for the personal synthesis query (M16).
+ *
+ * Sized like M2's pool query and for the same measured reason: the API returns every fact
+ * before any episode, so a top-k that is merely "enough rows" is a top-k that returns only
+ * facts. A personal scope is thick with prose facts — one confession yields several — so the
+ * episode sits further down than instinct suggests. `episode_slots` is sent and cannot be
+ * relied on (M13: the API accepts a made-up parameter with 200), which is why the headroom
+ * carries the guarantee.
+ */
+const PERSONAL_TOP_K = 40;
+const PERSONAL_EPISODE_SLOTS = 4;
+
 /** One verify-and-retry round per pending prose item, per §6. */
 const MAX_PROSE_RETRIES = 1;
 
@@ -155,6 +168,36 @@ export function createUserStore(deps: UserStoreDeps): UserStoreHandle {
      * propagate rather than be softened into null. An unreachable relay reported as "no
      * off-limits topics" is the exact failure this data was moved to avoid.
      */
+    /**
+     * XTrace's synthesis over this user's own confessions — D-8's second input.
+     *
+     * The mirror of M2's `inducedClaim`, over the personal scope. Until this existed the
+     * personal tier was write-only: `writeProse` ingested every confession and nothing ever
+     * read one back, so the tier cost privacy and delivered nothing.
+     *
+     * **No floor**, by the product owner's ruling: a user with one confession gets whatever
+     * synthesis one confession supports, including nothing. The count of facts behind the
+     * claim is logged so a thin one is attributable rather than mysterious — that is what
+     * makes "let's see what happens" produce evidence instead of an absence.
+     *
+     * Episodes only. A bare fact is one sentence the extractor lifted from one confession;
+     * an episode is the synthesis across several, which is the thing worth putting on a card.
+     */
+    async personalClaim(profile: string, query: string): Promise<string> {
+      const rows = await deps.client.search(profile, query, {
+        topK: PERSONAL_TOP_K,
+        episodeSlots: PERSONAL_EPISODE_SLOTS,
+      });
+      const episodes = rows.filter((row) => row.kind === 'episode' && row.content !== '');
+      const facts = rows.length - episodes.length;
+      const claim = episodes[0]?.content ?? '';
+      deps.logger.line(
+        `user: personal claim for ${profile} — ${String(episodes.length)} episode(s) over ` +
+          `${String(facts)} fact(s)${claim === '' ? '; none usable, card proceeds without it' : ''}`,
+      );
+      return claim;
+    },
+
     async usual(profile: string): Promise<UsualProfile | null> {
       const raw = await deps.settings.get(profile, USUAL_KEY);
       if (raw === null) return null;

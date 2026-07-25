@@ -23,6 +23,16 @@ export const CATALOG = {
   reason_induced: '{claim} {pick} is where that leads tonight.',
   /** Reason line with neither — The Usual and Rotation carry the pick. */
   reason_plain: '{pick} — a quiet fit for how you actually eat.',
+  /**
+   * The user's own pattern (M16, D-8's second input).
+   *
+   * Attributed to their own words rather than stated as fact, because it is XTrace's
+   * paraphrase of an extraction of their confessions — two layers of synthesis — and the
+   * verbatim text is not retrievable to quote (the owner's ruling: claims need not be
+   * quotable yet). "From what you've told us" is the honest frame for that; a bare assertion
+   * about someone's character would not be.
+   */
+  personal_pattern: 'From what you have told us: {claim}',
   /** The first-teller line (design v0.8 §5) — rehearsed, not feared. */
   cohort_miss:
     "You're the first person to tell us this — it'll shape recommendations once a few more people do.",

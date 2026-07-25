@@ -3,6 +3,13 @@ import type { JobHandle, MealLogEntry, UsualProfile } from '../types.js';
 
 /** In-memory per-profile store. */
 export class StubUserStore implements UserStore {
+  /** Overridable per test; '' means "no claim", which is the contract's absence value. */
+  personalClaimText = '';
+
+  personalClaim(_profile: string, _query: string): Promise<string> {
+    return Promise.resolve(this.personalClaimText);
+  }
+
   private readonly usuals = new Map<string, UsualProfile>();
   private readonly logs = new Map<string, MealLogEntry[]>();
   private readonly prose = new Map<string, string[]>();
