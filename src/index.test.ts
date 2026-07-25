@@ -58,20 +58,22 @@ describe('tsconfig strictness', () => {
     expect(tsconfig.compilerOptions[option]).toBe(true);
   });
 
-  it('covers every lane directory that holds TypeScript', () => {
-    // A lane missing from `include` is a lane that is never typechecked.
-    expect(tsconfig.include).toEqual(expect.arrayContaining([...TEST_ROOTS]));
-  });
 });
 
 describe('vitest collection', () => {
-  it('can collect tests from every directory the tsconfig typechecks', () => {
-    // Caught for real: `scripts/**` was missing from vitest's include, so the tests for
-    // S1-S3 and P0.5 — all of which live under scripts/ — would have been silently
-    // skipped while the suite reported green.
-    for (const root of TEST_ROOTS) {
-      expect(tsconfig.include).toContain(root);
-    }
+  it('collects from every directory the tsconfig typechecks — in both directions', () => {
+    // The bug this guards against, for real: `scripts/**` was missing from vitest's
+    // include, so the tests for S1-S3 and P0.5 were silently skipped while the suite
+    // reported green.
+    //
+    // The direction matters, and the first version of this test got it wrong. Asserting
+    // TEST_ROOTS ⊆ include only catches a root vitest scans but tsc ignores. The failure
+    // that actually happened is the opposite: a directory tsc typechecks that vitest
+    // never scans. Adding "packages" to include and forgetting TEST_ROOTS would have kept
+    // the old assertion green while skipping every test under it. So: set equality,
+    // ignoring glob entries like `*.config.ts`, which are files rather than test roots.
+    const directories = tsconfig.include.filter((entry) => !entry.includes('*'));
+    expect([...directories].sort()).toEqual([...TEST_ROOTS].sort());
   });
 });
 
