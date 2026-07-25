@@ -22,6 +22,8 @@ export interface HttpRequest {
 export interface HttpResponse {
   status: number;
   json: unknown;
+  /** `Retry-After`, when the server sent one. Seconds; a date form is not used by this API. */
+  retryAfterSeconds?: number;
 }
 
 /** Injectable transport so the whole suite runs with no network (DAG §1). */
@@ -47,7 +49,13 @@ export function createFetchTransport(config: MemoryClientConfig): HttpTransport 
       if (req.body !== undefined) init.body = JSON.stringify(req.body);
       const res = await fetch(new URL(req.path, config.baseUrl), init);
       const text = await res.text();
-      return { status: res.status, json: text === '' ? null : (JSON.parse(text) as unknown) };
+      const response: HttpResponse = {
+        status: res.status,
+        json: text === '' ? null : (JSON.parse(text) as unknown),
+      };
+      const retryAfter = Number(res.headers.get('retry-after'));
+      if (Number.isFinite(retryAfter) && retryAfter > 0) response.retryAfterSeconds = retryAfter;
+      return response;
     },
   };
 }
@@ -97,13 +105,53 @@ function parseRows(value: unknown): MemoryRow[] {
  */
 const TERMINAL_SUCCESS = 'succeeded';
 
-export function createMemoryClient(transport: HttpTransport): MemoryClient {
+/**
+ * Retry policy for transient substrate failures.
+ *
+ * There was none, and `confit sweep` found out: the sweeper polls `jobStatus` once per settled
+ * entry, 221 entries after a seed, and the first `429` threw straight out of the pass —
+ * `internal error`, exit 3, nothing confirmed and no ledger recorded. A rate limit is the
+ * substrate saying "later", not "no", and the only fatal thing about it was this client.
+ *
+ * `429` and `5xx` are retried; `4xx` never is, for the same reason the relay client does not —
+ * the request itself is wrong and will be wrong again. `Retry-After` is honoured when the
+ * server sends one, because guessing a backoff against a server that has told you the number
+ * is how a rate limit turns into a slower rate limit.
+ */
+const MAX_ATTEMPTS = 4;
+const BACKOFF_BASE_MS = 400;
+const MAX_BACKOFF_MS = 8_000;
+
+function retryable(status: number): boolean {
+  return status === 429 || status >= 500;
+}
+
+export interface MemoryClientOptions {
+  /** Injectable so tests never sleep for real. */
+  sleepFn?: (ms: number) => Promise<void>;
+}
+
+export function createMemoryClient(
+  transport: HttpTransport,
+  options: MemoryClientOptions = {},
+): MemoryClient {
+  const sleepFn = options.sleepFn ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
+
   async function call(req: HttpRequest, context: string): Promise<unknown> {
-    const res = await transport.request(req);
-    if (res.status < 200 || res.status >= 300) {
-      throw new Error(`xtrace: ${context} failed with status ${res.status}`);
+    let lastStatus = 0;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const res = await transport.request(req);
+      if (res.status >= 200 && res.status < 300) return res.json;
+      lastStatus = res.status;
+      if (!retryable(res.status) || attempt === MAX_ATTEMPTS) break;
+      const advised = res.retryAfterSeconds;
+      const backoff =
+        advised !== undefined && advised > 0
+          ? Math.min(advised * 1000, MAX_BACKOFF_MS)
+          : Math.min(BACKOFF_BASE_MS * 2 ** (attempt - 1), MAX_BACKOFF_MS);
+      await sleepFn(backoff);
     }
-    return res.json;
+    throw new Error(`xtrace: ${context} failed with status ${lastStatus}`);
   }
 
   /** One message, one fresh conversation. Shared by `ingest` and nothing else. */
