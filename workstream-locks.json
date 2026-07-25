@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T09:45:48.832Z",
+  "updated_at": "2026-07-25T09:46:31.685Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -639,12 +639,12 @@
       ],
       "mock_start_ok": false,
       "note": "Must be green with no network and no ANTHROPIC_API_KEY — P0.3's optional-key rule is what makes that possible. Fails if docs/gate0-results.md records no gate-zero pass (D-3). This is the gate the UI lane waits on.",
-      "status": "in_review",
+      "status": "done",
       "owner": "claude-session-014n6NYRN6Rb",
       "branch": "claude/upload-code-artifact-zop9uz",
-      "pr": null,
+      "pr": "https://github.com/Gambappe/Foodictador/pull/49",
       "claimed_at": "2026-07-25T09:37:29.441Z",
-      "updated_at": "2026-07-25T09:45:48.832Z"
+      "updated_at": "2026-07-25T09:46:31.684Z"
     },
     "U1": {
       "title": "Vite + React shell: add UI deps, routes /confess /ask /settings /pass, design tokens; imports the same core as the CLI and adds no domain logic",
