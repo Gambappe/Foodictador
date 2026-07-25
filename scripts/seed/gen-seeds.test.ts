@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { DEMO_CONTEXT, type Read } from '../../src/contracts/types.js';
-import { census } from '../../src/kernel/cohorts.js';
+import { POOL_QUERY } from '../../src/cli/ask.js';
+import { UNMATCHABLE_DRIVERS, census } from '../../src/kernel/cohorts.js';
 import { parseRead } from '../../src/kernel/read.js';
 import { scorePlaces } from '../../src/kernel/score.js';
 import {
@@ -10,9 +11,11 @@ import {
   JUDGE_SHIFT_MIN,
   NEAR_TIE_GAP_MAX,
   SEED_COUNT,
+  deriveInductionSet,
   generateSeeds,
   judgeRead,
   judgeShifts,
+  type InductionSet,
 } from './gen-seeds.js';
 import { loadCorpus } from './validate-corpus.js';
 import { loadProfiles } from './validate-profiles.js';
@@ -36,9 +39,8 @@ const { b } = loadProfiles();
 
 describe('S2 seed generator', () => {
   it('is deterministic: regenerating equals the committed artifacts byte-for-byte', () => {
-    const { reads, inductionSet } = generateSeeds();
+    const { reads } = generateSeeds();
     expect(reads).toEqual(committed('reads.json').reads);
-    expect(inductionSet).toEqual(committed('induction-set.json').reads);
   });
 
   it('emits exactly 220 schema-valid reads with unique ids at real corpus places', () => {
@@ -127,6 +129,70 @@ describe('S2 seed generator', () => {
     for (const report of judgeShifts(reads, b, corpus)) {
       const k = stats.find((s) => s.driver === report.driver)?.k ?? 0;
       expect(k, report.driver).toBeGreaterThanOrEqual(5); // cohort already at the floor pre-join
+    }
+  });
+});
+
+describe('S5: the induction set is derived, and a copy cannot come back', () => {
+  const committedInduction = (): InductionSet =>
+    JSON.parse(
+      readFileSync(new URL('../../data/seeds/induction-set.json', import.meta.url), 'utf8'),
+    ) as InductionSet;
+
+  it('the committed artifact equals a fresh derivation through the real PoolStore', async () => {
+    const derived = await deriveInductionSet(committed('reads.json').reads);
+    // This is the check SL-17 said could never fail: if the substrate feed changes —
+    // grouping, conv ids, prose, query — the committed artifact goes red here until
+    // `npx tsx scripts/seed/gen-seeds.ts` regenerates it.
+    expect(committedInduction()).toEqual(derived);
+  });
+
+  it('carries no Read objects and no read_ids — the byte-copy shape is structurally gone', () => {
+    const raw = readFileSync(
+      new URL('../../data/seeds/induction-set.json', import.meta.url),
+      'utf8',
+    );
+    expect(raw).not.toContain('read_id');
+    expect(raw).not.toContain('"cadence"');
+    expect(raw).not.toContain('"weight"');
+  });
+
+  it('payloads are prose over place NAMES — no corpus id ever reaches the substrate', () => {
+    const { conversations } = committedInduction();
+    const ids = corpus.map((p) => p.id);
+    const names = new Set(corpus.map((p) => p.name));
+    for (const conversation of conversations) {
+      for (const payload of conversation.payloads) {
+        for (const id of ids) expect(payload).not.toContain(id);
+        expect([...names].some((name) => payload.includes(name))).toBe(true);
+      }
+    }
+  });
+
+  it('feeds every seeded read exactly once', () => {
+    const { conversations } = committedInduction();
+    const fed = conversations.reduce((sum, c) => sum + c.payloads.length, 0);
+    expect(fed).toBe(SEED_COUNT);
+  });
+
+  it('the probe is the ask-path query, grounded only in seeded place names', () => {
+    const { probe, evidence } = committedInduction();
+    expect(probe.query).toBe(POOL_QUERY);
+    const names = new Set(corpus.map((p) => p.name));
+    for (const name of probe.expectedPlaceNames) expect(names).toContain(name);
+    expect(probe.expectedPlaceNames).toEqual(
+      [...new Set(evidence.flatMap((e) => e.placeNames))].sort(),
+    );
+  });
+
+  it('evidence mirrors the manifest and D-5 citability', () => {
+    const { evidence } = committedInduction();
+    const { manifest } = generateSeeds();
+    expect(evidence.map((e) => ({ driver: e.driver, k: e.k }))).toEqual(
+      manifest.map((m) => ({ driver: m.driver, k: m.k })),
+    );
+    for (const entry of evidence) {
+      expect(entry.citable).toBe(!UNMATCHABLE_DRIVERS.includes(entry.driver));
     }
   });
 });
