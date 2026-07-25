@@ -313,13 +313,28 @@ function cmdUpdate({ positional, flags }) {
   const [taskId] = positional;
   if (!taskId)
     throw new UsageError(
-      'Usage: update <taskId> --status <status> [--branch <n>] [--pr <url>] [--note <text>] [--clear note,pr,...]',
+      'Usage: update <taskId> --status <status> [--owner <id>] [--branch <n>] [--pr <url>] [--note <text>] [--clear note,pr,...]',
     );
   if (flags.status && !VALID_STATUSES.includes(flags.status)) {
     throw new UsageError(`--status must be one of: ${VALID_STATUSES.join(', ')}`);
   }
   const result = transact((data) => {
     const task = requireTask(data, taskId);
+    // A task nobody claimed must not advance through the lifecycle: work that skips
+    // the claim step defeats the double-claim guarantee entirely (this exact hole
+    // let an unclaimed task reach `done` unnoticed — see L3 / PR #14). Notes and
+    // field edits stay open; only forward status transitions require an owner.
+    if (
+      (flags.status === 'claimed' || flags.status === 'in_review' || flags.status === 'done') &&
+      task.owner == null &&
+      !flags.owner
+    ) {
+      throw new UsageError(
+        `${taskId} has no owner — claim it first (workstream-lock.mjs claim ${taskId} --owner <id>), ` +
+          `then move it to ${flags.status}. Setting --note does not require a claim.`,
+      );
+    }
+    if (flags.owner) task.owner = flags.owner;
     if (flags.status === 'done' && !depsReady(data, task.depends_on)) {
       throw new UsageError(
         `Cannot mark ${taskId} done — dependencies not all done yet: ${task.depends_on.join(', ')}. ` +
@@ -524,8 +539,10 @@ Commands:
   list-ready [--phase P0] [--json]       Tasks claimable right now (available + deps done)
   claim <taskId> --owner <id> [--branch <name>]
                                           Claim a task (fails if unavailable or not ready)
-  update <taskId> --status <s> [--branch <n>] [--pr <url>] [--note <text>] [--clear f1,f2]
+  update <taskId> --status <s> [--owner <id>] [--branch <n>] [--pr <url>] [--note <text>] [--clear f1,f2]
                                           Move a task through claimed -> in_review -> done
+                                          (forward status moves require an owner: claim
+                                          first, or pass --owner to attribute late)
   release <taskId> [--note <text>]       Return a task to available (abandon / unstick)
   add-task <taskId> --title <text> [--phase P0] [--depends a,b,c] [--mock-start-ok]
                                           Register a new task added after seeding
