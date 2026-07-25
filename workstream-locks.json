@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T10:07:04.647Z",
+  "updated_at": "2026-07-25T10:07:25.509Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -704,12 +704,12 @@
       ],
       "mock_start_ok": false,
       "note": null,
-      "status": "in_review",
+      "status": "done",
       "owner": "claude-session-12uj0q",
       "branch": "claude/app-design-task-impl-12uj0q",
       "pr": "https://github.com/Gambappe/Foodictador/pull/53",
       "claimed_at": "2026-07-25T10:03:19.923Z",
-      "updated_at": "2026-07-25T10:07:04.647Z"
+      "updated_at": "2026-07-25T10:07:25.509Z"
     },
     "U5": {
       "title": "The Pass panel: census table, near-tie inspector, provision, seed/reset, flag toggles, sweeper status with oldest_entry_age_seconds",
