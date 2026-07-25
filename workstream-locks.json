@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T15:12:53.263Z",
+  "updated_at": "2026-07-25T15:31:32.215Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -837,13 +837,13 @@
         "M8"
       ],
       "mock_start_ok": false,
-      "note": "Gate zero found the handles exist: a succeeded job's result carries memories_created:[{id,type,text}]. Capture them in M5's write path and thread them into forget's poolMemories/userMemories. Today BOTH XTrace targets report skipped-with-reason, which is honest but is a weaker deletion promise than design v0.8 §7 makes. Do not close this by searching for the read_id — that is a fuzzy match choosing what to destroy.",
-      "status": "claimed",
+      "note": "Built and verified live: forget now reports 'pool: deleted (2 records)' - the first XTrace deletion this repo has performed. Handles come from the job RESULT so they cannot be captured at write time (the job is pending); the sweeper records them onto the relay entry when the job succeeds and forget reads them back. User scope stays skipped HONESTLY: prose is ingested per batch (M20) so a created memory cannot be attributed to one read_id, and text matching is the fuzzy deletion this task's note forbids. Three bugs found by running rather than testing: the settle-window env var is SETTLE_WINDOW_SECONDS (not CONFIT_-prefixed); forgetPool read the ledger while forgetRelay deleted the entry holding it in one Promise.all; and parseEntry never carried pool_memories inward. The sequencing guard is source-level and says why - three behavioural versions stayed green both ways because in-process JS ordering supplies what the network does not.",
+      "status": "in_review",
       "owner": "claude-session-014n6NYRN6Rb",
       "branch": "claude/upload-code-artifact-zop9uz",
-      "pr": null,
+      "pr": "65",
       "claimed_at": "2026-07-25T15:12:53.262Z",
-      "updated_at": "2026-07-25T15:12:53.262Z"
+      "updated_at": "2026-07-25T15:31:32.211Z"
     },
     "G7": {
       "title": "Rewrite gate zero for D-7: relay survives restart losing nothing, deletion deletes by handle, induction yields a usable claim",
