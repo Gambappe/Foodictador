@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T09:28:45.271Z",
+  "updated_at": "2026-07-25T09:35:57.675Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -343,11 +343,11 @@
       "mock_start_ok": false,
       "note": "RESOLVED (see PR #14 thread + PR #20). D1: fixed in #20 — KFLOOR floor now enforced inside TemplateNarrator, the choke point every fallback path ends in; template-path and transport-fallback tests added. Severity contested: no shipped component produces a sub-floor citation (K6 matched() floors first); the gap was belt-and-braces, not a live hole. D2: contested as designed — design v0.8 §6 flags table ('fires when: Ask assembly unavailable'), plan v1.0 §10.3 recovery playbook ('Narrator call fails → narrator → template'), DAG §1 degrade-logging rule; lint-vs-transport asymmetry is intentional (content failure vs availability failure); open offer to add one bounded retry on 429/5xx before flipping if the integrator rules that way. PROCESS: owned — L3 was implemented without a claim; #18's owner-required hardening closes the hole.",
       "status": "done",
-      "owner": null,
+      "owner": "claude-session-12uj0q",
       "branch": null,
       "pr": "https://github.com/Gambappe/Foodictador/pull/14",
       "claimed_at": null,
-      "updated_at": "2026-07-25T08:48:33.536Z"
+      "updated_at": "2026-07-25T09:35:57.675Z"
     },
     "X1": {
       "title": "CLI skeleton: subcommand dispatch, --profile/--json/--yes/--help, documented exit codes, rendering separated from logic",
