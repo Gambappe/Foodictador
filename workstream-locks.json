@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T09:58:52.293Z",
+  "updated_at": "2026-07-25T09:59:10.907Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -686,12 +686,12 @@
       ],
       "mock_start_ok": false,
       "note": "Assert that no confession text can reach the DOM on the citation and cohort-miss paths.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "claude-session-12uj0q",
+      "branch": "claude/app-design-task-impl-12uj0q",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T07:37:34.268Z"
+      "claimed_at": "2026-07-25T09:59:10.906Z",
+      "updated_at": "2026-07-25T09:59:10.906Z"
     },
     "U4": {
       "title": "Settings + nudge surface: off-limits editor writing through setUsual, nudge opt-in, quiet banner with dismiss and silence-forever",
