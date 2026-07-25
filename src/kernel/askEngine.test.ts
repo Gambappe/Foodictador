@@ -259,18 +259,18 @@ describe('facts handed to the narrator', () => {
   });
 
   it('treats an empty induced claim as no claim at all', () => {
-    // M2's inducedClaim() returns '' for "nothing found". Testing !== undefined let it
+    // M2's poolClaim() returns '' for "nothing found". Testing !== undefined let it
     // through, and the narrator then selected the induced reason template — producing a
     // headline sentence starting with a space and referring to a vanished antecedent.
     for (const empty of ['', '   ']) {
-      expect(ranked(planAsk({ ...baseInput(), inducedClaim: empty })).facts.inducedClaim)
+      expect(ranked(planAsk({ ...baseInput(), poolClaim: empty })).facts.poolClaim)
         .toBeUndefined();
     }
   });
 
   it('passes an induced claim through, since a pure engine cannot fetch one', () => {
     const claim = 'hygiene complaints under-predict loyalty here';
-    expect(ranked(planAsk({ ...baseInput(), inducedClaim: claim })).facts.inducedClaim).toBe(claim);
+    expect(ranked(planAsk({ ...baseInput(), poolClaim: claim })).facts.poolClaim).toBe(claim);
   });
 });
 

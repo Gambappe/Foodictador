@@ -25,6 +25,7 @@ async function askWith(overrides?: {
   degraded?: boolean;
   log?: typeof sampleMealLog;
   inducedClaim?: () => Promise<string>;
+  personalClaim?: () => Promise<string>;
 }) {
   const logLines: string[] = [];
   const userStore = new StubUserStore();
@@ -42,6 +43,7 @@ async function askWith(overrides?: {
     inducedClaim:
       overrides?.inducedClaim ??
       (() => Promise.resolve('Hygiene complaints under-predict loyalty here.')),
+    personalClaim: overrides?.personalClaim ?? (() => Promise.resolve('')),
   };
   return { result: await runAsk(deps), logLines, lines: logLines };
 }
@@ -144,7 +146,9 @@ describe('X3 confit ask', () => {
       inducedClaim: () => Promise.reject(new Error('induction 503')),
     });
     expect(result.exit ?? EXIT.ok).toBe(EXIT.ok);
-    expect(logLines.some((l) => l.includes('induction unavailable'))).toBe(true);
+    // Names WHICH synthesis failed. There are two now (D-8: the pool's and the user's own),
+    // and "induction unavailable" would leave an operator guessing which substrate scope.
+    expect(logLines.some((l) => l.includes('pool synthesis unavailable'))).toBe(true);
   });
 });
 
@@ -170,7 +174,7 @@ describe('X3 ask — the induced claim is the one card line Confit did not write
       inducedClaim: () => Promise.resolve('People here are on a 3-day streak of good choices.'),
     });
     expect(result.lines.join('\n')).not.toContain('3-day streak');
-    expect(lines.some((l) => l.includes('induced claim dropped'))).toBe(true);
+    expect(lines.some((l) => l.includes('pool claim dropped'))).toBe(true);
   });
 
   it('keeps a clean claim — the guard is not simply refusing everything', async () => {
@@ -178,5 +182,80 @@ describe('X3 ask — the induced claim is the one card line Confit did not write
       'People who eat here most weeks tend to regret the order and blame the kitchen.';
     const { result } = await askWith({ inducedClaim: () => Promise.resolve(claim) });
     expect(result.lines.join('\n')).toContain('regret the order');
+  });
+});
+
+describe('X3 ask — D-8\'s second input: the user\'s own synthesis (M16)', () => {
+  const MINE = 'you keep going back to the places you complain about most.';
+
+  it('renders the personal claim as its OWN line, attributed', () => {
+    // Not folded into the reason line like the pool claim. The reason line explains the
+    // PICK; this says something about the reader, and merging them would make a claim about
+    // a person read as a justification for a restaurant.
+    return askWith({ personalClaim: () => Promise.resolve(MINE) }).then(({ result }) => {
+      const card = result.data['card'] as { personalLine?: string; reasonLine: string };
+      expect(card.personalLine).toBe(`From what you have told us: ${MINE}`);
+      expect(card.reasonLine).not.toContain(MINE);
+      expect(result.lines.join('\n')).toContain(MINE);
+    });
+  });
+
+  it('is attributed, not asserted', async () => {
+    // Two layers of paraphrase (extraction, then synthesis) and the verbatim confession is
+    // not retrievable to quote — the owner ruled claims need not be quotable yet. So the
+    // copy frames it as reported rather than stating it about the reader as fact.
+    const { result } = await askWith({ personalClaim: () => Promise.resolve(MINE) });
+    const card = result.data['card'] as { personalLine?: string };
+    expect(card.personalLine).toMatch(/^From what you have told us:/);
+  });
+
+  it('an empty claim produces no line — there is no floor, so thin is expected', async () => {
+    // The owner ruled no minimum confession count: "let's see what happens". A user with one
+    // confession gets whatever one supports, including nothing, and nothing must render as
+    // absence rather than as an empty line or the word "undefined".
+    const { result } = await askWith({ personalClaim: () => Promise.resolve('') });
+    const card = result.data['card'] as { personalLine?: string };
+    expect(card.personalLine).toBeUndefined();
+    expect(result.lines.join('\n')).not.toContain('From what you have told us');
+    expect(result.lines.join('\n')).not.toContain('undefined');
+  });
+
+  it('goes through the SAME lint gate as the pool claim', async () => {
+    // One implementation for both, because they are the same risk: substrate text bound for
+    // a card. And this is the one where a leaked identifier would be describing the reader.
+    const { result, lines } = await askWith({
+      personalClaim: () => Promise.resolve('your driver is spice_tolerance_low, apparently.'),
+    });
+    const card = result.data['card'] as { personalLine?: string };
+    expect(card.personalLine).toBeUndefined();
+    expect(lines.some((l) => l.includes('personal claim dropped'))).toBe(true);
+    for (const line of result.lines) expect(line, line).not.toMatch(/[a-z]+_[a-z]+/);
+  });
+
+  it('a failing personal synthesis does not take the card down', async () => {
+    const { result, lines } = await askWith({
+      personalClaim: () => Promise.reject(new Error('scope unreachable')),
+    });
+    expect(result.exit ?? EXIT.ok).toBe(EXIT.ok);
+    expect((result.data['card'] as { reasonLine: string }).reasonLine.length).toBeGreaterThan(0);
+    expect(lines.some((l) => l.includes('personal synthesis unavailable'))).toBe(true);
+  });
+
+  it('the two claims are independent — one failing leaves the other', async () => {
+    const { result } = await askWith({
+      inducedClaim: () => Promise.reject(new Error('pool unreachable')),
+      personalClaim: () => Promise.resolve(MINE),
+    });
+    const card = result.data['card'] as { personalLine?: string };
+    expect(card.personalLine).toContain(MINE);
+  });
+
+  it('the personal line follows the Usual, so declared reads before inferred', async () => {
+    const { result } = await askWith({ personalClaim: () => Promise.resolve(MINE) });
+    const joined = result.lines;
+    const usualAt = joined.findIndex((l) => l.includes('Fine to eat alone'));
+    const personalAt = joined.findIndex((l) => l.includes('From what you have told us'));
+    expect(usualAt).toBeGreaterThanOrEqual(0);
+    expect(personalAt).toBeGreaterThan(usualAt);
   });
 });

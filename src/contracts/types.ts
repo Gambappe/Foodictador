@@ -137,7 +137,17 @@ export interface Suppression {
 export interface NarratorFacts {
   citation?: { driver: Driver; k: number };
   cohortMiss?: { driver: Driver };
-  inducedClaim?: string;
+  /**
+   * What the CROWD's confessions add up to — XTrace's synthesis over `confit:pool` (M12/M14).
+   *
+   * Named `poolClaim`, not `inducedClaim`, because there are now two of them and the old
+   * name did not say which. D-8 gives a recommendation three inputs and these are two of
+   * them; collapsing both onto one field would let either silently replace the other, and
+   * they make different promises — one is about strangers, one is about you.
+   */
+  poolClaim?: string;
+  /** What THIS user's own confessions add up to — XTrace's synthesis over their scope (M16). */
+  personalClaim?: string;
   suppressions: Suppression[];
   usualNotes: string[];
   degradedPool: boolean;
@@ -149,11 +159,22 @@ export interface CardCopy {
   rotationLine?: string;
   usualLine?: string;
   cohortMissLine?: string;
+  /**
+   * The user's own pattern, in its own line (M16).
+   *
+   * A line rather than folded into `reasonLine` like the pool claim, because it is a
+   * different kind of statement: the reason line explains the PICK, this says something
+   * about the reader. Merging them would make a claim about the person read as a
+   * justification for a restaurant.
+   */
+  personalLine?: string;
 }
 
 export interface Card {
   pick: Place;
   reasonLine: string;
+  /** The user's own pattern, synthesised from their confessions (M16, D-8's second input). */
+  personalLine?: string;
   poolCitation?: { driver: Driver; k: number }; // named cohort — NEVER narrative content
   rotationLine?: string;
   usualLine?: string;

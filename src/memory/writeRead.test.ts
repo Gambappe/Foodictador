@@ -43,6 +43,7 @@ function fakes(failures: Failures = {}) {
     inducedClaim: () => Promise.resolve(''),
   };
   const user: UserStore = {
+    personalClaim: () => Promise.resolve(''),
     writeProse(profile, text) {
       calls.push(`user.writeProse:${profile}:${text}`);
       return failures.prose

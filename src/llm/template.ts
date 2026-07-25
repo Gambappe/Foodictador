@@ -31,7 +31,7 @@ function flooredCitation(facts: NarratorFacts): NarratorFacts['citation'] {
 
 function reasonLine(ranked: RankedPlace[], facts: NarratorFacts): string {
   const pick = ranked[0]?.place.name ?? 'Somewhere quiet';
-  const claim = facts.inducedClaim;
+  const claim = facts.poolClaim;
   const citation = flooredCitation(facts);
 
   let line: string;
@@ -87,6 +87,13 @@ export class TemplateNarrator implements Narrator {
     // put `spice_tolerance_low` on the card for every user on the default template path.
     const usualLine = usualLineFor(facts.usualNotes);
     if (usualLine !== undefined) copy.usualLine = usualLine;
+
+    // The personal claim gets its OWN line, not a slot in the reason line (M16). The reason
+    // line explains the pick; this says something about the reader, and merging them would
+    // make a claim about a person read as a justification for a restaurant.
+    if (hasText(facts.personalClaim)) {
+      copy.personalLine = renderTemplate('personal_pattern', { claim: facts.personalClaim });
+    }
 
     return Promise.resolve(copy);
   }

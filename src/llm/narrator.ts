@@ -18,10 +18,24 @@ import type { FlagStore } from '../config/flagStore.js';
 import type { Logger } from '../config/logger.js';
 import { KFLOOR } from '../kernel/cohorts.js';
 import { lint } from '../kernel/copylint.js';
-import { DRIVER_PHRASES } from './catalog.js';
+import { DRIVER_PHRASES, renderTemplate } from './catalog.js';
 import { TemplateNarrator } from './template.js';
 
 export const NARRATOR_MODEL = 'claude-sonnet-5';
+
+/**
+ * The personal line is NOT model-generated, in either narrator (M16).
+ *
+ * It is a fixed catalog frame around text XTrace already synthesised, so handing it to a model
+ * would add a third layer of paraphrase — extraction, then synthesis, then rewriting — to a
+ * claim being made about the reader, which is the one place on the card where drift matters
+ * most. Both narrators therefore produce it identically, from `CATALOG.personal_pattern`.
+ */
+function withPersonalLine(copy: CardCopy, facts: NarratorFacts): CardCopy {
+  const claim = facts.personalClaim;
+  if (claim === undefined || claim.trim() === '') return copy;
+  return { ...copy, personalLine: renderTemplate('personal_pattern', { claim }) };
+}
 
 /** Structured-output schema for the card copy — closed, reasonLine required. */
 export const CARD_COPY_SCHEMA: Record<string, unknown> = {
@@ -114,7 +128,7 @@ function buildUserPayload(ranked: RankedPlace[], facts: NarratorFacts): string {
       score: entry.score,
     })),
     facts: {
-      ...(facts.inducedClaim !== undefined ? { inducedClaim: facts.inducedClaim } : {}),
+      ...(facts.poolClaim !== undefined ? { inducedClaim: facts.poolClaim } : {}),
       ...(facts.citation && facts.citation.k >= KFLOOR
         ? {
             citation: {
@@ -266,7 +280,7 @@ export function createLiveNarrator(deps: LiveNarratorDeps): Narrator {
 
         const copy = parseCopy(response);
         const problem = copy === null ? 'unparseable model output' : violation(copy, ranked);
-        if (copy !== null && problem === null) return copy;
+        if (copy !== null && problem === null) return withPersonalLine(copy, facts);
         deps.logger.line(
           `narrator rejected ${strict ? 'regenerated' : 'first'} attempt: ${problem ?? 'unknown'}`,
         );

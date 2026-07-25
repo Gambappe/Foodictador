@@ -70,6 +70,7 @@ function harness(options: {
   };
 
   const user: UserStore = {
+    personalClaim: () => Promise.resolve(''),
     writeProse: vi.fn(() => {
       calls.prose += 1;
       return Promise.resolve({ jobId: 'job-prose' });

@@ -81,6 +81,45 @@ Verified live end to end: `pass provision` → `confess` (7×) → `pass census`
 `ask --profile B`, which printed a full card with all four design v0.8 §5 lines for the first
 time.
 
+## M16: the personal tier is finally read — and episodes are per INGEST CALL
+
+D-8's second input, built. `UserStore.personalClaim(profile, query)` is the mirror of M2's
+`inducedClaim`, over the user's own scope instead of the pool. Before it, `writeProse` ingested
+every confession and **nothing ever read one back** — the tier cost privacy and delivered
+nothing.
+
+Both claims go through one lint gate in `ask.ts` (L4), because they are the same risk: text
+Confit did not write, bound for a card. The personal one gets its own card line rather than
+being folded into the reason line — the reason line explains the *pick*, this says something
+about the *reader*, and merging them makes a claim about a person read as a justification for a
+restaurant. `CATALOG.personal_pattern` frames it *"From what you have told us:"*, attributed
+rather than asserted, because it is a paraphrase of an extraction and the verbatim confession is
+not retrievable to quote.
+
+Live, seven confessions from one profile:
+
+> *"From what you have told us: The conversation centered on a self-aware confession: the
+> speaker keeps ordering the spicy option to look tough…"*
+
+**Which is one confession, not seven.** Measured: 18 rows, 8 episodes, **8 distinct
+`conv_id`s** — because `writeProse` calls `client.ingest`, which mints a fresh random `conv_id`
+per call. That is the M12 defect, in the personal tier.
+
+And the obvious fix does not work. Four **separate** POSTs sharing **one** `conv_id` produced
+three episodes, each still a per-POST paraphrase, with one distinct `conv_id` coming back — so
+the grouping is recorded but **episodes are generated per ingest call, not per accumulated
+conversation.** The guide's R4 ("batch by session/day, group several related messages into one
+`conv_id`") means *one POST with several messages*, which is exactly what M12 did for the pool.
+
+Cross-confession synthesis is therefore impossible at confess time: confessions arrive in
+separate processes, minutes or days apart. It needs a durable spool that holds them and
+re-ingests as one grouped POST — which is **M17's** spool. M17 stops being purely about
+durability and becomes the enabler for this too. Tracked as **M20**.
+
+Until then the personal claim is a paraphrase of the single most relevant confession. The
+product owner accepted that shape in advance — "no floor, let's see what happens" — and the
+episode/fact counts behind every claim are logged so a thin one is attributable.
+
 ## M12/M14: induction needs grouped conversations AND prose. Measured.
 
 The one role XTrace kept after D-7 and M11 is cross-record synthesis. It was not working, and

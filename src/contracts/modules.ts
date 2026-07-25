@@ -127,6 +127,19 @@ export interface SettingsStore {
 export interface UserStore {
   /** Ingests the confession as raw prose, unmodified ([E11]). */
   writeProse(profile: string, text: string): Promise<JobHandle>;
+  /**
+   * XTrace's synthesis over THIS user's own confessions — D-8's second input (M16).
+   *
+   * The mirror of `PoolStore.inducedClaim`, over the personal scope instead of the pool.
+   * Until this existed the personal tier was write-only: `writeProse` ingested every
+   * confession and nothing ever read one back, so the tier was pure cost.
+   *
+   * Returns `''` for "no claim", never throws for absence — a user with one confession gets
+   * a thin claim or none, and by the product owner's ruling there is deliberately no minimum
+   * ("no floor; let's see what happens"). The confession count behind a claim is logged so
+   * that a thin one is attributable rather than mysterious.
+   */
+  personalClaim(profile: string, query: string): Promise<string>;
   usual(profile: string): Promise<UsualProfile | null>;
   /** The only write path for off-limits topics — G2, X7 and U4 all go through here. */
   setUsual(profile: string, usual: UsualProfile): Promise<void>;

@@ -79,6 +79,18 @@ export function AskCard({ card }: AskCardProps) {
           {card.usualLine}
         </p>
       ) : null}
+      {/*
+        The user's own pattern (M16, D-8's second input). After the Usual, because both
+        describe the reader and what they told us should be read before what has been
+        inferred about them. The catalog frames it "From what you have told us:" — it is
+        XTrace's paraphrase of an extraction of their confessions, and the verbatim text is
+        not retrievable to quote, so it is attributed rather than asserted.
+      */}
+      {card.personalLine !== undefined ? (
+        <p data-testid="personal-line" className="mt-1 text-muted">
+          {card.personalLine}
+        </p>
+      ) : null}
 
       {card.degradedPool === true ? (
         <p data-testid="degraded-disclosure" className="mt-3 text-sm text-refusal">

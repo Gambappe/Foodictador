@@ -46,12 +46,12 @@ function baseFacts(): NarratorFacts {
 const FACT_VARIANTS: Array<[string, NarratorFacts]> = [
   ['plain', baseFacts()],
   ['cited', { ...baseFacts(), citation: { driver: 'spice_tolerance_low', k: 6 } }],
-  ['induced', { ...baseFacts(), inducedClaim: 'Hygiene complaints under-predict loyalty here.' }],
+  ['induced', { ...baseFacts(), poolClaim: 'Hygiene complaints under-predict loyalty here.' }],
   [
     'induced + cited',
     {
       ...baseFacts(),
-      inducedClaim: 'The lunch menu is the honest menu here.',
+      poolClaim: 'The lunch menu is the honest menu here.',
       citation: { driver: 'budget_ceiling', k: 7 },
     },
   ],

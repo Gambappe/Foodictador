@@ -26,10 +26,12 @@ function fakeSubstrate() {
       return Promise.resolve({ jobId });
     },
     ingestBatch: () => Promise.reject(new Error('the user tier writes one message at a time')),
-    search(scope, query) {
-      return Promise.resolve(
-        (rowsByScope.get(scope) ?? []).filter((r) => r.content.includes(query)),
-      );
+    search(scope, _query) {
+      // Every row in the scope, NOT a substring match. The substring filter modelled
+      // `findTagged`'s tag lookup, which M11 deleted — and semantic search does not
+      // substring-match, so filtering here would model a substrate that does not exist and
+      // quietly hide rows a real query would return.
+      return Promise.resolve([...(rowsByScope.get(scope) ?? [])]);
     },
     remove(scope, memoryId) {
       rowsByScope.set(scope, (rowsByScope.get(scope) ?? []).filter((r) => r.memoryId !== memoryId));
@@ -251,5 +253,93 @@ describe('M3 meal log', () => {
     const settings = new StubSettingsStore();
     await harness(settings).store.setMealLog('A', [entry]);
     expect(await harness(settings).store.mealLog('A')).toEqual([entry]);
+  });
+});
+
+describe('M3 personalClaim — D-8\'s second input (M16)', () => {
+  it('returns the episode: the synthesis, not one lifted sentence', async () => {
+    // A fact is one sentence the extractor pulled from one confession. An episode is the
+    // synthesis across several, which is the only thing worth putting on a card.
+    const h = harness();
+    h.rowsByScope.set('A', [
+      { memoryId: 'f1', kind: 'fact', content: 'User regretted the pho.' },
+      { memoryId: 'e1', kind: 'episode', content: 'You keep going back to places you complain about.' },
+    ]);
+    expect(await h.store.personalClaim('A', 'what do they keep doing')).toBe(
+      'You keep going back to places you complain about.',
+    );
+  });
+
+  it('no episode means no claim — \'\', never a fact standing in for one', async () => {
+    const h = harness();
+    h.rowsByScope.set('A', [{ memoryId: 'f1', kind: 'fact', content: 'User ate pho once.' }]);
+    expect(await h.store.personalClaim('A', 'anything')).toBe('');
+  });
+
+  it('an empty scope is \'\', not a throw — a new user has nothing yet', async () => {
+    // No floor, by the owner's ruling. Absence is a normal outcome, not an error.
+    expect(await harness().store.personalClaim('nobody', 'anything')).toBe('');
+  });
+
+  it('logs the counts behind the claim, so a thin one is attributable', async () => {
+    // What makes "let's see what happens" produce evidence rather than an absence. Without
+    // this, a disappointing claim is indistinguishable from a broken query.
+    const h = harness();
+    h.rowsByScope.set('A', [
+      { memoryId: 'f1', kind: 'fact', content: 'one' },
+      { memoryId: 'f2', kind: 'fact', content: 'two' },
+      { memoryId: 'e1', kind: 'episode', content: 'a pattern' },
+    ]);
+    await h.store.personalClaim('A', 'q');
+    expect(h.lines.join('\n')).toMatch(/1 episode\(s\) over 2 fact\(s\)/);
+  });
+
+  it('says so when there was nothing usable', async () => {
+    const h = harness();
+    await h.store.personalClaim('A', 'q');
+    expect(h.lines.join('\n')).toContain('none usable');
+  });
+
+  it('reserves headroom for the episode, because facts sort first', async () => {
+    // Measured on the live API for the pool query: every fact comes before any episode, and
+    // the first episode landed at index 10. A personal scope is thick with prose facts — one
+    // confession yields several — so a small top-k returns facts only. M13: `episode_slots`
+    // is sent and cannot be relied on, so the headroom carries the guarantee.
+    const h = harness();
+    const seen: Array<{ topK: number; episodeSlots: number }> = [];
+    const spy = {
+      ...h.client,
+      search: (_s: string, _q: string, opts: { topK: number; episodeSlots: number }) => {
+        seen.push(opts);
+        return Promise.resolve([]);
+      },
+    };
+    const store = createUserStore({
+      client: spy,
+      settings: new StubSettingsStore(),
+      logger: createLogger(() => undefined),
+    });
+    await store.personalClaim('A', 'q');
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.topK ?? 0).toBeGreaterThanOrEqual(40);
+    expect(seen[0]?.episodeSlots ?? 0).toBeGreaterThan(0);
+  });
+
+  it('queries the user\'s OWN scope, never the pool', async () => {
+    // The whole point of D-8's second input. Querying confit:pool here would make the
+    // "personal" claim a second copy of the group claim.
+    const h = harness();
+    const scopes: string[] = [];
+    const spy = { ...h.client, search: (scope: string) => {
+      scopes.push(scope);
+      return Promise.resolve([]);
+    } };
+    const store = createUserStore({
+      client: spy,
+      settings: new StubSettingsStore(),
+      logger: createLogger(() => undefined),
+    });
+    await store.personalClaim('profile-B', 'q');
+    expect(scopes).toEqual(['profile-B']);
   });
 });
