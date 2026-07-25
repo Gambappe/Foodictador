@@ -59,11 +59,16 @@ function readsFor(driver: Driver, count: number): Read[] {
   }));
 }
 
-/** Counts per driver: spice cohort citable, solo below floor, rest empty. */
+/**
+ * Counts per driver: spice cohort citable, solo below floor, crowd_aversion
+ * (an UNMATCHABLE_DRIVER — SL-16) well past the floor but never citable
+ * because it has no field on UsualProfile, rest empty.
+ */
 const COUNTS: Partial<Record<Driver, number>> = {
   spice_tolerance_low: 6,
   budget_ceiling: 5,
   solo_comfort: 4,
+  crowd_aversion: 9,
 };
 
 const MANIFEST: SeedManifest = {
@@ -97,9 +102,15 @@ describe('X6 confit pass census', () => {
     expect(byDriver.get('spice_tolerance_low')).toMatchObject({ k: 6, citable: true });
     expect(byDriver.get('budget_ceiling')).toMatchObject({ k: 5, citable: true });
     expect(byDriver.get('solo_comfort')).toMatchObject({ k: 4, citable: false });
-    expect(byDriver.get('crowd_aversion')).toMatchObject({ k: 0, citable: false });
+    // SL-16: crowd_aversion clears KFLOOR (k=9) but is an UNMATCHABLE_DRIVER —
+    // no field on UsualProfile can ever match it to a user — so it must never
+    // be reported citable no matter how large its cohort is.
+    expect(byDriver.get('crowd_aversion')).toMatchObject({ k: 9, citable: false });
     expect(result.data['kfloor']).toBe(KFLOOR);
     expect(result.lines.some((l) => l.includes('Cross-check clean'))).toBe(true);
+    expect(result.lines.some((l) => l.includes('crowd_aversion') && l.includes('unmatchable'))).toBe(
+      true,
+    );
   });
 
   it('a counting query truncated below the largest cohort reports a MISMATCH — the [E22] guard', async () => {
@@ -151,7 +162,7 @@ describe('X6 confit pass neartie', () => {
     const result = await handler(context(['pass', 'neartie']));
     expect(result.exit ?? EXIT.ok).toBe(EXIT.ok);
     // Both acceptance numbers, in lines and in data.
-    expect(result.lines[0]).toMatch(/score\(top1\) − score\(top3\) = \d\.\d{4}/);
+    expect(result.lines[0]).toMatch(/top1 − top3 = \d\.\d{4}/);
     expect(result.lines.some((l) => l.includes('Judge read delta'))).toBe(true);
     expect(typeof result.data['spread']).toBe('number');
     expect(result.data['spread'] as number).toBeLessThanOrEqual(0.04);

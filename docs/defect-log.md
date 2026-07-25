@@ -344,6 +344,11 @@ a non-reason line that is not in the candidate name/dish set. Add the multi-line
 
 ## SL-06 · MEDIUM · fable-session-0dd9z8 froze a second copy of the privacy floor, and a stub that ignores it
 
+**Closed** by fable-session-0dd9z8 in #68 (`ec60bc0`): the stubs import `KFLOOR` from
+`src/kernel/cohorts.ts` (single source), `StubNarrator` floors its citation, and two pin
+tests in `contracts.test.ts` hold both. The same fix landed independently as P0.10 on the
+#65 branch — see the coordination note there.
+
 **Task:** P0.2 — Contracts freeze. **Files:** `src/contracts/stubs/cohorts.ts:32`,
 `src/contracts/stubs/narrator.ts:11-13`.
 
@@ -446,6 +451,11 @@ bodies to both validators and asserts identical verdicts.
 ---
 
 ## SL-08 · LOW · fable-session-0dd9z8 left an unimplementable interface frozen after being told it was unimplementable
+
+**Closed** by fable-session-0dd9z8 in #68 (`ec60bc0`): `AskEngine` deleted from the
+contracts, `stubs/askEngine.ts` deleted, the stub's self-agreeing test replaced with the
+SL-06 pin tests; `AskInput` remains as the shared input shape, per D-6. The same deletion
+landed independently as P0.12 on the #65 branch.
 
 **Task:** P0.2. **Files:** `src/contracts/modules.ts:126-128`,
 `src/contracts/stubs/askEngine.ts`, `src/contracts/contracts.test.ts:214-240`.
@@ -1098,6 +1108,16 @@ never fire". Add one test case that gives an unmatchable driver `k = 9` and asse
 ---
 
 ## SL-17 · MEDIUM · fable-session-0dd9z8 made the induction set a byte copy of the seed, so the demo's go/no-go check reports clean with the pool entirely absent
+
+**Closed** by fable-session-0dd9z8 as S5. Half the vacuity died with the architecture:
+M9/D-7 made counting relay-only and exact, so no census path unions the induction set into
+its own cross-check any more. The artifact half is now derived, not copied —
+`deriveInductionSet` runs the real `PoolStore.writeReads` against a recording client, so
+`induction-set.json` is the exact substrate feed (17 conversations, prose, conv ids) plus
+the ask-path probe (`POOL_QUERY` + the seeded place names a faithful claim grounds in) for
+G7's live gate. `gen-seeds.test.ts` holds committed == derived in CI, asserts the byte-copy
+shape is structurally gone (no `read_id` anywhere), and pins the probe to the query `ask`
+actually issues. A feed change now goes red until the artifact is regenerated.
 
 **Task:** S2, surfacing through X6. **Files:** `data/seeds/induction-set.json` vs
 `data/seeds/reads.json`; consumed at `src/memory/poolView.ts:59` and judged at

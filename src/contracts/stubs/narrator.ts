@@ -1,7 +1,6 @@
 import type { Narrator } from '../modules.js';
-// The privacy floor has ONE owner (SL-06).
-import { KFLOOR } from '../../kernel/cohorts.js';
 import type { CardCopy, NarratorFacts, RankedPlace } from '../types.js';
+import { KFLOOR } from '../../kernel/cohorts.js';
 
 /** Deterministic template copy from facts alone — the `narrator: template` shape. */
 export class StubNarrator implements Narrator {
@@ -9,15 +8,13 @@ export class StubNarrator implements Narrator {
     const pick = ranked[0];
     const name = pick ? pick.place.name : 'somewhere quiet';
     const base = facts.poolClaim ?? `A quiet pattern in the pot points at ${name}.`;
-    // Floored, like the real TemplateNarrator (SL-06). An unfloored stub renders a citation
-    // for a cohort of one — and a citation IS the identification risk the floor exists to
-    // stop, so a stub that skips it teaches every suite using it that k=1 is printable.
-    const citable = facts.citation !== undefined && facts.citation.k >= KFLOOR;
+    // Sub-floor citations are never rendered, even by a stub — X2/X3 mock-start
+    // against this file, so a k=2 sentence here is a k=2 sentence on a card (SL-06).
+    const citation = facts.citation && facts.citation.k >= KFLOOR ? facts.citation : undefined;
     const copy: CardCopy = {
-      reasonLine:
-        citable && facts.citation
-          ? `${base} People who share ${facts.citation.driver.replaceAll('_', ' ')} said so — ${facts.citation.k} of them now.`
-          : base,
+      reasonLine: citation
+        ? `${base} People who share ${citation.driver.replaceAll('_', ' ')} said so — ${citation.k} of them now.`
+        : base,
     };
     if (facts.cohortMiss) {
       copy.cohortMissLine =

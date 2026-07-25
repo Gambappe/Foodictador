@@ -36,7 +36,9 @@ import { UNMATCHABLE_DRIVERS, matched, missed } from '../kernel/cohorts.js';
 const RAW_IDENTIFIER = /[a-z]+_[a-z]+/;
 
 /** The two induction queries. Named, so the pair is visible in one place (D-8). */
-const POOL_QUERY = 'what people quietly regret near here';
+// Exported because S5's induction-set probe must BE this query — a committed probe
+// that drifts from what `ask` actually issues would gate the wrong question.
+export const POOL_QUERY = 'what people quietly regret near here';
 const PERSONAL_QUERY = 'what this person keeps doing and what is really behind it';
 
 /**

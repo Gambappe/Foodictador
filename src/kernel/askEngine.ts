@@ -154,10 +154,15 @@ function contextFor(input: AskEngineInput): AskContext {
 /** Everything the card needs except the copy a narrator writes. */
 export function planAsk(input: AskEngineInput): AskPlan {
   const context = contextFor(input);
-  // `scorePlaces` filters internally, so this re-runs `exclusionsFor` per place. Kept
-  // deliberately: it is a couple of comparisons, and the alternative is growing K4's
-  // ranking API a second return value that only The Pass consumes.
-  const exclusions = input.corpus.flatMap((place) => exclusionsFor(place, input.usual));
+  // `scorePlaces` filters internally, so this re-runs `exclusionsFor` per place — since
+  // D-11 that includes a `matched()` census per call. Kept deliberately: the corpus is
+  // dozens of places and the census O(reads), and the alternative is growing K4's
+  // ranking API a second return value that only The Pass consumes. Both call sites
+  // thread the same `reads`, which is what keeps this list and the ranking consistent
+  // about who was lifted.
+  const exclusions = input.corpus.flatMap((place) =>
+    exclusionsFor(place, input.usual, input.reads),
+  );
   const ranked = scorePlaces({
     reads: input.reads,
     usual: input.usual,

@@ -1,1764 +1,595 @@
 {
-  "reads": [
+  "derivedFrom": "data/seeds/reads.json through PoolStore.writeReads — the exact substrate feed, not a copy",
+  "probe": {
+    "query": "what people quietly regret near here",
+    "expectedPlaceNames": [
+      "Addis Red",
+      "Ash & Rye",
+      "Banh Mi Signal",
+      "Bao Bar Micro",
+      "Brine & Shell",
+      "Cardamom Court",
+      "Cedar Meze",
+      "Chaat Corner",
+      "Clay Oven Hearth",
+      "Copper Kettle",
+      "Ember & Ash",
+      "Ferment Station",
+      "Golden Bao House",
+      "Green Papaya",
+      "Griddle West",
+      "Harbor Greens",
+      "Hen & Honey",
+      "Laksa Lane",
+      "Lupita's Cocina",
+      "Mabel's Diner",
+      "Miso Hollow",
+      "Night Market 44",
+      "Noodle Shrine",
+      "Nopal Verde",
+      "Olive & Thorn",
+      "Pho's Deep",
+      "Pita Parade",
+      "Polenta House",
+      "Rosa's Taqueria",
+      "Saffron Step",
+      "Sardine Social",
+      "Seoul Static",
+      "Terracotta",
+      "The Blue Door",
+      "The Dumpling Line",
+      "The Furnace",
+      "The Quiet Counter",
+      "Tortoise Teahouse",
+      "Umami Dive",
+      "Verdant"
+    ]
+  },
+  "conversations": [
     {
-      "read_id": "1d88102e-cd23-4c07-8394-0a8af7fc0000",
-      "place": "rosas_taqueria",
-      "signal": "pretends_preference",
-      "driver": "spice_tolerance_low",
-      "cadence": "weekly",
-      "weight": 0.85
+      "convId": "confit:pool:v2:spice_tolerance_low:0",
+      "payloads": [
+        "Someone who goes most weeks to Rosa's Taqueria said they loved it when they did not. What is really going on is that their real tolerance for heat is lower than they let on.",
+        "Someone who goes about monthly to Noodle Shrine regretted the order afterwards. What is really going on is that their real tolerance for heat is lower than they let on.",
+        "Someone who rarely goes to The Quiet Counter regretted the order afterwards. What is really going on is that their real tolerance for heat is lower than they let on.",
+        "Someone who goes most days to Pho's Deep regretted the order afterwards. What is really going on is that their real tolerance for heat is lower than they let on.",
+        "Someone who went once to Ember & Ash never ordered that again. What is really going on is that their real tolerance for heat is lower than they let on.",
+        "Someone who goes most weeks to Golden Bao House wanted something else and ordered this instead. What is really going on is that their real tolerance for heat is lower than they let on.",
+        "Someone who goes about monthly to Saffron Step regretted the order afterwards. What is really going on is that their real tolerance for heat is lower than they let on."
+      ]
     },
     {
-      "read_id": "70585fef-5988-412a-8bc1-46dcca680000",
-      "place": "noodle_shrine",
-      "signal": "regret_after_order",
-      "driver": "spice_tolerance_low",
-      "cadence": "monthly",
-      "weight": 0.56
+      "convId": "confit:pool:v2:budget_ceiling:0",
+      "payloads": [
+        "Someone who goes most weeks to Noodle Shrine went back anyway after something went wrong. What is really going on is that there is a ceiling on what they will spend that they do not mention.",
+        "Someone who goes about monthly to The Quiet Counter regretted the order afterwards. What is really going on is that there is a ceiling on what they will spend that they do not mention.",
+        "Someone who rarely goes to Ember & Ash treats the place as the safe choice. What is really going on is that there is a ceiling on what they will spend that they do not mention.",
+        "Someone who goes most days to Harbor Greens wanted something else and ordered this instead. What is really going on is that there is a ceiling on what they will spend that they do not mention.",
+        "Someone who went once to Saffron Step went back anyway after something went wrong. What is really going on is that there is a ceiling on what they will spend that they do not mention.",
+        "Someone who goes most weeks to Cedar Meze never ordered that again. What is really going on is that there is a ceiling on what they will spend that they do not mention."
+      ]
     },
     {
-      "read_id": "2cfbf84b-1e35-4d8e-83d0-9f5d1c2e0000",
-      "place": "quiet_counter",
-      "signal": "regret_after_order",
-      "driver": "spice_tolerance_low",
-      "cadence": "rarely",
-      "weight": 0.85
+      "convId": "confit:pool:v2:solo_comfort:0",
+      "payloads": [
+        "Someone who goes most weeks to Rosa's Taqueria treats the place as the safe choice. What is really going on is that they are eating alone and would rather that went unremarked.",
+        "Someone who goes about monthly to Noodle Shrine treats the place as the safe choice. What is really going on is that they are eating alone and would rather that went unremarked.",
+        "Someone who rarely goes to The Quiet Counter went back anyway after something went wrong. What is really going on is that they are eating alone and would rather that went unremarked.",
+        "Someone who goes most days to Pho's Deep quietly orders the same thing every time. What is really going on is that they are eating alone and would rather that went unremarked.",
+        "Someone who went once to Mabel's Diner went back anyway after something went wrong. What is really going on is that they are eating alone and would rather that went unremarked.",
+        "Someone who goes most weeks to Green Papaya went back anyway after something went wrong. What is really going on is that they are eating alone and would rather that went unremarked.",
+        "Someone who goes about monthly to The Dumpling Line went back anyway after something went wrong. What is really going on is that they are eating alone and would rather that went unremarked."
+      ]
     },
     {
-      "read_id": "0568c8c8-e0b5-4c48-84ac-6bc371840000",
-      "place": "phos_deep",
-      "signal": "regret_after_order",
-      "driver": "spice_tolerance_low",
-      "cadence": "daily",
-      "weight": 0.87
+      "convId": "confit:pool:v2:portion_small:0",
+      "payloads": [
+        "Someone who goes most weeks to The Quiet Counter treats the place as the safe choice. What is really going on is that they want a smaller plate than they are given.",
+        "Someone who goes about monthly to Harbor Greens went back anyway after something went wrong. What is really going on is that they want a smaller plate than they are given.",
+        "Someone who rarely goes to Golden Bao House treats the place as the safe choice. What is really going on is that they want a smaller plate than they are given.",
+        "Someone who goes most days to Cedar Meze treats the place as the safe choice. What is really going on is that they want a smaller plate than they are given.",
+        "Someone who went once to Lupita's Cocina went back anyway after something went wrong. What is really going on is that they want a smaller plate than they are given."
+      ]
     },
     {
-      "read_id": "68efbff5-c926-4f7e-8172-ca348ba30000",
-      "place": "ember_and_ash",
-      "signal": "never_ordered_again",
-      "driver": "spice_tolerance_low",
-      "cadence": "once",
-      "weight": 0.63
+      "convId": "confit:pool:v2:gi_constraint:0",
+      "payloads": [
+        "Someone who goes most weeks to Pho's Deep went back anyway after something went wrong. What is really going on is that their stomach decides the menu.",
+        "Someone who goes about monthly to Harbor Greens never ordered that again. What is really going on is that their stomach decides the menu.",
+        "Someone who rarely goes to Saffron Step treats the place as the safe choice. What is really going on is that their stomach decides the menu.",
+        "Someone who goes most days to Green Papaya wanted something else and ordered this instead. What is really going on is that their stomach decides the menu.",
+        "Someone who went once to Copper Kettle quietly orders the same thing every time. What is really going on is that their stomach decides the menu."
+      ]
     },
     {
-      "read_id": "5afcf1c2-128f-4056-86e4-94987d550000",
-      "place": "golden_bao",
-      "signal": "wanted_something_else",
-      "driver": "spice_tolerance_low",
-      "cadence": "weekly",
-      "weight": 0.69
+      "convId": "confit:pool:v2:companion_constraint:0",
+      "payloads": [
+        "Someone who goes most weeks to Seoul Static went back anyway after something went wrong. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who goes about monthly to Saffron Step wanted something else and ordered this instead. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who rarely goes to Hen & Honey went back anyway after something went wrong. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who goes most days to Laksa Lane went back anyway after something went wrong. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who went once to Pita Parade went back anyway after something went wrong. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who goes most weeks to Terracotta wanted something else and ordered this instead. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who goes about monthly to Green Papaya quietly orders the same thing every time. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who rarely goes to Laksa Lane quietly orders the same thing every time. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who goes most days to Bao Bar Micro regretted the order afterwards. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who went once to Sardine Social wanted something else and ordered this instead. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who goes most weeks to Griddle West wanted something else and ordered this instead. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who goes about monthly to Saffron Step wanted something else and ordered this instead. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who rarely goes to Miso Hollow never ordered that again. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who goes most days to Tortoise Teahouse wanted something else and ordered this instead. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who went once to Copper Kettle regretted the order afterwards. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who goes most weeks to The Furnace said they loved it when they did not. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who goes about monthly to The Dumpling Line treats the place as the safe choice. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who rarely goes to The Dumpling Line quietly orders the same thing every time. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who goes most days to Terracotta quietly orders the same thing every time. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who went once to Laksa Lane quietly orders the same thing every time. What is really going on is that they were ordering around someone else at the table."
+      ]
     },
     {
-      "read_id": "556995b2-b227-4210-8d36-c49167a70000",
-      "place": "saffron_step",
-      "signal": "regret_after_order",
-      "driver": "spice_tolerance_low",
-      "cadence": "monthly",
-      "weight": 0.68
+      "convId": "confit:pool:v2:companion_constraint:1",
+      "payloads": [
+        "Someone who goes most weeks to Saffron Step never ordered that again. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who goes about monthly to Noodle Shrine treats the place as the safe choice. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who rarely goes to Saffron Step went back anyway after something went wrong. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who goes most days to Mabel's Diner wanted something else and ordered this instead. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who went once to The Furnace went back anyway after something went wrong. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who goes most weeks to Chaat Corner went back anyway after something went wrong. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who goes about monthly to The Blue Door wanted something else and ordered this instead. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who rarely goes to Ferment Station never ordered that again. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who goes most days to Green Papaya never ordered that again. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who went once to Tortoise Teahouse never ordered that again. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who goes most weeks to Ash & Rye wanted something else and ordered this instead. What is really going on is that they were ordering around someone else at the table.",
+        "Someone who goes about monthly to Pita Parade wanted something else and ordered this instead. What is really going on is that they were ordering around someone else at the table."
+      ]
     },
     {
-      "read_id": "67e3c7c6-3e05-4493-89b1-2be24ab60000",
-      "place": "noodle_shrine",
-      "signal": "returns_despite_incident",
+      "convId": "confit:pool:v2:emotional_exclusion:0",
+      "payloads": [
+        "Someone who goes about monthly to Miso Hollow regretted the order afterwards. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who rarely goes to Tortoise Teahouse regretted the order afterwards. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who goes most days to Banh Mi Signal regretted the order afterwards. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who went once to Hen & Honey said they loved it when they did not. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who goes most weeks to Rosa's Taqueria went back anyway after something went wrong. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who goes about monthly to Ash & Rye treats the place as the safe choice. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who rarely goes to Copper Kettle said they loved it when they did not. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who goes most days to Brine & Shell wanted something else and ordered this instead. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who went once to Addis Red treats the place as the safe choice. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who goes most weeks to Addis Red wanted something else and ordered this instead. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who goes about monthly to Chaat Corner regretted the order afterwards. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who rarely goes to Saffron Step regretted the order afterwards. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who goes most days to Noodle Shrine never ordered that again. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who went once to Hen & Honey quietly orders the same thing every time. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who goes most weeks to Sardine Social regretted the order afterwards. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who goes about monthly to Verdant quietly orders the same thing every time. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who rarely goes to Night Market 44 never ordered that again. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who goes most days to Lupita's Cocina went back anyway after something went wrong. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who went once to Ash & Rye went back anyway after something went wrong. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who goes most weeks to The Blue Door never ordered that again. What is really going on is that the place carries something they would rather not revisit."
+      ]
+    },
+    {
+      "convId": "confit:pool:v2:emotional_exclusion:1",
+      "payloads": [
+        "Someone who goes about monthly to Cedar Meze quietly orders the same thing every time. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who rarely goes to Pita Parade went back anyway after something went wrong. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who goes most days to Laksa Lane regretted the order afterwards. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who went once to Ferment Station wanted something else and ordered this instead. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who goes most weeks to Hen & Honey never ordered that again. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who goes about monthly to Cardamom Court wanted something else and ordered this instead. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who rarely goes to Brine & Shell treats the place as the safe choice. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who goes most days to Ferment Station went back anyway after something went wrong. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who went once to Pita Parade treats the place as the safe choice. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who goes most weeks to Tortoise Teahouse wanted something else and ordered this instead. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who goes about monthly to Laksa Lane regretted the order afterwards. What is really going on is that the place carries something they would rather not revisit.",
+        "Someone who rarely goes to Copper Kettle quietly orders the same thing every time. What is really going on is that the place carries something they would rather not revisit."
+      ]
+    },
+    {
+      "convId": "confit:pool:v2:acclaim_skeptic:0",
+      "payloads": [
+        "Someone who rarely goes to Ash & Rye treats the place as the safe choice. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who goes most days to Verdant wanted something else and ordered this instead. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who went once to Mabel's Diner quietly orders the same thing every time. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who goes most weeks to Noodle Shrine said they loved it when they did not. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who goes about monthly to Umami Dive regretted the order afterwards. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who rarely goes to Terracotta regretted the order afterwards. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who goes most days to Verdant said they loved it when they did not. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who went once to Umami Dive went back anyway after something went wrong. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who goes most weeks to Ash & Rye wanted something else and ordered this instead. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who goes about monthly to Golden Bao House went back anyway after something went wrong. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who rarely goes to Nopal Verde treats the place as the safe choice. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who goes most days to Pita Parade wanted something else and ordered this instead. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who went once to Banh Mi Signal quietly orders the same thing every time. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who goes most weeks to Hen & Honey went back anyway after something went wrong. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who goes about monthly to Cardamom Court said they loved it when they did not. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who rarely goes to The Dumpling Line treats the place as the safe choice. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who goes most days to Copper Kettle regretted the order afterwards. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who went once to Bao Bar Micro went back anyway after something went wrong. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who goes most weeks to The Quiet Counter quietly orders the same thing every time. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who goes about monthly to The Furnace wanted something else and ordered this instead. What is really going on is that they do not trust what the place is praised for."
+      ]
+    },
+    {
+      "convId": "confit:pool:v2:acclaim_skeptic:1",
+      "payloads": [
+        "Someone who rarely goes to The Quiet Counter wanted something else and ordered this instead. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who goes most days to Noodle Shrine treats the place as the safe choice. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who went once to Mabel's Diner treats the place as the safe choice. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who goes most weeks to Terracotta wanted something else and ordered this instead. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who goes about monthly to Saffron Step treats the place as the safe choice. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who rarely goes to Seoul Static said they loved it when they did not. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who goes most days to Ferment Station regretted the order afterwards. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who went once to Banh Mi Signal never ordered that again. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who goes most weeks to Hen & Honey quietly orders the same thing every time. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who goes about monthly to Green Papaya wanted something else and ordered this instead. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who rarely goes to Pita Parade said they loved it when they did not. What is really going on is that they do not trust what the place is praised for.",
+        "Someone who goes most days to Miso Hollow treats the place as the safe choice. What is really going on is that they do not trust what the place is praised for."
+      ]
+    },
+    {
+      "convId": "confit:pool:v2:crowd_aversion:0",
+      "payloads": [
+        "Someone who goes most days to Ember & Ash quietly orders the same thing every time. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who went once to Addis Red said they loved it when they did not. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who goes most weeks to Mabel's Diner regretted the order afterwards. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who goes about monthly to Tortoise Teahouse treats the place as the safe choice. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who rarely goes to Harbor Greens quietly orders the same thing every time. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who goes most days to Polenta House went back anyway after something went wrong. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who went once to The Blue Door wanted something else and ordered this instead. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who goes most weeks to Sardine Social said they loved it when they did not. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who goes about monthly to The Quiet Counter went back anyway after something went wrong. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who rarely goes to Saffron Step quietly orders the same thing every time. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who goes most days to Terracotta regretted the order afterwards. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who went once to Laksa Lane quietly orders the same thing every time. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who goes most weeks to Green Papaya went back anyway after something went wrong. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who goes about monthly to Tortoise Teahouse regretted the order afterwards. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who rarely goes to Rosa's Taqueria wanted something else and ordered this instead. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who goes most days to Bao Bar Micro wanted something else and ordered this instead. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who went once to Seoul Static wanted something else and ordered this instead. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who goes most weeks to Chaat Corner wanted something else and ordered this instead. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who goes about monthly to Ash & Rye quietly orders the same thing every time. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who rarely goes to Griddle West went back anyway after something went wrong. What is really going on is that the room being full is the problem, not the food."
+      ]
+    },
+    {
+      "convId": "confit:pool:v2:crowd_aversion:1",
+      "payloads": [
+        "Someone who goes most days to Night Market 44 went back anyway after something went wrong. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who went once to Olive & Thorn quietly orders the same thing every time. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who goes most weeks to Cardamom Court wanted something else and ordered this instead. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who goes about monthly to Night Market 44 said they loved it when they did not. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who rarely goes to Laksa Lane wanted something else and ordered this instead. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who goes most days to Hen & Honey treats the place as the safe choice. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who went once to Ash & Rye quietly orders the same thing every time. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who goes most weeks to The Blue Door went back anyway after something went wrong. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who goes about monthly to Terracotta regretted the order afterwards. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who rarely goes to Pita Parade quietly orders the same thing every time. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who goes most days to Seoul Static never ordered that again. What is really going on is that the room being full is the problem, not the food.",
+        "Someone who went once to Rosa's Taqueria said they loved it when they did not. What is really going on is that the room being full is the problem, not the food."
+      ]
+    },
+    {
+      "convId": "confit:pool:v2:sensory_shift:0",
+      "payloads": [
+        "Someone who went once to Clay Oven Hearth wanted something else and ordered this instead. What is really going on is that what tasted right to them has changed.",
+        "Someone who goes most weeks to Cedar Meze never ordered that again. What is really going on is that what tasted right to them has changed.",
+        "Someone who goes about monthly to Ember & Ash never ordered that again. What is really going on is that what tasted right to them has changed.",
+        "Someone who rarely goes to The Dumpling Line wanted something else and ordered this instead. What is really going on is that what tasted right to them has changed.",
+        "Someone who goes most days to Miso Hollow never ordered that again. What is really going on is that what tasted right to them has changed.",
+        "Someone who went once to Mabel's Diner went back anyway after something went wrong. What is really going on is that what tasted right to them has changed.",
+        "Someone who goes most weeks to Saffron Step regretted the order afterwards. What is really going on is that what tasted right to them has changed.",
+        "Someone who goes about monthly to The Furnace said they loved it when they did not. What is really going on is that what tasted right to them has changed.",
+        "Someone who rarely goes to Mabel's Diner went back anyway after something went wrong. What is really going on is that what tasted right to them has changed.",
+        "Someone who goes most days to Lupita's Cocina treats the place as the safe choice. What is really going on is that what tasted right to them has changed.",
+        "Someone who went once to Sardine Social quietly orders the same thing every time. What is really going on is that what tasted right to them has changed.",
+        "Someone who goes most weeks to Copper Kettle went back anyway after something went wrong. What is really going on is that what tasted right to them has changed.",
+        "Someone who goes about monthly to Terracotta said they loved it when they did not. What is really going on is that what tasted right to them has changed.",
+        "Someone who rarely goes to Miso Hollow quietly orders the same thing every time. What is really going on is that what tasted right to them has changed.",
+        "Someone who goes most days to Green Papaya quietly orders the same thing every time. What is really going on is that what tasted right to them has changed.",
+        "Someone who went once to Terracotta regretted the order afterwards. What is really going on is that what tasted right to them has changed.",
+        "Someone who goes most weeks to Seoul Static quietly orders the same thing every time. What is really going on is that what tasted right to them has changed.",
+        "Someone who goes about monthly to Verdant regretted the order afterwards. What is really going on is that what tasted right to them has changed.",
+        "Someone who rarely goes to Cedar Meze went back anyway after something went wrong. What is really going on is that what tasted right to them has changed.",
+        "Someone who goes most days to Olive & Thorn went back anyway after something went wrong. What is really going on is that what tasted right to them has changed."
+      ]
+    },
+    {
+      "convId": "confit:pool:v2:sensory_shift:1",
+      "payloads": [
+        "Someone who went once to Noodle Shrine went back anyway after something went wrong. What is really going on is that what tasted right to them has changed.",
+        "Someone who goes most weeks to Green Papaya regretted the order afterwards. What is really going on is that what tasted right to them has changed.",
+        "Someone who goes about monthly to Terracotta regretted the order afterwards. What is really going on is that what tasted right to them has changed.",
+        "Someone who rarely goes to The Furnace wanted something else and ordered this instead. What is really going on is that what tasted right to them has changed.",
+        "Someone who goes most days to Miso Hollow treats the place as the safe choice. What is really going on is that what tasted right to them has changed.",
+        "Someone who went once to Bao Bar Micro wanted something else and ordered this instead. What is really going on is that what tasted right to them has changed.",
+        "Someone who goes most weeks to Laksa Lane said they loved it when they did not. What is really going on is that what tasted right to them has changed.",
+        "Someone who goes about monthly to Copper Kettle said they loved it when they did not. What is really going on is that what tasted right to them has changed.",
+        "Someone who rarely goes to Rosa's Taqueria wanted something else and ordered this instead. What is really going on is that what tasted right to them has changed.",
+        "Someone who goes most days to Mabel's Diner said they loved it when they did not. What is really going on is that what tasted right to them has changed.",
+        "Someone who went once to The Blue Door said they loved it when they did not. What is really going on is that what tasted right to them has changed."
+      ]
+    },
+    {
+      "convId": "confit:pool:v2:allergy_constraint:0",
+      "payloads": [
+        "Someone who goes most weeks to Pho's Deep wanted something else and ordered this instead. What is really going on is that there is something on the menu they have to avoid.",
+        "Someone who goes about monthly to Pita Parade quietly orders the same thing every time. What is really going on is that there is something on the menu they have to avoid.",
+        "Someone who rarely goes to Saffron Step regretted the order afterwards. What is really going on is that there is something on the menu they have to avoid.",
+        "Someone who goes most days to The Dumpling Line regretted the order afterwards. What is really going on is that there is something on the menu they have to avoid.",
+        "Someone who went once to Copper Kettle went back anyway after something went wrong. What is really going on is that there is something on the menu they have to avoid.",
+        "Someone who goes most weeks to Ember & Ash said they loved it when they did not. What is really going on is that there is something on the menu they have to avoid.",
+        "Someone who goes about monthly to Saffron Step went back anyway after something went wrong. What is really going on is that there is something on the menu they have to avoid.",
+        "Someone who rarely goes to Green Papaya never ordered that again. What is really going on is that there is something on the menu they have to avoid.",
+        "Someone who goes most days to Seoul Static said they loved it when they did not. What is really going on is that there is something on the menu they have to avoid.",
+        "Someone who went once to Pita Parade treats the place as the safe choice. What is really going on is that there is something on the menu they have to avoid.",
+        "Someone who goes most weeks to Ash & Rye wanted something else and ordered this instead. What is really going on is that there is something on the menu they have to avoid.",
+        "Someone who goes about monthly to Ferment Station wanted something else and ordered this instead. What is really going on is that there is something on the menu they have to avoid.",
+        "Someone who rarely goes to Umami Dive regretted the order afterwards. What is really going on is that there is something on the menu they have to avoid.",
+        "Someone who goes most days to Olive & Thorn treats the place as the safe choice. What is really going on is that there is something on the menu they have to avoid.",
+        "Someone who went once to Miso Hollow never ordered that again. What is really going on is that there is something on the menu they have to avoid.",
+        "Someone who goes most weeks to Ember & Ash quietly orders the same thing every time. What is really going on is that there is something on the menu they have to avoid.",
+        "Someone who goes about monthly to Bao Bar Micro treats the place as the safe choice. What is really going on is that there is something on the menu they have to avoid.",
+        "Someone who rarely goes to Cardamom Court went back anyway after something went wrong. What is really going on is that there is something on the menu they have to avoid.",
+        "Someone who goes most days to Mabel's Diner treats the place as the safe choice. What is really going on is that there is something on the menu they have to avoid.",
+        "Someone who went once to Pho's Deep went back anyway after something went wrong. What is really going on is that there is something on the menu they have to avoid."
+      ]
+    },
+    {
+      "convId": "confit:pool:v2:allergy_constraint:1",
+      "payloads": [
+        "Someone who goes most weeks to Verdant treats the place as the safe choice. What is really going on is that there is something on the menu they have to avoid.",
+        "Someone who goes about monthly to Saffron Step said they loved it when they did not. What is really going on is that there is something on the menu they have to avoid.",
+        "Someone who rarely goes to Chaat Corner quietly orders the same thing every time. What is really going on is that there is something on the menu they have to avoid.",
+        "Someone who goes most days to Laksa Lane treats the place as the safe choice. What is really going on is that there is something on the menu they have to avoid.",
+        "Someone who went once to Green Papaya treats the place as the safe choice. What is really going on is that there is something on the menu they have to avoid.",
+        "Someone who goes most weeks to Sardine Social said they loved it when they did not. What is really going on is that there is something on the menu they have to avoid.",
+        "Someone who goes about monthly to Ash & Rye wanted something else and ordered this instead. What is really going on is that there is something on the menu they have to avoid.",
+        "Someone who rarely goes to Harbor Greens treats the place as the safe choice. What is really going on is that there is something on the menu they have to avoid.",
+        "Someone who goes most days to Green Papaya quietly orders the same thing every time. What is really going on is that there is something on the menu they have to avoid.",
+        "Someone who went once to Miso Hollow treats the place as the safe choice. What is really going on is that there is something on the menu they have to avoid.",
+        "Someone who goes most weeks to Verdant went back anyway after something went wrong. What is really going on is that there is something on the menu they have to avoid."
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "driver": "acclaim_skeptic",
+      "k": 32,
+      "citable": false,
+      "placeNames": [
+        "Ash & Rye",
+        "Banh Mi Signal",
+        "Bao Bar Micro",
+        "Cardamom Court",
+        "Copper Kettle",
+        "Ferment Station",
+        "Golden Bao House",
+        "Green Papaya",
+        "Hen & Honey",
+        "Mabel's Diner",
+        "Miso Hollow",
+        "Noodle Shrine",
+        "Nopal Verde",
+        "Pita Parade",
+        "Saffron Step",
+        "Seoul Static",
+        "Terracotta",
+        "The Dumpling Line",
+        "The Furnace",
+        "The Quiet Counter",
+        "Umami Dive",
+        "Verdant"
+      ]
+    },
+    {
+      "driver": "allergy_constraint",
+      "k": 31,
+      "citable": false,
+      "placeNames": [
+        "Ash & Rye",
+        "Bao Bar Micro",
+        "Cardamom Court",
+        "Chaat Corner",
+        "Copper Kettle",
+        "Ember & Ash",
+        "Ferment Station",
+        "Green Papaya",
+        "Harbor Greens",
+        "Laksa Lane",
+        "Mabel's Diner",
+        "Miso Hollow",
+        "Olive & Thorn",
+        "Pho's Deep",
+        "Pita Parade",
+        "Saffron Step",
+        "Sardine Social",
+        "Seoul Static",
+        "The Dumpling Line",
+        "Umami Dive",
+        "Verdant"
+      ]
+    },
+    {
       "driver": "budget_ceiling",
-      "cadence": "weekly",
-      "weight": 0.68
+      "k": 6,
+      "citable": true,
+      "placeNames": [
+        "Cedar Meze",
+        "Ember & Ash",
+        "Harbor Greens",
+        "Noodle Shrine",
+        "Saffron Step",
+        "The Quiet Counter"
+      ]
     },
     {
-      "read_id": "196ea72a-5a72-447e-8e3f-9bbacf5e0000",
-      "place": "quiet_counter",
-      "signal": "regret_after_order",
-      "driver": "budget_ceiling",
-      "cadence": "monthly",
-      "weight": 0.57
+      "driver": "companion_constraint",
+      "k": 32,
+      "citable": false,
+      "placeNames": [
+        "Ash & Rye",
+        "Bao Bar Micro",
+        "Chaat Corner",
+        "Copper Kettle",
+        "Ferment Station",
+        "Green Papaya",
+        "Griddle West",
+        "Hen & Honey",
+        "Laksa Lane",
+        "Mabel's Diner",
+        "Miso Hollow",
+        "Noodle Shrine",
+        "Pita Parade",
+        "Saffron Step",
+        "Sardine Social",
+        "Seoul Static",
+        "Terracotta",
+        "The Blue Door",
+        "The Dumpling Line",
+        "The Furnace",
+        "Tortoise Teahouse"
+      ]
     },
     {
-      "read_id": "63ed4ac5-a5b8-4f30-8ee1-862875380000",
-      "place": "ember_and_ash",
-      "signal": "trusted_safe_place",
-      "driver": "budget_ceiling",
-      "cadence": "rarely",
-      "weight": 0.9
+      "driver": "crowd_aversion",
+      "k": 32,
+      "citable": false,
+      "placeNames": [
+        "Addis Red",
+        "Ash & Rye",
+        "Bao Bar Micro",
+        "Cardamom Court",
+        "Chaat Corner",
+        "Ember & Ash",
+        "Green Papaya",
+        "Griddle West",
+        "Harbor Greens",
+        "Hen & Honey",
+        "Laksa Lane",
+        "Mabel's Diner",
+        "Night Market 44",
+        "Olive & Thorn",
+        "Pita Parade",
+        "Polenta House",
+        "Rosa's Taqueria",
+        "Saffron Step",
+        "Sardine Social",
+        "Seoul Static",
+        "Terracotta",
+        "The Blue Door",
+        "The Quiet Counter",
+        "Tortoise Teahouse"
+      ]
     },
     {
-      "read_id": "aca7a78b-59bc-4e6a-8bd1-2c40ee870000",
-      "place": "harbor_greens",
-      "signal": "wanted_something_else",
-      "driver": "budget_ceiling",
-      "cadence": "daily",
-      "weight": 0.7
+      "driver": "emotional_exclusion",
+      "k": 32,
+      "citable": false,
+      "placeNames": [
+        "Addis Red",
+        "Ash & Rye",
+        "Banh Mi Signal",
+        "Brine & Shell",
+        "Cardamom Court",
+        "Cedar Meze",
+        "Chaat Corner",
+        "Copper Kettle",
+        "Ferment Station",
+        "Hen & Honey",
+        "Laksa Lane",
+        "Lupita's Cocina",
+        "Miso Hollow",
+        "Night Market 44",
+        "Noodle Shrine",
+        "Pita Parade",
+        "Rosa's Taqueria",
+        "Saffron Step",
+        "Sardine Social",
+        "The Blue Door",
+        "Tortoise Teahouse",
+        "Verdant"
+      ]
     },
     {
-      "read_id": "8dae93c1-abfc-49a9-8916-5e24b8610000",
-      "place": "saffron_step",
-      "signal": "returns_despite_incident",
-      "driver": "budget_ceiling",
-      "cadence": "once",
-      "weight": 0.82
-    },
-    {
-      "read_id": "da305fb9-cf5a-410a-8716-2ce7e5da0000",
-      "place": "cedar_meze",
-      "signal": "never_ordered_again",
-      "driver": "budget_ceiling",
-      "cadence": "weekly",
-      "weight": 0.78
-    },
-    {
-      "read_id": "48a6e456-7995-4454-86da-630c7b8e0000",
-      "place": "rosas_taqueria",
-      "signal": "trusted_safe_place",
-      "driver": "solo_comfort",
-      "cadence": "weekly",
-      "weight": 0.83
-    },
-    {
-      "read_id": "88718068-8486-4fdb-8bb2-47bd85a90000",
-      "place": "noodle_shrine",
-      "signal": "trusted_safe_place",
-      "driver": "solo_comfort",
-      "cadence": "monthly",
-      "weight": 0.72
-    },
-    {
-      "read_id": "0f0f93c1-b023-44d8-82e8-e1f6b1930000",
-      "place": "quiet_counter",
-      "signal": "returns_despite_incident",
-      "driver": "solo_comfort",
-      "cadence": "rarely",
-      "weight": 0.6
-    },
-    {
-      "read_id": "a22e34ad-288f-4fd1-80dc-2d99c6f40000",
-      "place": "phos_deep",
-      "signal": "secret_default",
-      "driver": "solo_comfort",
-      "cadence": "daily",
-      "weight": 0.66
-    },
-    {
-      "read_id": "601236b2-58d1-417c-89f1-04466c910000",
-      "place": "mabels_diner",
-      "signal": "returns_despite_incident",
-      "driver": "solo_comfort",
-      "cadence": "once",
-      "weight": 0.74
-    },
-    {
-      "read_id": "1ecc4d17-d79e-4ca9-86c0-a3ed90f60000",
-      "place": "green_papaya",
-      "signal": "returns_despite_incident",
-      "driver": "solo_comfort",
-      "cadence": "weekly",
-      "weight": 0.7
-    },
-    {
-      "read_id": "3cf4af9b-73d5-4eeb-8743-f13ea4350000",
-      "place": "the_dumpling_line",
-      "signal": "returns_despite_incident",
-      "driver": "solo_comfort",
-      "cadence": "monthly",
-      "weight": 0.58
-    },
-    {
-      "read_id": "5720727d-6ff3-4d72-8f1b-c957f3050000",
-      "place": "quiet_counter",
-      "signal": "trusted_safe_place",
-      "driver": "portion_small",
-      "cadence": "weekly",
-      "weight": 0.9
-    },
-    {
-      "read_id": "5aa6a1dc-3f1d-49bd-80f0-db389d270000",
-      "place": "harbor_greens",
-      "signal": "returns_despite_incident",
-      "driver": "portion_small",
-      "cadence": "monthly",
-      "weight": 0.61
-    },
-    {
-      "read_id": "dda4b2af-1dbe-4909-894f-e2e865400000",
-      "place": "golden_bao",
-      "signal": "trusted_safe_place",
-      "driver": "portion_small",
-      "cadence": "rarely",
-      "weight": 0.7
-    },
-    {
-      "read_id": "6fa60cff-3482-463d-8a8c-34ca31f70000",
-      "place": "cedar_meze",
-      "signal": "trusted_safe_place",
-      "driver": "portion_small",
-      "cadence": "daily",
-      "weight": 0.62
-    },
-    {
-      "read_id": "497799aa-53d2-4f1f-87f5-92f6dc7b0000",
-      "place": "lupita_cocina",
-      "signal": "returns_despite_incident",
-      "driver": "portion_small",
-      "cadence": "once",
-      "weight": 0.65
-    },
-    {
-      "read_id": "d15d8a1b-624b-4bb1-88ad-eb8497550000",
-      "place": "phos_deep",
-      "signal": "returns_despite_incident",
       "driver": "gi_constraint",
-      "cadence": "weekly",
-      "weight": 0.8
+      "k": 5,
+      "citable": true,
+      "placeNames": [
+        "Copper Kettle",
+        "Green Papaya",
+        "Harbor Greens",
+        "Pho's Deep",
+        "Saffron Step"
+      ]
     },
     {
-      "read_id": "46cca77b-86dd-4485-867e-8837a43f0000",
-      "place": "harbor_greens",
-      "signal": "never_ordered_again",
-      "driver": "gi_constraint",
-      "cadence": "monthly",
-      "weight": 0.68
+      "driver": "portion_small",
+      "k": 5,
+      "citable": true,
+      "placeNames": [
+        "Cedar Meze",
+        "Golden Bao House",
+        "Harbor Greens",
+        "Lupita's Cocina",
+        "The Quiet Counter"
+      ]
     },
     {
-      "read_id": "7449c951-46cc-4537-89bf-42d52de20000",
-      "place": "saffron_step",
-      "signal": "trusted_safe_place",
-      "driver": "gi_constraint",
-      "cadence": "rarely",
-      "weight": 0.68
-    },
-    {
-      "read_id": "dbfbc667-8538-458f-80c8-0a64d9260000",
-      "place": "green_papaya",
-      "signal": "wanted_something_else",
-      "driver": "gi_constraint",
-      "cadence": "daily",
-      "weight": 0.63
-    },
-    {
-      "read_id": "1cb721d6-1c1a-4563-8de8-b87408be0000",
-      "place": "copper_kettle",
-      "signal": "secret_default",
-      "driver": "gi_constraint",
-      "cadence": "once",
-      "weight": 0.6
-    },
-    {
-      "read_id": "f63ee139-e22b-45c0-8a26-d9d33fd50000",
-      "place": "seoul_static",
-      "signal": "returns_despite_incident",
-      "driver": "companion_constraint",
-      "cadence": "weekly",
-      "weight": 0.89
-    },
-    {
-      "read_id": "2e76bb85-b80e-48e8-840c-9c2b487e0000",
-      "place": "miso_hollow",
-      "signal": "regret_after_order",
-      "driver": "emotional_exclusion",
-      "cadence": "monthly",
-      "weight": 0.81
-    },
-    {
-      "read_id": "577d34c2-5ec7-4c06-8e92-9e86ef860000",
-      "place": "ash_and_rye",
-      "signal": "trusted_safe_place",
-      "driver": "acclaim_skeptic",
-      "cadence": "rarely",
-      "weight": 0.49
-    },
-    {
-      "read_id": "d447dfb5-7722-406c-8dc1-bbf7f25c0000",
-      "place": "ember_and_ash",
-      "signal": "secret_default",
-      "driver": "crowd_aversion",
-      "cadence": "daily",
-      "weight": 0.55
-    },
-    {
-      "read_id": "b1114c2c-419d-4518-8ec4-9f0afe770000",
-      "place": "clay_oven_hearth",
-      "signal": "wanted_something_else",
       "driver": "sensory_shift",
-      "cadence": "once",
-      "weight": 0.46
-    },
-    {
-      "read_id": "ebdf6947-381c-481f-811d-77c5e1bf0000",
-      "place": "phos_deep",
-      "signal": "wanted_something_else",
-      "driver": "allergy_constraint",
-      "cadence": "weekly",
-      "weight": 0.41
-    },
-    {
-      "read_id": "8c9052a0-118d-4a40-8598-182486140000",
-      "place": "saffron_step",
-      "signal": "wanted_something_else",
-      "driver": "companion_constraint",
-      "cadence": "monthly",
-      "weight": 0.87
-    },
-    {
-      "read_id": "e3a58b82-9bc3-492d-87d7-03c9f5b50000",
-      "place": "tortoise_tea",
-      "signal": "regret_after_order",
-      "driver": "emotional_exclusion",
-      "cadence": "rarely",
-      "weight": 0.67
-    },
-    {
-      "read_id": "cbbfd964-09c5-4649-86c2-ceb864f80000",
-      "place": "verdant",
-      "signal": "wanted_something_else",
-      "driver": "acclaim_skeptic",
-      "cadence": "daily",
-      "weight": 0.82
-    },
-    {
-      "read_id": "64c99f4c-2792-460c-813a-c1adcf6d0000",
-      "place": "addis_red",
-      "signal": "pretends_preference",
-      "driver": "crowd_aversion",
-      "cadence": "once",
-      "weight": 0.46
-    },
-    {
-      "read_id": "64db56e2-d2e3-43f9-8db0-bdcc54380000",
-      "place": "cedar_meze",
-      "signal": "never_ordered_again",
-      "driver": "sensory_shift",
-      "cadence": "weekly",
-      "weight": 0.48
-    },
-    {
-      "read_id": "5c514044-33fc-4f08-8a88-af7be2700000",
-      "place": "pita_parade",
-      "signal": "secret_default",
-      "driver": "allergy_constraint",
-      "cadence": "monthly",
-      "weight": 0.61
-    },
-    {
-      "read_id": "4ffcf49c-1446-4133-899b-07e1f67c0000",
-      "place": "hen_and_honey",
-      "signal": "returns_despite_incident",
-      "driver": "companion_constraint",
-      "cadence": "rarely",
-      "weight": 0.46
-    },
-    {
-      "read_id": "cc9635fd-0c66-42ae-8659-daeb08990000",
-      "place": "banh_mi_signal",
-      "signal": "regret_after_order",
-      "driver": "emotional_exclusion",
-      "cadence": "daily",
-      "weight": 0.65
-    },
-    {
-      "read_id": "472d4605-e58a-48c6-8f1e-bb45cf110000",
-      "place": "mabels_diner",
-      "signal": "secret_default",
-      "driver": "acclaim_skeptic",
-      "cadence": "once",
-      "weight": 0.77
-    },
-    {
-      "read_id": "3a69394c-9f6d-4997-846c-82b17aae0000",
-      "place": "mabels_diner",
-      "signal": "regret_after_order",
-      "driver": "crowd_aversion",
-      "cadence": "weekly",
-      "weight": 0.69
-    },
-    {
-      "read_id": "71bdc433-3b13-4698-8977-4cd85b2b0000",
-      "place": "ember_and_ash",
-      "signal": "never_ordered_again",
-      "driver": "sensory_shift",
-      "cadence": "monthly",
-      "weight": 0.41
-    },
-    {
-      "read_id": "1b3411b4-e98b-4c7e-801b-3806367b0000",
-      "place": "saffron_step",
-      "signal": "regret_after_order",
-      "driver": "allergy_constraint",
-      "cadence": "rarely",
-      "weight": 0.48
-    },
-    {
-      "read_id": "6e05e59c-27fd-4743-8cd0-ca7757820000",
-      "place": "laksa_lane",
-      "signal": "returns_despite_incident",
-      "driver": "companion_constraint",
-      "cadence": "daily",
-      "weight": 0.63
-    },
-    {
-      "read_id": "4d417f2a-c8c7-4358-8a93-a76bc35c0000",
-      "place": "hen_and_honey",
-      "signal": "pretends_preference",
-      "driver": "emotional_exclusion",
-      "cadence": "once",
-      "weight": 0.78
-    },
-    {
-      "read_id": "32d64a14-f9de-4af6-80d8-afe3adec0000",
-      "place": "noodle_shrine",
-      "signal": "pretends_preference",
-      "driver": "acclaim_skeptic",
-      "cadence": "weekly",
-      "weight": 0.64
-    },
-    {
-      "read_id": "13ca3d4d-4908-4667-8991-e73ac1900000",
-      "place": "tortoise_tea",
-      "signal": "trusted_safe_place",
-      "driver": "crowd_aversion",
-      "cadence": "monthly",
-      "weight": 0.7
-    },
-    {
-      "read_id": "d76caa77-e7e8-4bcb-8108-a0502ae90000",
-      "place": "the_dumpling_line",
-      "signal": "wanted_something_else",
-      "driver": "sensory_shift",
-      "cadence": "rarely",
-      "weight": 0.67
-    },
-    {
-      "read_id": "2277940d-501c-4719-8607-4808f2750000",
-      "place": "the_dumpling_line",
-      "signal": "regret_after_order",
-      "driver": "allergy_constraint",
-      "cadence": "daily",
-      "weight": 0.54
-    },
-    {
-      "read_id": "3458f751-4804-4d85-8c02-e19ed2350000",
-      "place": "pita_parade",
-      "signal": "returns_despite_incident",
-      "driver": "companion_constraint",
-      "cadence": "once",
-      "weight": 0.87
-    },
-    {
-      "read_id": "24bf1d9f-4bd8-48b3-8c72-2227f8960000",
-      "place": "rosas_taqueria",
-      "signal": "returns_despite_incident",
-      "driver": "emotional_exclusion",
-      "cadence": "weekly",
-      "weight": 0.75
-    },
-    {
-      "read_id": "8ed17627-695a-48c9-869f-2144ad350000",
-      "place": "umami_dive",
-      "signal": "regret_after_order",
-      "driver": "acclaim_skeptic",
-      "cadence": "monthly",
-      "weight": 0.42
-    },
-    {
-      "read_id": "ec71bc15-ac41-4de1-898b-6295d87b0000",
-      "place": "harbor_greens",
-      "signal": "secret_default",
-      "driver": "crowd_aversion",
-      "cadence": "rarely",
-      "weight": 0.51
-    },
-    {
-      "read_id": "2e22ec5a-bc56-4f48-8c03-52ab6b3c0000",
-      "place": "miso_hollow",
-      "signal": "never_ordered_again",
-      "driver": "sensory_shift",
-      "cadence": "daily",
-      "weight": 0.82
-    },
-    {
-      "read_id": "a0f2487e-1f31-437f-83ac-0211f1e80000",
-      "place": "copper_kettle",
-      "signal": "returns_despite_incident",
-      "driver": "allergy_constraint",
-      "cadence": "once",
-      "weight": 0.61
-    },
-    {
-      "read_id": "62af4ea8-fb96-4a0c-80fe-67caf75c0000",
-      "place": "terracotta",
-      "signal": "wanted_something_else",
-      "driver": "companion_constraint",
-      "cadence": "weekly",
-      "weight": 0.47
-    },
-    {
-      "read_id": "4f71887e-2925-4fe7-8295-138774fd0000",
-      "place": "ash_and_rye",
-      "signal": "trusted_safe_place",
-      "driver": "emotional_exclusion",
-      "cadence": "monthly",
-      "weight": 0.81
-    },
-    {
-      "read_id": "1e64fd53-864a-47b5-893f-24867bdd0000",
-      "place": "terracotta",
-      "signal": "regret_after_order",
-      "driver": "acclaim_skeptic",
-      "cadence": "rarely",
-      "weight": 0.85
-    },
-    {
-      "read_id": "90356fc9-0ae3-46e0-8d49-256f4d850000",
-      "place": "polenta_house",
-      "signal": "returns_despite_incident",
-      "driver": "crowd_aversion",
-      "cadence": "daily",
-      "weight": 0.43
-    },
-    {
-      "read_id": "f660388c-df18-4510-89ef-d2da4fae0000",
-      "place": "mabels_diner",
-      "signal": "returns_despite_incident",
-      "driver": "sensory_shift",
-      "cadence": "once",
-      "weight": 0.79
-    },
-    {
-      "read_id": "bb8b2083-16a9-405d-880b-50617d400000",
-      "place": "ember_and_ash",
-      "signal": "pretends_preference",
-      "driver": "allergy_constraint",
-      "cadence": "weekly",
-      "weight": 0.48
-    },
-    {
-      "read_id": "f25b67b4-ec85-413a-8e4b-1ef890ec0000",
-      "place": "green_papaya",
-      "signal": "secret_default",
-      "driver": "companion_constraint",
-      "cadence": "monthly",
-      "weight": 0.74
-    },
-    {
-      "read_id": "2d7997d9-37ee-4ddc-864f-037928ae0000",
-      "place": "copper_kettle",
-      "signal": "pretends_preference",
-      "driver": "emotional_exclusion",
-      "cadence": "rarely",
-      "weight": 0.56
-    },
-    {
-      "read_id": "d6bc17f2-191b-4d00-85cb-f28673da0000",
-      "place": "verdant",
-      "signal": "pretends_preference",
-      "driver": "acclaim_skeptic",
-      "cadence": "daily",
-      "weight": 0.64
-    },
-    {
-      "read_id": "16712971-81ab-4e3a-88dc-1cfd3c9b0000",
-      "place": "the_blue_door",
-      "signal": "wanted_something_else",
-      "driver": "crowd_aversion",
-      "cadence": "once",
-      "weight": 0.7
-    },
-    {
-      "read_id": "91cabf3f-7f45-4d83-8200-48e1cb430000",
-      "place": "saffron_step",
-      "signal": "regret_after_order",
-      "driver": "sensory_shift",
-      "cadence": "weekly",
-      "weight": 0.52
-    },
-    {
-      "read_id": "2ea000f9-4eb1-464a-862c-876829460000",
-      "place": "saffron_step",
-      "signal": "returns_despite_incident",
-      "driver": "allergy_constraint",
-      "cadence": "monthly",
-      "weight": 0.81
-    },
-    {
-      "read_id": "6fae5e9a-c650-4303-8e3e-5e8d74c40000",
-      "place": "laksa_lane",
-      "signal": "secret_default",
-      "driver": "companion_constraint",
-      "cadence": "rarely",
-      "weight": 0.58
-    },
-    {
-      "read_id": "7cbf8926-3003-468c-8add-229be3840000",
-      "place": "brine_and_shell",
-      "signal": "wanted_something_else",
-      "driver": "emotional_exclusion",
-      "cadence": "daily",
-      "weight": 0.69
-    },
-    {
-      "read_id": "9d4823a2-38de-450e-8a50-084ff41a0000",
-      "place": "umami_dive",
-      "signal": "returns_despite_incident",
-      "driver": "acclaim_skeptic",
-      "cadence": "once",
-      "weight": 0.61
-    },
-    {
-      "read_id": "de2e0114-669a-4115-8b2c-0fa1ab460000",
-      "place": "sardine_social",
-      "signal": "pretends_preference",
-      "driver": "crowd_aversion",
-      "cadence": "weekly",
-      "weight": 0.85
-    },
-    {
-      "read_id": "f65c9127-5ece-4ee0-8946-cad8dfe40000",
-      "place": "the_furnace",
-      "signal": "pretends_preference",
-      "driver": "sensory_shift",
-      "cadence": "monthly",
-      "weight": 0.63
-    },
-    {
-      "read_id": "286e725c-a38d-46f6-8b93-df72baac0000",
-      "place": "green_papaya",
-      "signal": "never_ordered_again",
-      "driver": "allergy_constraint",
-      "cadence": "rarely",
-      "weight": 0.64
-    },
-    {
-      "read_id": "96e305d7-6d4b-4eda-837d-b25ea7000000",
-      "place": "bao_bar_micro",
-      "signal": "regret_after_order",
-      "driver": "companion_constraint",
-      "cadence": "daily",
-      "weight": 0.59
-    },
-    {
-      "read_id": "cb18d510-fc0e-4470-8618-334243b60000",
-      "place": "addis_red",
-      "signal": "trusted_safe_place",
-      "driver": "emotional_exclusion",
-      "cadence": "once",
-      "weight": 0.59
-    },
-    {
-      "read_id": "772a75ca-895a-4ce4-804f-4cde06c40000",
-      "place": "ash_and_rye",
-      "signal": "wanted_something_else",
-      "driver": "acclaim_skeptic",
-      "cadence": "weekly",
-      "weight": 0.75
-    },
-    {
-      "read_id": "395326e6-4b32-4828-8a3d-33ce22f50000",
-      "place": "quiet_counter",
-      "signal": "returns_despite_incident",
-      "driver": "crowd_aversion",
-      "cadence": "monthly",
-      "weight": 0.54
-    },
-    {
-      "read_id": "84dc02aa-5256-4caa-8a5b-739094980000",
-      "place": "mabels_diner",
-      "signal": "returns_despite_incident",
-      "driver": "sensory_shift",
-      "cadence": "rarely",
-      "weight": 0.8
-    },
-    {
-      "read_id": "bccd4a92-858a-4d3f-84c2-42d8745c0000",
-      "place": "seoul_static",
-      "signal": "pretends_preference",
-      "driver": "allergy_constraint",
-      "cadence": "daily",
-      "weight": 0.66
-    },
-    {
-      "read_id": "8d3769f3-5fa6-49ce-8853-96cf787d0000",
-      "place": "sardine_social",
-      "signal": "wanted_something_else",
-      "driver": "companion_constraint",
-      "cadence": "once",
-      "weight": 0.67
-    },
-    {
-      "read_id": "6282518e-35c0-48e6-864f-ee588fcb0000",
-      "place": "addis_red",
-      "signal": "wanted_something_else",
-      "driver": "emotional_exclusion",
-      "cadence": "weekly",
-      "weight": 0.76
-    },
-    {
-      "read_id": "50dab8d4-2bb1-42fa-8bd4-71f0d7ef0000",
-      "place": "golden_bao",
-      "signal": "returns_despite_incident",
-      "driver": "acclaim_skeptic",
-      "cadence": "monthly",
-      "weight": 0.6
-    },
-    {
-      "read_id": "ac9267e1-9a5c-4aa0-8d45-2b852bc60000",
-      "place": "saffron_step",
-      "signal": "secret_default",
-      "driver": "crowd_aversion",
-      "cadence": "rarely",
-      "weight": 0.6
-    },
-    {
-      "read_id": "33a142e9-3a36-4b2a-848f-10c4cc330000",
-      "place": "lupita_cocina",
-      "signal": "trusted_safe_place",
-      "driver": "sensory_shift",
-      "cadence": "daily",
-      "weight": 0.49
-    },
-    {
-      "read_id": "064861eb-0894-4eea-8b0d-047412490000",
-      "place": "pita_parade",
-      "signal": "trusted_safe_place",
-      "driver": "allergy_constraint",
-      "cadence": "once",
-      "weight": 0.57
-    },
-    {
-      "read_id": "51010fda-7d31-4866-8575-cb44c0510000",
-      "place": "griddle_west",
-      "signal": "wanted_something_else",
-      "driver": "companion_constraint",
-      "cadence": "weekly",
-      "weight": 0.61
-    },
-    {
-      "read_id": "a4b2f4b8-ed3f-488a-81e0-a34e34230000",
-      "place": "chaat_corner",
-      "signal": "regret_after_order",
-      "driver": "emotional_exclusion",
-      "cadence": "monthly",
-      "weight": 0.42
-    },
-    {
-      "read_id": "89dc3355-0a98-4d72-8bd3-8bc79e970000",
-      "place": "nopal_verde",
-      "signal": "trusted_safe_place",
-      "driver": "acclaim_skeptic",
-      "cadence": "rarely",
-      "weight": 0.69
-    },
-    {
-      "read_id": "6dcfba5c-7b47-48ea-84f5-853aa9e70000",
-      "place": "terracotta",
-      "signal": "regret_after_order",
-      "driver": "crowd_aversion",
-      "cadence": "daily",
-      "weight": 0.47
-    },
-    {
-      "read_id": "3d47336a-782a-4374-89ff-2f31a1030000",
-      "place": "sardine_social",
-      "signal": "secret_default",
-      "driver": "sensory_shift",
-      "cadence": "once",
-      "weight": 0.85
-    },
-    {
-      "read_id": "7f095507-4ac1-49b8-8b7d-ce1f41350000",
-      "place": "ash_and_rye",
-      "signal": "wanted_something_else",
-      "driver": "allergy_constraint",
-      "cadence": "weekly",
-      "weight": 0.81
-    },
-    {
-      "read_id": "92a8f49a-158b-4493-8254-cbefac6f0000",
-      "place": "saffron_step",
-      "signal": "wanted_something_else",
-      "driver": "companion_constraint",
-      "cadence": "monthly",
-      "weight": 0.4
-    },
-    {
-      "read_id": "ac89cc21-9b79-4982-8b88-3c5c51020000",
-      "place": "saffron_step",
-      "signal": "regret_after_order",
-      "driver": "emotional_exclusion",
-      "cadence": "rarely",
-      "weight": 0.73
-    },
-    {
-      "read_id": "5e1beab0-6e99-4b9a-8751-342137c30000",
-      "place": "pita_parade",
-      "signal": "wanted_something_else",
-      "driver": "acclaim_skeptic",
-      "cadence": "daily",
-      "weight": 0.64
-    },
-    {
-      "read_id": "dc1fcdbe-88de-4ccb-81c5-27f8df7e0000",
-      "place": "laksa_lane",
-      "signal": "secret_default",
-      "driver": "crowd_aversion",
-      "cadence": "once",
-      "weight": 0.74
-    },
-    {
-      "read_id": "0dd2d876-8d57-4766-8e42-452f58f70000",
-      "place": "copper_kettle",
-      "signal": "returns_despite_incident",
-      "driver": "sensory_shift",
-      "cadence": "weekly",
-      "weight": 0.81
-    },
-    {
-      "read_id": "7af6084a-6cbf-48a5-8e42-238611df0000",
-      "place": "ferment_station",
-      "signal": "wanted_something_else",
-      "driver": "allergy_constraint",
-      "cadence": "monthly",
-      "weight": 0.9
-    },
-    {
-      "read_id": "c1279005-f0cf-4f10-8e7a-5696479d0000",
-      "place": "miso_hollow",
-      "signal": "never_ordered_again",
-      "driver": "companion_constraint",
-      "cadence": "rarely",
-      "weight": 0.78
-    },
-    {
-      "read_id": "92274b93-fc9e-41ae-82a3-3c5e9ad20000",
-      "place": "noodle_shrine",
-      "signal": "never_ordered_again",
-      "driver": "emotional_exclusion",
-      "cadence": "daily",
-      "weight": 0.89
-    },
-    {
-      "read_id": "46077275-98fe-4179-8649-5108fe930000",
-      "place": "banh_mi_signal",
-      "signal": "secret_default",
-      "driver": "acclaim_skeptic",
-      "cadence": "once",
-      "weight": 0.83
-    },
-    {
-      "read_id": "d3127a17-28fb-4dfa-8860-a53840bc0000",
-      "place": "green_papaya",
-      "signal": "returns_despite_incident",
-      "driver": "crowd_aversion",
-      "cadence": "weekly",
-      "weight": 0.89
-    },
-    {
-      "read_id": "fb68b11f-f83c-459a-8d82-7e9a6cc50000",
-      "place": "terracotta",
-      "signal": "pretends_preference",
-      "driver": "sensory_shift",
-      "cadence": "monthly",
-      "weight": 0.64
-    },
-    {
-      "read_id": "edc73ed3-2ab2-4389-872a-06e75a840000",
-      "place": "umami_dive",
-      "signal": "regret_after_order",
-      "driver": "allergy_constraint",
-      "cadence": "rarely",
-      "weight": 0.59
-    },
-    {
-      "read_id": "412cf387-e8a1-47ef-8ebc-4328b6160000",
-      "place": "tortoise_tea",
-      "signal": "wanted_something_else",
-      "driver": "companion_constraint",
-      "cadence": "daily",
-      "weight": 0.86
-    },
-    {
-      "read_id": "8ab2562e-3385-40ce-8104-f89723480000",
-      "place": "hen_and_honey",
-      "signal": "secret_default",
-      "driver": "emotional_exclusion",
-      "cadence": "once",
-      "weight": 0.59
-    },
-    {
-      "read_id": "c7342c3a-23ad-43cd-88d1-601e041d0000",
-      "place": "hen_and_honey",
-      "signal": "returns_despite_incident",
-      "driver": "acclaim_skeptic",
-      "cadence": "weekly",
-      "weight": 0.8
-    },
-    {
-      "read_id": "53b64f0c-1661-4814-8023-7f17f19a0000",
-      "place": "tortoise_tea",
-      "signal": "regret_after_order",
-      "driver": "crowd_aversion",
-      "cadence": "monthly",
-      "weight": 0.5
-    },
-    {
-      "read_id": "a46ba457-8b86-4614-8e5f-439178fb0000",
-      "place": "miso_hollow",
-      "signal": "secret_default",
-      "driver": "sensory_shift",
-      "cadence": "rarely",
-      "weight": 0.51
-    },
-    {
-      "read_id": "98afc7ba-1cad-44f7-8a28-e09603d70000",
-      "place": "olive_and_thorn",
-      "signal": "trusted_safe_place",
-      "driver": "allergy_constraint",
-      "cadence": "daily",
-      "weight": 0.81
-    },
-    {
-      "read_id": "74a70f10-234e-4786-8cb1-4cbae4fc0000",
-      "place": "copper_kettle",
-      "signal": "regret_after_order",
-      "driver": "companion_constraint",
-      "cadence": "once",
-      "weight": 0.75
-    },
-    {
-      "read_id": "87f51db0-dfe1-4d16-804d-05acb0060000",
-      "place": "sardine_social",
-      "signal": "regret_after_order",
-      "driver": "emotional_exclusion",
-      "cadence": "weekly",
-      "weight": 0.43
-    },
-    {
-      "read_id": "9f8b1e69-2a8c-4b96-84db-f5aaf9490000",
-      "place": "cardamom_court",
-      "signal": "pretends_preference",
-      "driver": "acclaim_skeptic",
-      "cadence": "monthly",
-      "weight": 0.81
-    },
-    {
-      "read_id": "dbecf209-8df7-469a-8acc-0431bc990000",
-      "place": "rosas_taqueria",
-      "signal": "wanted_something_else",
-      "driver": "crowd_aversion",
-      "cadence": "rarely",
-      "weight": 0.73
-    },
-    {
-      "read_id": "e9a4291d-9f6a-471f-81e1-d10592320000",
-      "place": "green_papaya",
-      "signal": "secret_default",
-      "driver": "sensory_shift",
-      "cadence": "daily",
-      "weight": 0.56
-    },
-    {
-      "read_id": "f2583bf9-9b8c-4da9-8760-35279b9f0000",
-      "place": "miso_hollow",
-      "signal": "never_ordered_again",
-      "driver": "allergy_constraint",
-      "cadence": "once",
-      "weight": 0.45
-    },
-    {
-      "read_id": "1c46c946-f1c0-4622-81ba-47d8e6fb0000",
-      "place": "the_furnace",
-      "signal": "pretends_preference",
-      "driver": "companion_constraint",
-      "cadence": "weekly",
-      "weight": 0.6
-    },
-    {
-      "read_id": "501119a9-f32b-4150-8c88-9840da670000",
-      "place": "verdant",
-      "signal": "secret_default",
-      "driver": "emotional_exclusion",
-      "cadence": "monthly",
-      "weight": 0.53
-    },
-    {
-      "read_id": "9744f72b-ea28-4a10-87dd-3a5b58fa0000",
-      "place": "the_dumpling_line",
-      "signal": "trusted_safe_place",
-      "driver": "acclaim_skeptic",
-      "cadence": "rarely",
-      "weight": 0.8
-    },
-    {
-      "read_id": "495aced5-c584-49c7-8542-490952950000",
-      "place": "bao_bar_micro",
-      "signal": "wanted_something_else",
-      "driver": "crowd_aversion",
-      "cadence": "daily",
-      "weight": 0.8
-    },
-    {
-      "read_id": "721da6ee-39dd-4fea-8377-429b5a2c0000",
-      "place": "terracotta",
-      "signal": "regret_after_order",
-      "driver": "sensory_shift",
-      "cadence": "once",
-      "weight": 0.9
-    },
-    {
-      "read_id": "356d6553-1ec6-4a2a-885f-ceeb54600000",
-      "place": "ember_and_ash",
-      "signal": "secret_default",
-      "driver": "allergy_constraint",
-      "cadence": "weekly",
-      "weight": 0.54
-    },
-    {
-      "read_id": "9f5da891-915d-4819-8321-0fe73cf50000",
-      "place": "the_dumpling_line",
-      "signal": "trusted_safe_place",
-      "driver": "companion_constraint",
-      "cadence": "monthly",
-      "weight": 0.5
-    },
-    {
-      "read_id": "80e8b3ef-c2f0-4110-85df-192bc47d0000",
-      "place": "night_market_44",
-      "signal": "never_ordered_again",
-      "driver": "emotional_exclusion",
-      "cadence": "rarely",
-      "weight": 0.58
-    },
-    {
-      "read_id": "787a376a-e6a0-4d15-8029-1c747cf60000",
-      "place": "copper_kettle",
-      "signal": "regret_after_order",
-      "driver": "acclaim_skeptic",
-      "cadence": "daily",
-      "weight": 0.75
-    },
-    {
-      "read_id": "977f62a5-5251-42c6-830f-1bcc1f710000",
-      "place": "seoul_static",
-      "signal": "wanted_something_else",
-      "driver": "crowd_aversion",
-      "cadence": "once",
-      "weight": 0.68
-    },
-    {
-      "read_id": "920f5c64-cdb8-48a3-8876-cbc984180000",
-      "place": "seoul_static",
-      "signal": "secret_default",
-      "driver": "sensory_shift",
-      "cadence": "weekly",
-      "weight": 0.74
-    },
-    {
-      "read_id": "cfa79902-3ccb-4c2c-84f9-a7b518a70000",
-      "place": "bao_bar_micro",
-      "signal": "trusted_safe_place",
-      "driver": "allergy_constraint",
-      "cadence": "monthly",
-      "weight": 0.42
-    },
-    {
-      "read_id": "230a7c0b-eb7b-48c3-834c-04bb418b0000",
-      "place": "the_dumpling_line",
-      "signal": "secret_default",
-      "driver": "companion_constraint",
-      "cadence": "rarely",
-      "weight": 0.5
-    },
-    {
-      "read_id": "956eb99f-8124-4831-85d6-0158d6320000",
-      "place": "lupita_cocina",
-      "signal": "returns_despite_incident",
-      "driver": "emotional_exclusion",
-      "cadence": "daily",
-      "weight": 0.41
-    },
-    {
-      "read_id": "66afff7e-0b43-4400-82f0-d9b381970000",
-      "place": "bao_bar_micro",
-      "signal": "returns_despite_incident",
-      "driver": "acclaim_skeptic",
-      "cadence": "once",
-      "weight": 0.76
-    },
-    {
-      "read_id": "325736f6-0fbc-463e-8240-f36ff8800000",
-      "place": "chaat_corner",
-      "signal": "wanted_something_else",
-      "driver": "crowd_aversion",
-      "cadence": "weekly",
-      "weight": 0.46
-    },
-    {
-      "read_id": "f9a3fe44-8441-4f8d-8c46-74b7a8040000",
-      "place": "verdant",
-      "signal": "regret_after_order",
-      "driver": "sensory_shift",
-      "cadence": "monthly",
-      "weight": 0.48
-    },
-    {
-      "read_id": "6983521c-97cf-4131-8aba-089bccdf0000",
-      "place": "cardamom_court",
-      "signal": "returns_despite_incident",
-      "driver": "allergy_constraint",
-      "cadence": "rarely",
-      "weight": 0.84
-    },
-    {
-      "read_id": "b63c24fb-248e-4a8f-843b-ccd185840000",
-      "place": "terracotta",
-      "signal": "secret_default",
-      "driver": "companion_constraint",
-      "cadence": "daily",
-      "weight": 0.8
-    },
-    {
-      "read_id": "ebf22ff6-1f5c-49d8-8a0c-e2c3622f0000",
-      "place": "ash_and_rye",
-      "signal": "returns_despite_incident",
-      "driver": "emotional_exclusion",
-      "cadence": "once",
-      "weight": 0.5
-    },
-    {
-      "read_id": "cd40b718-3007-43ec-81d0-2f96c8ec0000",
-      "place": "quiet_counter",
-      "signal": "secret_default",
-      "driver": "acclaim_skeptic",
-      "cadence": "weekly",
-      "weight": 0.83
-    },
-    {
-      "read_id": "3c553fa2-fda8-4732-84d7-6d384ceb0000",
-      "place": "ash_and_rye",
-      "signal": "secret_default",
-      "driver": "crowd_aversion",
-      "cadence": "monthly",
-      "weight": 0.86
-    },
-    {
-      "read_id": "c93149d3-575a-47e3-8f7a-eef028b60000",
-      "place": "cedar_meze",
-      "signal": "returns_despite_incident",
-      "driver": "sensory_shift",
-      "cadence": "rarely",
-      "weight": 0.74
-    },
-    {
-      "read_id": "ce12340c-bfd3-4c69-8bbf-b7f7249f0000",
-      "place": "mabels_diner",
-      "signal": "trusted_safe_place",
-      "driver": "allergy_constraint",
-      "cadence": "daily",
-      "weight": 0.86
-    },
-    {
-      "read_id": "bad360e4-1e53-4524-89a7-c0ac76090000",
-      "place": "laksa_lane",
-      "signal": "secret_default",
-      "driver": "companion_constraint",
-      "cadence": "once",
-      "weight": 0.87
-    },
-    {
-      "read_id": "323bd475-d84c-4963-8f28-0eff43730000",
-      "place": "the_blue_door",
-      "signal": "never_ordered_again",
-      "driver": "emotional_exclusion",
-      "cadence": "weekly",
-      "weight": 0.88
-    },
-    {
-      "read_id": "e890aff8-cf3a-4632-8005-adea02c20000",
-      "place": "the_furnace",
-      "signal": "wanted_something_else",
-      "driver": "acclaim_skeptic",
-      "cadence": "monthly",
-      "weight": 0.87
-    },
-    {
-      "read_id": "5d7feed3-4e06-48d9-8a4f-f87a71880000",
-      "place": "griddle_west",
-      "signal": "returns_despite_incident",
-      "driver": "crowd_aversion",
-      "cadence": "rarely",
-      "weight": 0.78
-    },
-    {
-      "read_id": "eac227dd-7b77-4d85-8f15-cfc2e2630000",
-      "place": "olive_and_thorn",
-      "signal": "returns_despite_incident",
-      "driver": "sensory_shift",
-      "cadence": "daily",
-      "weight": 0.71
-    },
-    {
-      "read_id": "636cabef-00dd-4381-8684-18d305720000",
-      "place": "phos_deep",
-      "signal": "returns_despite_incident",
-      "driver": "allergy_constraint",
-      "cadence": "once",
-      "weight": 0.78
-    },
-    {
-      "read_id": "33c58f2f-b010-4ed4-8928-56bf6ed60000",
-      "place": "saffron_step",
-      "signal": "never_ordered_again",
-      "driver": "companion_constraint",
-      "cadence": "weekly",
-      "weight": 0.88
-    },
-    {
-      "read_id": "3c444f95-01a9-4035-8366-6dc03f370000",
-      "place": "cedar_meze",
-      "signal": "secret_default",
-      "driver": "emotional_exclusion",
-      "cadence": "monthly",
-      "weight": 0.73
-    },
-    {
-      "read_id": "08155c5c-a238-4e57-8461-e988db230000",
-      "place": "quiet_counter",
-      "signal": "wanted_something_else",
-      "driver": "acclaim_skeptic",
-      "cadence": "rarely",
-      "weight": 0.41
-    },
-    {
-      "read_id": "27a833ef-a999-4256-8d45-ac84af350000",
-      "place": "night_market_44",
-      "signal": "returns_despite_incident",
-      "driver": "crowd_aversion",
-      "cadence": "daily",
-      "weight": 0.63
-    },
-    {
-      "read_id": "030d198a-ba1b-445c-8d86-d582e01b0000",
-      "place": "noodle_shrine",
-      "signal": "returns_despite_incident",
-      "driver": "sensory_shift",
-      "cadence": "once",
-      "weight": 0.72
-    },
-    {
-      "read_id": "2792ea20-ae9b-4933-82da-7eac669c0000",
-      "place": "verdant",
-      "signal": "trusted_safe_place",
-      "driver": "allergy_constraint",
-      "cadence": "weekly",
-      "weight": 0.45
-    },
-    {
-      "read_id": "cc57ae4b-001a-4d5b-8159-b8fcf7740000",
-      "place": "noodle_shrine",
-      "signal": "trusted_safe_place",
-      "driver": "companion_constraint",
-      "cadence": "monthly",
-      "weight": 0.85
-    },
-    {
-      "read_id": "6b5bc953-c08c-40af-8b85-e66d97d40000",
-      "place": "pita_parade",
-      "signal": "returns_despite_incident",
-      "driver": "emotional_exclusion",
-      "cadence": "rarely",
-      "weight": 0.54
-    },
-    {
-      "read_id": "66f15440-24bb-4e5a-8aa2-99368f8b0000",
-      "place": "noodle_shrine",
-      "signal": "trusted_safe_place",
-      "driver": "acclaim_skeptic",
-      "cadence": "daily",
-      "weight": 0.87
-    },
-    {
-      "read_id": "e1139bec-0c9d-4282-80ba-1ada81ba0000",
-      "place": "olive_and_thorn",
-      "signal": "secret_default",
-      "driver": "crowd_aversion",
-      "cadence": "once",
-      "weight": 0.54
-    },
-    {
-      "read_id": "f530c12e-6192-41c2-8fa9-b562ea010000",
-      "place": "green_papaya",
-      "signal": "regret_after_order",
-      "driver": "sensory_shift",
-      "cadence": "weekly",
-      "weight": 0.63
-    },
-    {
-      "read_id": "b5d1f9c7-32c2-4ce0-8a6b-7c24b7fe0000",
-      "place": "saffron_step",
-      "signal": "pretends_preference",
-      "driver": "allergy_constraint",
-      "cadence": "monthly",
-      "weight": 0.53
-    },
-    {
-      "read_id": "009ffe88-2923-47ee-844e-ee52e3440000",
-      "place": "saffron_step",
-      "signal": "returns_despite_incident",
-      "driver": "companion_constraint",
-      "cadence": "rarely",
-      "weight": 0.47
-    },
-    {
-      "read_id": "3afc72f9-dd10-4043-88a3-c4cbff2b0000",
-      "place": "laksa_lane",
-      "signal": "regret_after_order",
-      "driver": "emotional_exclusion",
-      "cadence": "daily",
-      "weight": 0.65
-    },
-    {
-      "read_id": "4312212e-2fa2-4bca-85ed-cb01ce3d0000",
-      "place": "mabels_diner",
-      "signal": "trusted_safe_place",
-      "driver": "acclaim_skeptic",
-      "cadence": "once",
-      "weight": 0.45
-    },
-    {
-      "read_id": "1e4559d4-1dfe-4868-8442-ecadc7cc0000",
-      "place": "cardamom_court",
-      "signal": "wanted_something_else",
-      "driver": "crowd_aversion",
-      "cadence": "weekly",
-      "weight": 0.5
-    },
-    {
-      "read_id": "f569f5f0-2f42-4738-8e37-aab7dcca0000",
-      "place": "terracotta",
-      "signal": "regret_after_order",
-      "driver": "sensory_shift",
-      "cadence": "monthly",
-      "weight": 0.87
-    },
-    {
-      "read_id": "3d06a9b7-2d69-4885-8393-494f56660000",
-      "place": "chaat_corner",
-      "signal": "secret_default",
-      "driver": "allergy_constraint",
-      "cadence": "rarely",
-      "weight": 0.84
-    },
-    {
-      "read_id": "5bed0be2-3f73-4d44-8ba4-079aa2fc0000",
-      "place": "mabels_diner",
-      "signal": "wanted_something_else",
-      "driver": "companion_constraint",
-      "cadence": "daily",
-      "weight": 0.47
-    },
-    {
-      "read_id": "fd7ff2e9-74c9-4866-8887-78f4fee50000",
-      "place": "ferment_station",
-      "signal": "wanted_something_else",
-      "driver": "emotional_exclusion",
-      "cadence": "once",
-      "weight": 0.56
-    },
-    {
-      "read_id": "820cb269-20f4-43c4-83d6-413f7a950000",
-      "place": "terracotta",
-      "signal": "wanted_something_else",
-      "driver": "acclaim_skeptic",
-      "cadence": "weekly",
-      "weight": 0.43
-    },
-    {
-      "read_id": "0259b819-9097-4867-8b91-09eba4800000",
-      "place": "night_market_44",
-      "signal": "pretends_preference",
-      "driver": "crowd_aversion",
-      "cadence": "monthly",
-      "weight": 0.65
-    },
-    {
-      "read_id": "00c038cc-2b34-4305-8692-495882f80000",
-      "place": "the_furnace",
-      "signal": "wanted_something_else",
-      "driver": "sensory_shift",
-      "cadence": "rarely",
-      "weight": 0.77
-    },
-    {
-      "read_id": "375f448f-85b1-49bb-8672-218a85cc0000",
-      "place": "laksa_lane",
-      "signal": "trusted_safe_place",
-      "driver": "allergy_constraint",
-      "cadence": "daily",
-      "weight": 0.67
-    },
-    {
-      "read_id": "3e7528c1-2d38-4cb0-8f48-14e6c23b0000",
-      "place": "the_furnace",
-      "signal": "returns_despite_incident",
-      "driver": "companion_constraint",
-      "cadence": "once",
-      "weight": 0.88
-    },
-    {
-      "read_id": "a0f6394f-f12f-4eab-8f3c-84f603b20000",
-      "place": "hen_and_honey",
-      "signal": "never_ordered_again",
-      "driver": "emotional_exclusion",
-      "cadence": "weekly",
-      "weight": 0.73
-    },
-    {
-      "read_id": "0dd22841-41d7-4def-826c-eba0b4cc0000",
-      "place": "saffron_step",
-      "signal": "trusted_safe_place",
-      "driver": "acclaim_skeptic",
-      "cadence": "monthly",
-      "weight": 0.82
-    },
-    {
-      "read_id": "a03918c2-87be-4d2e-833b-faf5f9600000",
-      "place": "laksa_lane",
-      "signal": "wanted_something_else",
-      "driver": "crowd_aversion",
-      "cadence": "rarely",
-      "weight": 0.43
-    },
-    {
-      "read_id": "2dcff55c-88a0-4d2c-8d52-6107873e0000",
-      "place": "miso_hollow",
-      "signal": "trusted_safe_place",
-      "driver": "sensory_shift",
-      "cadence": "daily",
-      "weight": 0.54
-    },
-    {
-      "read_id": "10619942-fa1e-4fcc-89b6-47aa00a80000",
-      "place": "green_papaya",
-      "signal": "trusted_safe_place",
-      "driver": "allergy_constraint",
-      "cadence": "once",
-      "weight": 0.54
-    },
-    {
-      "read_id": "adf04582-51ac-4677-8196-5d2f75ac0000",
-      "place": "chaat_corner",
-      "signal": "returns_despite_incident",
-      "driver": "companion_constraint",
-      "cadence": "weekly",
-      "weight": 0.47
-    },
-    {
-      "read_id": "69043b6f-02be-403f-8c5c-da264db00000",
-      "place": "cardamom_court",
-      "signal": "wanted_something_else",
-      "driver": "emotional_exclusion",
-      "cadence": "monthly",
-      "weight": 0.4
-    },
-    {
-      "read_id": "a3551f50-d711-450e-864f-b880f0c60000",
-      "place": "seoul_static",
-      "signal": "pretends_preference",
-      "driver": "acclaim_skeptic",
-      "cadence": "rarely",
-      "weight": 0.46
-    },
-    {
-      "read_id": "aff5a4f9-4de4-4ea5-8ef8-ff5fe7970000",
-      "place": "hen_and_honey",
-      "signal": "trusted_safe_place",
-      "driver": "crowd_aversion",
-      "cadence": "daily",
-      "weight": 0.73
-    },
-    {
-      "read_id": "95d78a89-ad4c-4d39-88f5-afa4a0f90000",
-      "place": "bao_bar_micro",
-      "signal": "wanted_something_else",
-      "driver": "sensory_shift",
-      "cadence": "once",
-      "weight": 0.75
-    },
-    {
-      "read_id": "ee0abf65-6e9d-4725-80c2-0c7b13110000",
-      "place": "sardine_social",
-      "signal": "pretends_preference",
-      "driver": "allergy_constraint",
-      "cadence": "weekly",
-      "weight": 0.56
-    },
-    {
-      "read_id": "9a0c8013-fc5f-4a9f-82bd-eb80c51e0000",
-      "place": "the_blue_door",
-      "signal": "wanted_something_else",
-      "driver": "companion_constraint",
-      "cadence": "monthly",
-      "weight": 0.83
-    },
-    {
-      "read_id": "c64b8928-b189-4c61-8121-a8664ae60000",
-      "place": "brine_and_shell",
-      "signal": "trusted_safe_place",
-      "driver": "emotional_exclusion",
-      "cadence": "rarely",
-      "weight": 0.73
-    },
-    {
-      "read_id": "d390f925-e955-402b-8cdb-0a6bbfda0000",
-      "place": "ferment_station",
-      "signal": "regret_after_order",
-      "driver": "acclaim_skeptic",
-      "cadence": "daily",
-      "weight": 0.79
-    },
-    {
-      "read_id": "12493bd6-ecf8-4e46-85f3-08515fe60000",
-      "place": "ash_and_rye",
-      "signal": "secret_default",
-      "driver": "crowd_aversion",
-      "cadence": "once",
-      "weight": 0.51
-    },
-    {
-      "read_id": "c4d2d430-d7c1-40f3-8d46-9dda57290000",
-      "place": "laksa_lane",
-      "signal": "pretends_preference",
-      "driver": "sensory_shift",
-      "cadence": "weekly",
-      "weight": 0.84
-    },
-    {
-      "read_id": "3cce4915-b7ff-43db-845f-34cb7e390000",
-      "place": "ash_and_rye",
-      "signal": "wanted_something_else",
-      "driver": "allergy_constraint",
-      "cadence": "monthly",
-      "weight": 0.87
-    },
-    {
-      "read_id": "749637c8-dde8-4711-82fc-9e9ee79d0000",
-      "place": "ferment_station",
-      "signal": "never_ordered_again",
-      "driver": "companion_constraint",
-      "cadence": "rarely",
-      "weight": 0.43
-    },
-    {
-      "read_id": "92650395-d393-4f3f-885b-bdf7b5a30000",
-      "place": "ferment_station",
-      "signal": "returns_despite_incident",
-      "driver": "emotional_exclusion",
-      "cadence": "daily",
-      "weight": 0.49
-    },
-    {
-      "read_id": "84c2cfa3-941e-46db-8811-6b8d90070000",
-      "place": "banh_mi_signal",
-      "signal": "never_ordered_again",
-      "driver": "acclaim_skeptic",
-      "cadence": "once",
-      "weight": 0.43
-    },
-    {
-      "read_id": "17bc43f7-8c5a-4c81-8091-4fac4ef80000",
-      "place": "the_blue_door",
-      "signal": "returns_despite_incident",
-      "driver": "crowd_aversion",
-      "cadence": "weekly",
-      "weight": 0.46
-    },
-    {
-      "read_id": "6e11f89d-d576-444a-82d6-53a626e10000",
-      "place": "copper_kettle",
-      "signal": "pretends_preference",
-      "driver": "sensory_shift",
-      "cadence": "monthly",
-      "weight": 0.8
-    },
-    {
-      "read_id": "dbaa4dd0-9eca-4953-8cb0-dcd231d70000",
-      "place": "harbor_greens",
-      "signal": "trusted_safe_place",
-      "driver": "allergy_constraint",
-      "cadence": "rarely",
-      "weight": 0.46
-    },
-    {
-      "read_id": "bd13268f-5c10-4615-8f18-9d44c4600000",
-      "place": "green_papaya",
-      "signal": "never_ordered_again",
-      "driver": "companion_constraint",
-      "cadence": "daily",
-      "weight": 0.41
-    },
-    {
-      "read_id": "69be8787-9c71-4c76-82cc-a9cb68c60000",
-      "place": "pita_parade",
-      "signal": "trusted_safe_place",
-      "driver": "emotional_exclusion",
-      "cadence": "once",
-      "weight": 0.67
-    },
-    {
-      "read_id": "bb965720-9dc3-476c-8caf-98144e000000",
-      "place": "hen_and_honey",
-      "signal": "secret_default",
-      "driver": "acclaim_skeptic",
-      "cadence": "weekly",
-      "weight": 0.74
-    },
-    {
-      "read_id": "a3fca2ab-78e3-4922-8e56-3b43b91e0000",
-      "place": "terracotta",
-      "signal": "regret_after_order",
-      "driver": "crowd_aversion",
-      "cadence": "monthly",
-      "weight": 0.67
-    },
-    {
-      "read_id": "3f4c26ae-82af-4a6b-8a5f-fc833df40000",
-      "place": "rosas_taqueria",
-      "signal": "wanted_something_else",
-      "driver": "sensory_shift",
-      "cadence": "rarely",
-      "weight": 0.5
-    },
-    {
-      "read_id": "a269e7e7-3ae0-4d98-82b1-cd01d0ec0000",
-      "place": "green_papaya",
-      "signal": "secret_default",
-      "driver": "allergy_constraint",
-      "cadence": "daily",
-      "weight": 0.49
-    },
-    {
-      "read_id": "35e56330-1f21-4016-8c6c-12a27ce50000",
-      "place": "tortoise_tea",
-      "signal": "never_ordered_again",
-      "driver": "companion_constraint",
-      "cadence": "once",
-      "weight": 0.7
-    },
-    {
-      "read_id": "7b48ad0b-5da0-44fa-8832-02a13f1d0000",
-      "place": "tortoise_tea",
-      "signal": "wanted_something_else",
-      "driver": "emotional_exclusion",
-      "cadence": "weekly",
-      "weight": 0.51
-    },
-    {
-      "read_id": "6751b705-1436-4add-8656-7491ec970000",
-      "place": "green_papaya",
-      "signal": "wanted_something_else",
-      "driver": "acclaim_skeptic",
-      "cadence": "monthly",
-      "weight": 0.68
-    },
-    {
-      "read_id": "6dc15371-c24f-4e09-80a5-959721d50000",
-      "place": "pita_parade",
-      "signal": "secret_default",
-      "driver": "crowd_aversion",
-      "cadence": "rarely",
-      "weight": 0.6
-    },
-    {
-      "read_id": "0983e88f-b39f-44d5-8a2c-a4dfa8ad0000",
-      "place": "mabels_diner",
-      "signal": "pretends_preference",
-      "driver": "sensory_shift",
-      "cadence": "daily",
-      "weight": 0.45
-    },
-    {
-      "read_id": "2baf33ec-e27d-4eae-83cd-842459c40000",
-      "place": "miso_hollow",
-      "signal": "trusted_safe_place",
-      "driver": "allergy_constraint",
-      "cadence": "once",
-      "weight": 0.56
-    },
-    {
-      "read_id": "18c12d3f-997a-4702-838a-7757d91b0000",
-      "place": "ash_and_rye",
-      "signal": "wanted_something_else",
-      "driver": "companion_constraint",
-      "cadence": "weekly",
-      "weight": 0.43
-    },
-    {
-      "read_id": "521a0c87-6014-4ab4-8f97-59da086a0000",
-      "place": "laksa_lane",
-      "signal": "regret_after_order",
-      "driver": "emotional_exclusion",
-      "cadence": "monthly",
-      "weight": 0.48
-    },
-    {
-      "read_id": "509777d7-909e-40c4-84c1-a4f020840000",
-      "place": "pita_parade",
-      "signal": "pretends_preference",
-      "driver": "acclaim_skeptic",
-      "cadence": "rarely",
-      "weight": 0.88
-    },
-    {
-      "read_id": "dd7627e4-968d-420b-8833-cfcd3d7c0000",
-      "place": "seoul_static",
-      "signal": "never_ordered_again",
-      "driver": "crowd_aversion",
-      "cadence": "daily",
-      "weight": 0.65
-    },
-    {
-      "read_id": "ea623d64-8b28-430e-8518-ffbd78510000",
-      "place": "the_blue_door",
-      "signal": "pretends_preference",
-      "driver": "sensory_shift",
-      "cadence": "once",
-      "weight": 0.51
-    },
-    {
-      "read_id": "94ac3551-aa20-4248-85cf-1d9538070000",
-      "place": "verdant",
-      "signal": "returns_despite_incident",
-      "driver": "allergy_constraint",
-      "cadence": "weekly",
-      "weight": 0.84
-    },
-    {
-      "read_id": "132be07a-ecff-499e-8a3a-943928800000",
-      "place": "pita_parade",
-      "signal": "wanted_something_else",
-      "driver": "companion_constraint",
-      "cadence": "monthly",
-      "weight": 0.57
-    },
-    {
-      "read_id": "79496db7-f9cf-4e59-8c53-c8942dc80000",
-      "place": "copper_kettle",
-      "signal": "secret_default",
-      "driver": "emotional_exclusion",
-      "cadence": "rarely",
-      "weight": 0.53
-    },
-    {
-      "read_id": "79c87a4c-8156-440f-8ddf-e4ae310a0000",
-      "place": "miso_hollow",
-      "signal": "trusted_safe_place",
-      "driver": "acclaim_skeptic",
-      "cadence": "daily",
-      "weight": 0.86
-    },
-    {
-      "read_id": "4160339e-c5f9-469d-80a4-15e763ab0000",
-      "place": "rosas_taqueria",
-      "signal": "pretends_preference",
-      "driver": "crowd_aversion",
-      "cadence": "once",
-      "weight": 0.74
+      "k": 31,
+      "citable": false,
+      "placeNames": [
+        "Bao Bar Micro",
+        "Cedar Meze",
+        "Clay Oven Hearth",
+        "Copper Kettle",
+        "Ember & Ash",
+        "Green Papaya",
+        "Laksa Lane",
+        "Lupita's Cocina",
+        "Mabel's Diner",
+        "Miso Hollow",
+        "Noodle Shrine",
+        "Olive & Thorn",
+        "Rosa's Taqueria",
+        "Saffron Step",
+        "Sardine Social",
+        "Seoul Static",
+        "Terracotta",
+        "The Blue Door",
+        "The Dumpling Line",
+        "The Furnace",
+        "Verdant"
+      ]
+    },
+    {
+      "driver": "solo_comfort",
+      "k": 7,
+      "citable": true,
+      "placeNames": [
+        "Green Papaya",
+        "Mabel's Diner",
+        "Noodle Shrine",
+        "Pho's Deep",
+        "Rosa's Taqueria",
+        "The Dumpling Line",
+        "The Quiet Counter"
+      ]
+    },
+    {
+      "driver": "spice_tolerance_low",
+      "k": 7,
+      "citable": true,
+      "placeNames": [
+        "Ember & Ash",
+        "Golden Bao House",
+        "Noodle Shrine",
+        "Pho's Deep",
+        "Rosa's Taqueria",
+        "Saffron Step",
+        "The Quiet Counter"
+      ]
     }
   ]
 }

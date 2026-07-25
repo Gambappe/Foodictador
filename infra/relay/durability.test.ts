@@ -25,6 +25,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { sampleRead } from '../../src/contracts/fixtures/index.js';
@@ -323,8 +324,10 @@ describe('P0.8: store + file, round trip', () => {
 // ---------------------------------------------------------------------------
 // The one that actually proves it.
 
-const RELAY_MAIN = new URL('./main.ts', import.meta.url).pathname;
-const TSX = new URL('../../node_modules/.bin/tsx', import.meta.url).pathname;
+// SL-14: `.pathname` URL-encodes spaces as `%20`, which spawn() cannot open —
+// `fileURLToPath` decodes it back to a real path on any checkout.
+const RELAY_MAIN = fileURLToPath(new URL('./main.ts', import.meta.url));
+const TSX = fileURLToPath(new URL('../../node_modules/.bin/tsx', import.meta.url));
 
 /**
  * Spawned via the `tsx` binary directly and in its own process group.

@@ -100,11 +100,11 @@ describe('hard constraints', () => {
     const safe = place({ id: 'safe', tags: ['gi_safe_options'] });
     const constrained = { ...usual, giConstraint: true };
 
-    expect(exclusionsFor(unsafe, constrained)).toEqual([
+    expect(exclusionsFor(unsafe, constrained, [])).toEqual([
       { placeId: 'unsafe', reason: 'gi_unsafe' },
     ]);
-    expect(exclusionsFor(safe, constrained)).toEqual([]);
-    expect(candidates([unsafe, safe], constrained).map((p) => p.id)).toEqual(['safe']);
+    expect(exclusionsFor(safe, constrained, [])).toEqual([]);
+    expect(candidates([unsafe, safe], constrained, []).map((p) => p.id)).toEqual(['safe']);
   });
 
   it('tolerates exactly one price band above budget and no more', () => {
@@ -112,13 +112,14 @@ describe('hard constraints', () => {
     const ids = candidates(
       bands.map((band) => place({ id: `band${String(band)}`, priceBand: band })),
       usual, // budgetBand 2, so 3 is tolerated and 4 is not
+      [],
     ).map((p) => p.id);
     expect(ids).toEqual(['band1', 'band2', 'band3']);
   });
 
   it('reports every violation a place commits, not just the first', () => {
     const bad = place({ id: 'bad', priceBand: 4, tags: [] });
-    expect(exclusionsFor(bad, { ...usual, giConstraint: true }).map((e) => e.reason)).toEqual([
+    expect(exclusionsFor(bad, { ...usual, giConstraint: true }, []).map((e) => e.reason)).toEqual([
       'gi_unsafe',
       'over_budget',
     ]);
@@ -134,6 +135,92 @@ describe('hard constraints', () => {
       now: NOW,
     });
     expect(ranked.map((r) => r.place.id)).toEqual(['safe']);
+  });
+});
+
+describe('the D-11 budget lift — evidence can lift the ceiling, the exclusion is not removed', () => {
+  // budgetBand 2 + tolerance 1, so band 4 is over the wall for `usual` in every test here.
+  const pricey = place({ id: 'pricey', priceBand: 4 });
+
+  it('a citable cohort that includes the place lifts over_budget', () => {
+    const reads = citableCohort('pricey', 'trusted_safe_place');
+    expect(exclusionsFor(pricey, usual, reads)).toEqual([]);
+    expect(candidates([pricey], usual, reads).map((p) => p.id)).toEqual(['pricey']);
+  });
+
+  it('a lifted place is actually ranked, not merely unexcluded', () => {
+    const ranked = scorePlaces({
+      reads: citableCohort('pricey', 'trusted_safe_place'),
+      usual,
+      log: [],
+      corpus: [pricey, place({ id: 'cheap', priceBand: 1 })],
+      context,
+      now: NOW,
+    });
+    expect(ranked.map((r) => r.place.id).sort()).toEqual(['cheap', 'pricey']);
+  });
+
+  it('one read short of KFLOOR lifts nothing', () => {
+    const four = citableCohort('pricey', 'trusted_safe_place').slice(0, 4);
+    expect(exclusionsFor(pricey, usual, four)).toEqual([
+      { placeId: 'pricey', reason: 'over_budget' },
+    ]);
+  });
+
+  it('five copies of one read lift nothing — the floor counts people, not rows ([E20])', () => {
+    const copies = citableCohort('pricey', 'trusted_safe_place').map((r) => ({
+      ...r,
+      read_id: 'same-read',
+    }));
+    expect(exclusionsFor(pricey, usual, copies)).toEqual([
+      { placeId: 'pricey', reason: 'over_budget' },
+    ]);
+  });
+
+  it('a cohort on a driver this Usual does not evidence lifts nothing', () => {
+    // gi_constraint is matchable in general but not evidenced by `usual` (giConstraint
+    // false), so five strangers with a constraint this diner does not share move nothing.
+    const reads = citableCohort('pricey', 'trusted_safe_place').map((r) => ({
+      ...r,
+      driver: 'gi_constraint' as const,
+    }));
+    expect(exclusionsFor(pricey, usual, reads)).toEqual([
+      { placeId: 'pricey', reason: 'over_budget' },
+    ]);
+  });
+
+  it('a citable cohort at some other place lifts nothing here', () => {
+    const reads = citableCohort('elsewhere', 'trusted_safe_place');
+    expect(exclusionsFor(pricey, usual, reads)).toEqual([
+      { placeId: 'pricey', reason: 'over_budget' },
+    ]);
+  });
+
+  it('negative evidence lifts the wall too — and the pool term then holds it against the place', () => {
+    // The lift deliberately ignores polarity: it stops the wall hiding evidence, it does
+    // not endorse the place. Five regrets make pricey a candidate whose pool term is
+    // below neutral, so it ranks like a place five people regret.
+    const regrets = citableCohort('pricey', 'regret_after_order');
+    expect(exclusionsFor(pricey, usual, regrets)).toEqual([]);
+    const ranked = scorePlaces({
+      reads: regrets,
+      usual,
+      log: [],
+      corpus: [pricey],
+      context,
+      now: NOW,
+    });
+    expect(ranked[0]?.parts.pool).toBeLessThan(0.5);
+  });
+
+  it('giConstraint stays hard no matter how citable the cohort', () => {
+    const constrained = { ...usual, giConstraint: true };
+    const reads = citableCohort('pricey', 'trusted_safe_place');
+    // over_budget is lifted; gi_unsafe stands alone and still excludes.
+    expect(exclusionsFor(pricey, constrained, reads)).toEqual([
+      { placeId: 'pricey', reason: 'gi_unsafe' },
+    ]);
+    expect(candidates([pricey], constrained, reads)).toEqual([]);
   });
 });
 

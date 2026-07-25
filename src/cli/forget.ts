@@ -32,19 +32,35 @@ function targetLine(name: string, report: ForgetTargetReport): string {
   }
 }
 
+const TARGETS = ['pool', 'relay', 'user', 'buffer'] as const;
+
+/**
+ * A target is "resolved" once it is `deleted` or `nothing_to_delete` — the two
+ * outcomes that mean there is nothing left under that scope for this read.
+ * `skipped` is neither: M8 could not even attempt it (no captured handles),
+ * so something the user asked to be forgotten may still be sitting in that
+ * scope. SL-19: the old check only asked whether ANY target was `deleted`,
+ * so a fully skipped user-scope confession still produced "Deleted from
+ * Confit" — the overclaim the deletion story exists to prevent.
+ */
 function headline(report: ForgetReport): string {
   if (!report.ok) {
-    const failed = (['pool', 'relay', 'user', 'buffer'] as const)
-      .filter((target) => report[target].status === 'failed')
-      .join(' and ');
+    const failed = TARGETS.filter((target) => report[target].status === 'failed').join(' and ');
     return `Not fully deleted from Confit — ${failed} failed. Run it again once that recovers.`;
   }
-  const touched = (['pool', 'relay', 'user', 'buffer'] as const).some(
-    (target) => report[target].status === 'deleted',
-  );
+  const skipped = TARGETS.some((target) => report[target].status === 'skipped');
+  if (skipped) {
+    return `Partly deleted from Confit: ${report.read_id} — your own words are still in your memory.`;
+  }
+  const touched = TARGETS.some((target) => report[target].status === 'deleted');
   return touched
     ? `Deleted from Confit: ${report.read_id}`
     : `Nothing stored under ${report.read_id} — already gone from Confit.`;
+}
+
+/** Success (exit 0) requires every target resolved — not merely "not failed". */
+function fullyResolved(report: ForgetReport): boolean {
+  return report.ok && TARGETS.every((target) => report[target].status !== 'skipped');
 }
 
 /** The handler with its backend injected — tests drive this directly. */
@@ -67,7 +83,7 @@ export function createForgetCommand(runForget: RunForget): CommandHandler {
         targetLine('buffer', report.buffer),
       ],
       data: { ...report },
-      exit: report.ok ? EXIT.ok : EXIT.expectedFailure,
+      exit: fullyResolved(report) ? EXIT.ok : EXIT.expectedFailure,
     };
   };
 }
