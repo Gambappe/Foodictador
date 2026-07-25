@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T08:54:27.571Z",
+  "updated_at": "2026-07-25T08:55:48.386Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -546,12 +546,12 @@
       ],
       "mock_start_ok": false,
       "note": "Day key must come from the device's local timezone, not UTC, or a 23:00 nudge fires twice in one evening west of Greenwich. No timers in this module. Copy comes from L1's catalog, never a model.",
-      "status": "claimed",
+      "status": "in_review",
       "owner": "claude-session-12uj0q",
       "branch": "claude/app-design-task-impl-12uj0q",
-      "pr": null,
+      "pr": "https://github.com/Gambappe/Foodictador/pull/26",
       "claimed_at": "2026-07-25T08:54:13.082Z",
-      "updated_at": "2026-07-25T08:54:13.082Z"
+      "updated_at": "2026-07-25T08:55:48.386Z"
     },
     "G1": {
       "title": "Pool-write schema guard test: adversarial suite around src/memory/guard.ts asserting every pool/relay-bound body is exactly READ_KEYS, closed and enum-checked",
