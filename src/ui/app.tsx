@@ -14,7 +14,8 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { HashRouter, NavLink, Navigate, Route, Routes } from 'react-router-dom';
 
-import { DEFAULT_ROUTE, ROUTES } from './routes.js';
+import { DEFAULT_BACKEND, DEFAULT_ROUTE, ROUTES } from './routes.js';
+import type { UiBackend } from './backend.js';
 import './tokens.css';
 
 function Nav() {
@@ -35,15 +36,20 @@ function Nav() {
   );
 }
 
-/** The routed shell, without a router — tests supply their own. */
-export function AppShell() {
+/**
+ * The routed shell, without a router — tests supply their own.
+ *
+ * `backend` is a parameter so a test can drive the real screens against a stub, which is
+ * what makes "every route renders its screen" mean something beyond "a heading appeared".
+ */
+export function AppShell({ backend = DEFAULT_BACKEND }: { backend?: UiBackend } = {}) {
   return (
     <div className="mx-auto max-w-2xl p-6">
       <Nav />
       <main className="pt-6">
         <Routes>
           {ROUTES.map((route) => (
-            <Route key={route.path} path={route.path} element={route.element()} />
+            <Route key={route.path} path={route.path} element={route.element(backend)} />
           ))}
           <Route path="*" element={<Navigate to={DEFAULT_ROUTE} replace />} />
         </Routes>
