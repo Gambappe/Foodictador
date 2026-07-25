@@ -207,10 +207,18 @@ describe('exit codes', () => {
 
   it('exits 1 for a registered command that is not implemented yet', async () => {
     // Not 0: the command exists and was invoked correctly, and still could not do the job.
-    const { code, out } = await invoke('ask', '--profile', 'A');
+    // The specimen is picked dynamically: wiring a handler (an integrator change) must
+    // not break this test, which is exactly what happened when it hard-coded `ask`.
+    const spec = COMMANDS.find((candidate) => candidate.handler === undefined);
+    if (spec === undefined) return; // every command wired — this test has retired itself
+    const argv = [...spec.path];
+    if (spec.requires?.includes('profile')) argv.push('--profile', 'A');
+    if (spec.requires?.includes('text')) argv.push('--text', 'something');
+    if (spec.positional?.required === true) argv.push('a-read-id');
+    const { code, out } = await invoke(...argv);
     expect(code).toBe(EXIT.expectedFailure);
     expect(out).toContain('not implemented yet');
-    expect(out).toContain('X3');
+    expect(out).toContain(spec.task);
   });
 
   it('uses the four documented codes and nothing else', () => {
@@ -235,8 +243,11 @@ describe('exit codes', () => {
 });
 
 describe('--json', () => {
-  it('emits parseable JSON for every registered command', async () => {
-    for (const spec of COMMANDS) {
+  it('emits parseable JSON for every still-placeholder command', async () => {
+    // Wired commands are covered by their own suites (ask.test.ts, …) against
+    // fixture stores — invoking them here would need real config and a live
+    // substrate, and their payload is the command's, not the placeholder's.
+    for (const spec of COMMANDS.filter((candidate) => candidate.handler === undefined)) {
       const argv = [...spec.path, '--json'];
       if (spec.requires?.includes('profile')) argv.push('--profile', 'A');
       if (spec.requires?.includes('text')) argv.push('--text', 'something');
@@ -267,7 +278,13 @@ describe('--json', () => {
   });
 
   it('writes nothing but the payload to stdout, so stdout stays parseable', async () => {
-    const { out } = await invoke('ask', '--profile', 'A', '--json');
+    const spec = COMMANDS.find((candidate) => candidate.handler === undefined);
+    if (spec === undefined) return; // every command wired — covered by command suites
+    const argv = [...spec.path, '--json'];
+    if (spec.requires?.includes('profile')) argv.push('--profile', 'A');
+    if (spec.requires?.includes('text')) argv.push('--text', 'something');
+    if (spec.positional?.required === true) argv.push('a-read-id');
+    const { out } = await invoke(...argv);
     expect(out.trimStart().startsWith('{')).toBe(true);
   });
 

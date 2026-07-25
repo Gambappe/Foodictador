@@ -11,6 +11,7 @@
  */
 
 import { pathToFileURL } from 'node:url';
+import { askHandler } from './ask.js';
 import { loadConfig, createFlagStore, createLogger, initialFlags } from '../config/index.js';
 import type { AppConfig, FlagStore, Logger } from '../config/index.js';
 import {
@@ -85,6 +86,7 @@ export const COMMANDS: readonly CommandSpec[] = [
     options: ['profile'],
     requires: ['profile'],
     task: 'X3',
+    handler: askHandler,
   },
   {
     path: ['sweep'],
