@@ -138,6 +138,20 @@ describe('L3 live narrator', () => {
     expect(body).not.toContain('"k":4');
   });
 
+  it('a sub-floor citation is not cited on the template-delegation path either', async () => {
+    const { narrator, flags } = harness([]);
+    flags.set('narrator', 'template', 'test');
+    const copy = await narrator.write(ranked(), facts({ citation: { driver: 'budget_ceiling', k: 2 } }));
+    expect(copy.reasonLine).not.toContain('2 of them');
+    expect(copy.reasonLine).not.toContain('budget ceiling');
+  });
+
+  it('a sub-floor citation is not cited after a transport-failure fallback', async () => {
+    const { narrator } = harness([new Error('ECONNREFUSED')]);
+    const copy = await narrator.write(ranked(), facts({ citation: { driver: 'solo_comfort', k: 3 } }));
+    expect(copy.reasonLine).not.toContain('3 of them');
+  });
+
   it('under narrator=template it delegates to L1 with zero requests', async () => {
     const { narrator, requests, flags } = harness([]);
     flags.set('narrator', 'template', 'test');
