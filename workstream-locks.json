@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T08:05:33.222Z",
+  "updated_at": "2026-07-25T08:14:00.035Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -23,12 +23,12 @@
       ],
       "mock_start_ok": false,
       "note": "After this merges src/contracts/** is integrator-only. READ_KEYS lives here and is the single source of truth — K1, P0.4 and G1 all import it rather than re-declaring the field list. Read has no createdAt and no received_at (DAG doc §3).",
-      "status": "claimed",
+      "status": "done",
       "owner": "fable-session-0dd9z8",
       "branch": "claude/upload-artifact-docs-0dd9z8",
       "pr": null,
       "claimed_at": "2026-07-25T08:05:33.207Z",
-      "updated_at": "2026-07-25T08:05:33.207Z"
+      "updated_at": "2026-07-25T08:14:00.034Z"
     },
     "P0.3": {
       "title": "Runtime config, degrade flags, logger: XTrace/relay config fails fast, ANTHROPIC_API_KEY is optional and defaults flags to seeded/template",
