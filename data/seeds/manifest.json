@@ -1,0 +1,233 @@
+{
+  "generatedFrom": "prng 12603159",
+  "demoNow": "2026-07-25T19:00:00.000Z",
+  "manifest": [
+    {
+      "driver": "acclaim_skeptic",
+      "k": 32,
+      "places": [
+        "ash_and_rye",
+        "banh_mi_signal",
+        "bao_bar_micro",
+        "cardamom_court",
+        "copper_kettle",
+        "ferment_station",
+        "golden_bao",
+        "green_papaya",
+        "hen_and_honey",
+        "mabels_diner",
+        "miso_hollow",
+        "noodle_shrine",
+        "nopal_verde",
+        "pita_parade",
+        "quiet_counter",
+        "saffron_step",
+        "seoul_static",
+        "terracotta",
+        "the_dumpling_line",
+        "the_furnace",
+        "umami_dive",
+        "verdant"
+      ]
+    },
+    {
+      "driver": "allergy_constraint",
+      "k": 31,
+      "places": [
+        "ash_and_rye",
+        "bao_bar_micro",
+        "cardamom_court",
+        "chaat_corner",
+        "copper_kettle",
+        "ember_and_ash",
+        "ferment_station",
+        "green_papaya",
+        "harbor_greens",
+        "laksa_lane",
+        "mabels_diner",
+        "miso_hollow",
+        "olive_and_thorn",
+        "phos_deep",
+        "pita_parade",
+        "saffron_step",
+        "sardine_social",
+        "seoul_static",
+        "the_dumpling_line",
+        "umami_dive",
+        "verdant"
+      ]
+    },
+    {
+      "driver": "budget_ceiling",
+      "k": 6,
+      "places": [
+        "cedar_meze",
+        "ember_and_ash",
+        "harbor_greens",
+        "noodle_shrine",
+        "quiet_counter",
+        "saffron_step"
+      ]
+    },
+    {
+      "driver": "companion_constraint",
+      "k": 32,
+      "places": [
+        "ash_and_rye",
+        "bao_bar_micro",
+        "chaat_corner",
+        "copper_kettle",
+        "ferment_station",
+        "green_papaya",
+        "griddle_west",
+        "hen_and_honey",
+        "laksa_lane",
+        "mabels_diner",
+        "miso_hollow",
+        "noodle_shrine",
+        "pita_parade",
+        "saffron_step",
+        "sardine_social",
+        "seoul_static",
+        "terracotta",
+        "the_blue_door",
+        "the_dumpling_line",
+        "the_furnace",
+        "tortoise_tea"
+      ]
+    },
+    {
+      "driver": "crowd_aversion",
+      "k": 32,
+      "places": [
+        "addis_red",
+        "ash_and_rye",
+        "bao_bar_micro",
+        "cardamom_court",
+        "chaat_corner",
+        "ember_and_ash",
+        "green_papaya",
+        "griddle_west",
+        "harbor_greens",
+        "hen_and_honey",
+        "laksa_lane",
+        "mabels_diner",
+        "night_market_44",
+        "olive_and_thorn",
+        "pita_parade",
+        "polenta_house",
+        "quiet_counter",
+        "rosas_taqueria",
+        "saffron_step",
+        "sardine_social",
+        "seoul_static",
+        "terracotta",
+        "the_blue_door",
+        "tortoise_tea"
+      ]
+    },
+    {
+      "driver": "emotional_exclusion",
+      "k": 32,
+      "places": [
+        "addis_red",
+        "ash_and_rye",
+        "banh_mi_signal",
+        "brine_and_shell",
+        "cardamom_court",
+        "cedar_meze",
+        "chaat_corner",
+        "copper_kettle",
+        "ferment_station",
+        "hen_and_honey",
+        "laksa_lane",
+        "lupita_cocina",
+        "miso_hollow",
+        "night_market_44",
+        "noodle_shrine",
+        "pita_parade",
+        "rosas_taqueria",
+        "saffron_step",
+        "sardine_social",
+        "the_blue_door",
+        "tortoise_tea",
+        "verdant"
+      ]
+    },
+    {
+      "driver": "gi_constraint",
+      "k": 5,
+      "places": [
+        "copper_kettle",
+        "green_papaya",
+        "harbor_greens",
+        "phos_deep",
+        "saffron_step"
+      ]
+    },
+    {
+      "driver": "portion_small",
+      "k": 5,
+      "places": [
+        "cedar_meze",
+        "golden_bao",
+        "harbor_greens",
+        "lupita_cocina",
+        "quiet_counter"
+      ]
+    },
+    {
+      "driver": "sensory_shift",
+      "k": 31,
+      "places": [
+        "bao_bar_micro",
+        "cedar_meze",
+        "clay_oven_hearth",
+        "copper_kettle",
+        "ember_and_ash",
+        "green_papaya",
+        "laksa_lane",
+        "lupita_cocina",
+        "mabels_diner",
+        "miso_hollow",
+        "noodle_shrine",
+        "olive_and_thorn",
+        "rosas_taqueria",
+        "saffron_step",
+        "sardine_social",
+        "seoul_static",
+        "terracotta",
+        "the_blue_door",
+        "the_dumpling_line",
+        "the_furnace",
+        "verdant"
+      ]
+    },
+    {
+      "driver": "solo_comfort",
+      "k": 7,
+      "places": [
+        "green_papaya",
+        "mabels_diner",
+        "noodle_shrine",
+        "phos_deep",
+        "quiet_counter",
+        "rosas_taqueria",
+        "the_dumpling_line"
+      ]
+    },
+    {
+      "driver": "spice_tolerance_low",
+      "k": 7,
+      "places": [
+        "ember_and_ash",
+        "golden_bao",
+        "noodle_shrine",
+        "phos_deep",
+        "quiet_counter",
+        "rosas_taqueria",
+        "saffron_step"
+      ]
+    }
+  ]
+}
