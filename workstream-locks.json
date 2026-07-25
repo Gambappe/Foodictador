@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T08:54:26.019Z",
+  "updated_at": "2026-07-25T08:54:27.571Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -69,12 +69,12 @@
       ],
       "mock_start_ok": false,
       "note": "BLOCKS BUILD DAY (design v0.8 §11, D-3). A standalone script, not a confit subcommand. It is also the only task that measures the ingest->retrievable window, which M7 and S3 both read — skip it and those two are guessing. If it fails, stop and escalate: the sole-store decision [E9] reopens.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "fable-session-0dd9z8",
+      "branch": "feat/p0.5-gate-zero",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T07:37:34.268Z"
+      "claimed_at": "2026-07-25T08:54:27.571Z",
+      "updated_at": "2026-07-25T08:54:27.571Z"
     },
     "K1": {
       "title": "Read validator + mintReadId: closed schema checked against READ_KEYS from contracts, enum checks, weight in [0,1]",
