@@ -1,4 +1,4 @@
-import { globSync, readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { templateNarrator } from '../llm/template.js';
@@ -164,13 +164,36 @@ describe('liveGraph', () => {
   });
 });
 
+/**
+ * A directory walk, where this used to call `fs.globSync`.
+ *
+ * `globSync` arrived in Node 22, but `engines` and CI both say Node 20 — so the glob
+ * version passed on a newer local Node and failed for everyone running the version the
+ * repo actually claims to support. Hand-rolled rather than switched to `readdirSync`'s
+ * `recursive` option, which has its own floor (20.1); this has none.
+ *
+ * Returns paths relative to `root`, so they can be fed straight back to `new URL`.
+ */
+function tsFilesUnder(root: URL, dirs: readonly string[]): string[] {
+  const found: string[] = [];
+  const walk = (relative: string): void => {
+    const entries = readdirSync(fileURLToPath(new URL(relative, root)), { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) walk(`${relative}${entry.name}/`);
+      else if (entry.name.endsWith('.ts')) found.push(`${relative}${entry.name}`);
+    }
+  };
+  for (const dir of dirs) walk(`${dir}/`);
+  return found;
+}
+
 describe('no command builds its own adapters', () => {
   it('is the only module that constructs one', () => {
     // The whole point of P0.6: if a command reaches for a factory itself, the graph stops
     // being the single place wiring is reviewed, and the fixture path silently diverges
     // from the live one.
     const root = new URL('../', import.meta.url);
-    const files = globSync('{cli,kernel}/**/*.ts', { cwd: fileURLToPath(root) }).filter(
+    const files = tsFilesUnder(root, ['cli', 'kernel']).filter(
       (name) => !name.endsWith('.test.ts'),
     );
     expect(files.length).toBeGreaterThan(0);
