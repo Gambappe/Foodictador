@@ -75,4 +75,16 @@ export default tseslint.config(
 
   // Plain JS in the repo root (this config) gets syntax linting only.
   { files: ['**/*.js'], extends: [tseslint.configs.disableTypeChecked] },
+
+  {
+    // The `confit` bin (DEPLOY.1): plain ESM that node runs directly, outside the TS
+    // project. Globals are declared rather than the file being added to `ignores`
+    // alongside `scripts/*.mjs` — an unlinted entrypoint is exactly how P0.7's missing
+    // `.tsx` glob let a whole lane go unchecked while looking clean.
+    files: ['bin/**/*.mjs'],
+    extends: [tseslint.configs.disableTypeChecked],
+    languageOptions: {
+      globals: { process: 'readonly', URL: 'readonly', console: 'readonly' },
+    },
+  },
 );
