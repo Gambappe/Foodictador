@@ -259,3 +259,34 @@ describe('X3 ask — D-8\'s second input: the user\'s own synthesis (M16)', () =
     expect(personalAt).toBeGreaterThan(usualAt);
   });
 });
+
+describe('X3 ask — substrate prose is clamped before it prints (L5)', () => {
+  const LEAKY =
+    'The conversation centered on repeated dining signals across several venues. ' +
+    'People with a low tolerance for heat quietly settle at the same two counters. ' +
+    'Regret clusters where the room is loud rather than where the food is wrong. ' +
+    'The session ended by reinforcing the pattern across seventeen places.';
+
+  it('the pool claim reaching the card is the clamped selection, not the paragraph', async () => {
+    const { result } = await askWith({ inducedClaim: () => Promise.resolve(LEAKY) });
+    const joined = result.lines.join('\n');
+    expect(joined).toContain('quietly settle at the same two counters');
+    expect(joined).not.toContain('The conversation centered on'); // episode register gone
+    expect(joined).not.toContain('seventeen places'); // the third sentence never prints
+  });
+
+  it('the personal claim is clamped on the same rule — one implementation, both claims', async () => {
+    const { result } = await askWith({ personalClaim: () => Promise.resolve(LEAKY) });
+    const card = result.data['card'] as { personalLine?: string };
+    expect(card.personalLine).toBeDefined();
+    expect(card.personalLine).not.toContain('The session ended');
+    expect(card.personalLine).not.toContain('seventeen places');
+  });
+
+  it('a single overlong sentence drops the claim rather than cutting it mid-sentence', async () => {
+    const run = `People regret ${Array.from({ length: 40 }, (_, i) => `venue number ${String(i)}`).join(', ')} and everything in between.`;
+    const { result, lines } = await askWith({ inducedClaim: () => Promise.resolve(run) });
+    expect(result.lines.join('\n')).not.toContain('venue number');
+    expect(lines.some((l) => l.includes('too long to print without cutting mid-sentence'))).toBe(true);
+  });
+});
