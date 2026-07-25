@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T08:57:34.639Z",
+  "updated_at": "2026-07-25T08:58:47.086Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -596,12 +596,12 @@
       ],
       "mock_start_ok": false,
       "note": null,
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "claude-session-12uj0q",
+      "branch": "claude/app-design-task-impl-12uj0q",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T07:37:34.268Z"
+      "claimed_at": "2026-07-25T08:58:47.086Z",
+      "updated_at": "2026-07-25T08:58:47.086Z"
     },
     "G4": {
       "title": "Near-tie invariant against the actual seed file and profile B, plus the cohort-count cross-check against the S2 manifest",
