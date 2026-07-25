@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T16:39:33.901Z",
+  "updated_at": "2026-07-25T16:39:50.483Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -1155,13 +1155,13 @@
         "K4"
       ],
       "mock_start_ok": false,
-      "note": "D-11 recorded in the DAG (own commit). Lift gated on matched() at KFLOOR with [E20] dedup; polarity deliberately unconsulted (pool term weighs it); gi stays hard. Demo candidate sets measured unchanged under committed seeds; 913/913.",
-      "status": "in_review",
+      "note": "Merged as #69 (58a4968). D-11 in the DAG. Lift gated on matched() at KFLOOR with [E20] dedup; polarity unconsulted by design; gi hard. Demo candidate sets unchanged under committed seeds; 913/913.",
+      "status": "done",
       "owner": "fable-session-0dd9z8",
       "branch": "feat/k8-budget-evidence-lift",
       "pr": "https://github.com/Gambappe/Foodictador/pull/69",
       "claimed_at": "2026-07-25T16:32:23.919Z",
-      "updated_at": "2026-07-25T16:39:33.900Z"
+      "updated_at": "2026-07-25T16:39:50.483Z"
     },
     "M20": {
       "title": "Personal synthesis is per-confession, not cross-confession: episodes are generated per INGEST CALL, so a stable conv_id is not enough",
