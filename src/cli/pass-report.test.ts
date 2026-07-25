@@ -150,7 +150,7 @@ describe('X6 confit pass neartie', () => {
     const result = await handler(context(['pass', 'neartie']));
     expect(result.exit ?? EXIT.ok).toBe(EXIT.ok);
     // Both acceptance numbers, in lines and in data.
-    expect(result.lines[0]).toMatch(/score\(top1\) − score\(top3\) = \d\.\d{4}/);
+    expect(result.lines[0]).toMatch(/top1 − top3 = \d\.\d{4}/);
     expect(result.lines.some((l) => l.includes('Judge read delta'))).toBe(true);
     expect(typeof result.data['spread']).toBe('number');
     expect(result.data['spread'] as number).toBeLessThanOrEqual(0.04);

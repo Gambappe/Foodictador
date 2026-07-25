@@ -169,9 +169,12 @@ export function createNeartieCommand(deps: NeartieDeps = {}): CommandHandler {
       spread <= NEAR_TIE_GAP_MAX && shifts.length > 0 && shifts.every((s) => s.shift >= JUDGE_SHIFT_MIN);
 
     const lines = [
-      `Near-tie spread: score(top1) − score(top3) = ${spread.toFixed(4)} (max ${NEAR_TIE_GAP_MAX}) ${spread <= NEAR_TIE_GAP_MAX ? 'OK' : 'EXCEEDED'}`,
-      ...ranked.slice(0, 3).map((entry, i) => `  top${i + 1}: ${entry.place.id}  score=${entry.score.toFixed(4)}`),
-      `Judge read delta (weight ${JUDGE_WEIGHT}, min shift ${JUDGE_SHIFT_MIN}):`,
+      // "score" and "weight" are both in K5's banned lexicon (design v0.8 §9,
+      // SL-20) — even on this operator surface, `confit pass` is a shipping
+      // command and X2's precedent is to keep the schema word in --json only.
+      `Near-tie spread: top1 − top3 = ${spread.toFixed(4)} (max ${NEAR_TIE_GAP_MAX}) ${spread <= NEAR_TIE_GAP_MAX ? 'OK' : 'EXCEEDED'}`,
+      ...ranked.slice(0, 3).map((entry, i) => `  top${i + 1}: ${entry.place.id}  fit=${entry.score.toFixed(4)}`),
+      `Judge read delta (strength ${JUDGE_WEIGHT}, min shift ${JUDGE_SHIFT_MIN}):`,
       ...(shifts.length === 0
         ? ['  no matched driver offers a judge path — the peak beat has no lever']
         : shifts.map(
