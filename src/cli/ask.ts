@@ -13,23 +13,12 @@
  */
 
 import type { Narrator, PoolView, UserStore } from '../contracts/modules.js';
-import type {
-  AskContext,
-  Card,
-  CohortStat,
-  Driver,
-  NarratorFacts,
-  Place,
-  RankedPlace,
-  Read,
-} from '../contracts/types.js';
-import { DEMO_CONTEXT, DRIVERS } from '../contracts/types.js';
+import type { AskContext, Driver, Place, Read } from '../contracts/types.js';
+import { DRIVERS } from '../contracts/types.js';
 import type { Flags } from '../contracts/flags.js';
 import type { Logger } from '../config/logger.js';
-import { UNMATCHABLE_DRIVERS, matched, missed } from '../kernel/cohorts.js';
-import { lint } from '../kernel/copylint.js';
-import { suppressions } from '../kernel/rotation.js';
-import { scorePlaces } from '../kernel/score.js';
+import { UNMATCHABLE_DRIVERS } from '../kernel/cohorts.js';
+import { assembleCard, planAsk } from '../kernel/askEngine.js';
 import { EXIT, type CommandResult } from './render.js';
 
 const MATCHABLE_DRIVERS: readonly Driver[] = DRIVERS.filter(
@@ -49,30 +38,9 @@ export interface AskDeps {
   inducedClaim?: (query: string) => Promise<string>;
 }
 
-/** Deterministic pick among citable cohorts: largest k, then vocabulary order. */
-function bestCohort(stats: CohortStat[]): CohortStat | undefined {
-  return [...stats].sort(
-    (a, b) => b.k - a.k || DRIVERS.indexOf(a.driver) - DRIVERS.indexOf(b.driver),
-  )[0];
-}
-
-function contextFor(flags: Flags, now: string, solo: boolean): AskContext {
-  if (flags.demoMode) return DEMO_CONTEXT;
+/** Off demoMode, the engine needs a live context; derive a minimal honest one. */
+function liveContext(now: string, solo: boolean): AskContext {
   return { hour: new Date(now).getHours(), solo, weather: 'clear' };
-}
-
-/** One pre-linted usual note, or none — never an unlinted string into the card. */
-function usualNote(pick: Place, deps: AskDeps, solo: boolean): string[] {
-  if (!solo) return [];
-  const seated =
-    pick.tags.includes('counter_seating') || pick.tags.includes('solo_friendly');
-  if (!seated) return [];
-  const note = 'A seat for one, no audience — your usual shape.';
-  if (!lint(note).ok) {
-    deps.logger.line('ask: usual note failed the linter and was dropped');
-    return [];
-  }
-  return [note];
 }
 
 export async function runAsk(deps: AskDeps): Promise<CommandResult> {
@@ -103,31 +71,13 @@ export async function runAsk(deps: AskDeps): Promise<CommandResult> {
     }
   }
 
-  const ranked: RankedPlace[] = scorePlaces({
-    reads,
-    usual,
-    log,
-    corpus: deps.corpus,
-    context: contextFor(deps.flags, deps.now, usual.soloComfort),
-    now: deps.now,
-  });
-  const pick = ranked[0];
-  if (pick === undefined) {
-    return {
-      lines: ['No candidate places survive the hard constraints — check the corpus and profile.'],
-      data: { error: 'no_candidates' },
-      exit: EXIT.environment,
-    };
-  }
-
-  const citation = bestCohort(matched(usual, reads));
-  const miss = citation === undefined ? bestCohort(missed(usual, reads)) : undefined;
-  const suppressed = suppressions(log, deps.now);
-
+  // Induction is fetched here because the pure engine cannot (K7's contract);
+  // an empty claim is "no claim" (SL-03), and a failure degrades to no claim.
   let inducedClaim: string | undefined;
   if (deps.inducedClaim !== undefined && !degraded) {
     try {
-      inducedClaim = await deps.inducedClaim('what people quietly regret near here');
+      const claim = await deps.inducedClaim('what people quietly regret near here');
+      if (claim !== '') inducedClaim = claim;
     } catch (error) {
       deps.logger.line(
         `ask: induction unavailable, card proceeds without it: ${error instanceof Error ? error.message : String(error)}`,
@@ -135,27 +85,29 @@ export async function runAsk(deps: AskDeps): Promise<CommandResult> {
     }
   }
 
-  const facts: NarratorFacts = {
-    ...(citation ? { citation: { driver: citation.driver, k: citation.k } } : {}),
-    ...(miss ? { cohortMiss: { driver: miss.driver } } : {}),
-    ...(inducedClaim !== undefined ? { inducedClaim } : {}),
-    suppressions: suppressed,
-    usualNotes: usualNote(pick.place, deps, usual.soloComfort),
+  // ONE card assembly in this codebase: K7's planAsk/assembleCard. This module
+  // used to carry its own — the exact seam-duplication the defect log names.
+  const plan = planAsk({
+    reads,
+    usual,
+    log,
+    corpus: deps.corpus,
+    flags: deps.flags,
+    now: deps.now,
+    ...(deps.flags.demoMode ? {} : { context: liveContext(deps.now, usual.soloComfort) }),
     degradedPool: degraded,
-  };
-  const copy = await deps.narrator.write(ranked, facts);
+    ...(inducedClaim !== undefined ? { inducedClaim } : {}),
+  });
+  if (plan.kind === 'no_candidates') {
+    return {
+      lines: ['No candidate places survive the hard constraints — check the corpus and profile.'],
+      data: { error: 'no_candidates', exclusions: plan.exclusions },
+      exit: EXIT.environment,
+    };
+  }
 
-  const card: Card = {
-    pick: pick.place,
-    reasonLine: copy.reasonLine,
-    ...(citation ? { poolCitation: { driver: citation.driver, k: citation.k } } : {}),
-    ...(copy.rotationLine !== undefined ? { rotationLine: copy.rotationLine } : {}),
-    ...(copy.usualLine !== undefined ? { usualLine: copy.usualLine } : {}),
-    ...(miss ? { cohortMiss: { driver: miss.driver } } : {}),
-    runnersUp: ranked.slice(1, 3).map((entry) => ({ place: entry.place, score: entry.score })),
-    scores: Object.fromEntries(ranked.map((entry) => [entry.place.id, entry.score])),
-    ...(degraded ? { degradedPool: true } : {}),
-  };
+  const copy = await deps.narrator.write(plan.ranked, plan.facts);
+  const card = assembleCard(plan, copy);
 
   const lines: string[] = [`▸ ${card.pick.name}`, card.reasonLine];
   if (card.poolCitation) {
@@ -208,17 +160,19 @@ export const askHandler: CommandHandler = async (context: CommandContext) => {
   const relay = createRelayClient({ url: config.relayUrl, token: config.relayToken, logger });
   const poolView = createPoolView({ pool, relay, flags, logger });
   const userStore = createUserStore({ client, logger });
+  const corpus = loadCorpus();
   const narrator = createLiveNarrator({
     client: config.anthropicApiKey === null ? noModelClient : createFetchModelClient(config.anthropicApiKey),
     flags,
     logger,
+    corpus,
   });
   return runAsk({
     profile,
     userStore,
     poolView,
     narrator,
-    corpus: loadCorpus(),
+    corpus,
     flags: flags.get(),
     logger,
     now: new Date().toISOString(),

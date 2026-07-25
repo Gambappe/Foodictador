@@ -9,6 +9,7 @@ import {
   CARD_COPY_SCHEMA,
   NARRATOR_MODEL,
   createLiveNarrator,
+  FLIP_AFTER_CONSECUTIVE_FAILURES,
   type ModelRequest,
   type ModelResponse,
 } from './narrator.js';
@@ -52,7 +53,7 @@ function harness(outcomes: Array<ModelResponse | Error>) {
   const logger = createLogger((m) => lines.push(m));
   const flags = createFlagStore({ ...DEFAULT_FLAGS }, logger);
   const { requests, client } = mockClient(outcomes);
-  const narrator = createLiveNarrator({ client, flags, logger });
+  const narrator = createLiveNarrator({ client, flags, logger, corpus: corpusFixture });
   return { narrator, requests, flags, lines };
 }
 
@@ -161,13 +162,82 @@ describe('L3 live narrator', () => {
     expect(requests).toHaveLength(0);
   });
 
-  it('a transport failure degrades the flag to template with one logged transition', async () => {
-    const { narrator, flags, lines } = harness([new Error('connect ECONNREFUSED')]);
+  it('ONE transport failure templates this card only — the flag stays live (D2)', async () => {
+    // A single 429 is a bad moment, not an unavailable service. The old behaviour
+    // (flip on first error) silently degraded every later card off one blip.
+    const { narrator, flags, lines } = harness([
+      new Error('429 rate limited'),
+      textResponse({ reasonLine: `${pickName()} — back on the next call.` }),
+    ]);
     const copy = await narrator.write(ranked(), facts());
     const template = await new TemplateNarrator().write(ranked(), facts());
     expect(copy).toEqual(template);
-    expect(flags.get().narrator).toBe('template');
-    expect(lines.some((l) => l.includes('flag narrator live→template'))).toBe(true);
+    expect(flags.get().narrator).toBe('live'); // NOT flipped
+    expect(lines.some((l) => l.includes('transport error (1/'))).toBe(true);
+    // and the next call goes live again
+    const next = await narrator.write(ranked(), facts());
+    expect(next.reasonLine).toContain(pickName());
+  });
+
+  it(`${FLIP_AFTER_CONSECUTIVE_FAILURES} consecutive transport failures flip the flag once`, async () => {
+    const { narrator, flags, lines } = harness([
+      new Error('boom 1'),
+      new Error('boom 2'),
+      new Error('boom 3'),
+    ]);
+    await narrator.write(ranked(), facts());
+    await narrator.write(ranked(), facts());
+    expect(flags.get().narrator).toBe('live'); // two failures: still live
+    await narrator.write(ranked(), facts());
+    expect(flags.get().narrator).toBe('template'); // third in a row flips
+    expect(lines.filter((l) => l.includes('flag narrator live→template'))).toHaveLength(1);
+  });
+
+  it('a success between failures resets the counter (D2)', async () => {
+    const { narrator, flags } = harness([
+      new Error('boom 1'),
+      new Error('boom 2'),
+      textResponse({ reasonLine: `${pickName()} — recovered.` }),
+      new Error('boom 3'),
+    ]);
+    await narrator.write(ranked(), facts());
+    await narrator.write(ranked(), facts());
+    await narrator.write(ranked(), facts()); // success resets
+    await narrator.write(ranked(), facts()); // failure 1-of-3 again
+    expect(flags.get().narrator).toBe('live');
+  });
+
+  it('grounding covers EVERY line: hallucinated venues in rotation/usual lines are rejected (SL-05)', async () => {
+    // The PROBE6 case from the defect log, verbatim shape: clean reason line,
+    // invented venues smuggled into the other lines.
+    const { narrator, lines } = harness([
+      textResponse({
+        reasonLine: `${pickName()} — the quiet consensus tonight.`,
+        rotationLine: 'Not the invented Wagyu Palace special — too soon.',
+        usualLine: "Same as your usual at Louie's Chophouse, a venue that does not exist.",
+      }),
+      textResponse({ reasonLine: `${pickName()} — plainer copy, only the pick.` }),
+    ]);
+    const copy = await narrator.write(ranked(), facts());
+    expect(copy.reasonLine).toContain(pickName());
+    expect(JSON.stringify(copy)).not.toMatch(/Wagyu Palace|Louie's Chophouse/);
+    expect(lines.some((l) => l.includes('unrecognised venue or dish'))).toBe(true);
+  });
+
+  it('a real corpus place outside the candidates is rejected wherever it appears (SL-05)', async () => {
+    const offCorpus = corpusFixture[corpusFixture.length - 1];
+    expect(offCorpus).toBeDefined();
+    if (!offCorpus) return;
+    const { narrator, lines } = harness([
+      textResponse({
+        reasonLine: `${pickName()} — a fine pick.`,
+        usualLine: `Better than ${offCorpus.name} anyway.`,
+      }),
+      textResponse({ reasonLine: `${pickName()} — plainer copy.` }),
+    ]);
+    const copy = await narrator.write(ranked(), facts());
+    expect(JSON.stringify(copy)).not.toContain(offCorpus.name);
+    expect(lines.some((l) => l.includes(`off-corpus name "${offCorpus.name}"`))).toBe(true);
   });
 
   it('sends structured output config and the strict schema on every attempt', async () => {

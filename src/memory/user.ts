@@ -62,17 +62,63 @@ export interface UserStoreHandle extends UserStore {
   dropUnconfirmedProse(): number;
 }
 
-function isUsualProfile(value: unknown): value is UsualProfile {
-  if (typeof value !== 'object' || value === null) return false;
+/**
+ * Boundary parsers (SL-04). The substrate hands back JSON; these check the
+ * DOMAINS, not the typeofs — `spiceTolerance: 42` used to launder itself into
+ * `0|1|2|3` through a lying predicate and silently disable K4's constraints.
+ * Same skip-and-log posture as pool.ts: a malformed record must never crash
+ * the Ask, and must never pass as typed truth either.
+ */
+function parseUsualProfile(value: unknown): UsualProfile | null {
+  if (typeof value !== 'object' || value === null) return null;
   const record = value as Record<string, unknown>;
-  return (
-    typeof record['spiceTolerance'] === 'number' &&
-    typeof record['budgetBand'] === 'number' &&
-    typeof record['portionPref'] === 'string' &&
-    typeof record['soloComfort'] === 'boolean' &&
-    typeof record['giConstraint'] === 'boolean' &&
-    Array.isArray(record['offLimits'])
-  );
+  const spice = record['spiceTolerance'];
+  const band = record['budgetBand'];
+  const portion = record['portionPref'];
+  const solo = record['soloComfort'];
+  const gi = record['giConstraint'];
+  const offLimits = record['offLimits'];
+  if (spice !== 0 && spice !== 1 && spice !== 2 && spice !== 3) return null;
+  if (band !== 1 && band !== 2 && band !== 3 && band !== 4) return null;
+  if (portion !== 'small' && portion !== 'standard' && portion !== 'large') return null;
+  if (typeof solo !== 'boolean' || typeof gi !== 'boolean') return null;
+  if (!Array.isArray(offLimits) || offLimits.some((topic) => typeof topic !== 'string')) {
+    return null;
+  }
+  const usual: UsualProfile = {
+    spiceTolerance: spice,
+    budgetBand: band,
+    portionPref: portion,
+    soloComfort: solo,
+    giConstraint: gi,
+    offLimits: offLimits as string[],
+  };
+  const order = record['defaultOrder'];
+  if (typeof order === 'object' && order !== null) {
+    const orderRecord = order as Record<string, unknown>;
+    const placeId = orderRecord['placeId'];
+    const dishId = orderRecord['dishId'];
+    if (typeof placeId === 'string' && typeof dishId === 'string') {
+      usual.defaultOrder = { placeId, dishId };
+    }
+  }
+  return usual;
+}
+
+function parseMealLogEntry(value: unknown): MealLogEntry | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const record = value as Record<string, unknown>;
+  const dishId = record['dishId'];
+  const placeId = record['placeId'];
+  const at = record['at'];
+  if (typeof dishId !== 'string' || dishId === '') return null;
+  if (typeof placeId !== 'string' || placeId === '') return null;
+  if (typeof at !== 'string' || Number.isNaN(Date.parse(at))) return null;
+  const entry: MealLogEntry = { dishId, placeId, at };
+  const felt = record['felt'];
+  if (felt === 'glad' || felt === 'fine' || felt === 'regret') entry.felt = felt;
+  else if (felt !== undefined) return null;
+  return entry;
 }
 
 function parseTagged(row: MemoryRow, kind: string): Record<string, unknown> | null {
@@ -148,11 +194,14 @@ export function createUserStore(deps: UserStoreDeps): UserStoreHandle {
     async usual(profile: string): Promise<UsualProfile | null> {
       const cached = usualCache.get(profile);
       if (cached) return structuredClone(cached);
-      const record = newest(await findTagged(profile, USUAL_KIND), (r) =>
-        isUsualProfile(r['usual']),
-      );
-      if (record !== null) {
-        const usual = record['usual'] as UsualProfile;
+      const tagged = await findTagged(profile, USUAL_KIND);
+      const rejected = tagged.filter(({ record }) => parseUsualProfile(record['usual']) === null).length;
+      if (rejected > 0) {
+        deps.logger.line(`user: skipped ${rejected} malformed usual record(s) for ${profile}`);
+      }
+      const record = newest(tagged, (r) => parseUsualProfile(r['usual']) !== null);
+      const usual = record === null ? null : parseUsualProfile(record['usual']);
+      if (usual !== null) {
         usualCache.set(profile, structuredClone(usual));
         return structuredClone(usual);
       }
@@ -171,7 +220,19 @@ export function createUserStore(deps: UserStoreDeps): UserStoreHandle {
         Array.isArray(r['entries']),
       );
       if (record !== null) {
-        const log = record['entries'] as MealLogEntry[];
+        const raw = record['entries'] as unknown[];
+        const log: MealLogEntry[] = [];
+        let skipped = 0;
+        for (const item of raw) {
+          const entry = parseMealLogEntry(item);
+          if (entry !== null) log.push(entry);
+          else skipped += 1;
+        }
+        if (skipped > 0) {
+          deps.logger.line(
+            `user: skipped ${skipped} malformed meal-log entr${skipped === 1 ? 'y' : 'ies'} for ${profile} — a bad row must never crash the Ask`,
+          );
+        }
         mealLogCache.set(profile, structuredClone(log));
         return structuredClone(log);
       }

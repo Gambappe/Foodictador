@@ -15,7 +15,6 @@
 
 import type {
   AskContext,
-  Card,
   CardCopy,
   CohortStat,
   Driver,
@@ -111,6 +110,12 @@ export interface Cohorts {
   matched(usual: UsualProfile, reads: Read[], kFloor?: number): CohortStat[];
 }
 
+/**
+ * D-6 resolution (SL-08): there is deliberately NO `AskEngine` interface. Card
+ * assembly is `planAsk` + `assembleCard` in `src/kernel/askEngine.ts` — a synchronous
+ * `ask() → Card` was unimplementable because `reasonLine` is written by a narrator.
+ * `AskInput` remains the shared input shape those functions extend.
+ */
 export interface AskInput {
   reads: Read[];
   usual: UsualProfile;
@@ -123,9 +128,6 @@ export interface AskInput {
   degradedPool?: boolean;
 }
 
-export interface AskEngine {
-  ask(input: AskInput): Card;
-}
 
 // ---- lane N — nudge ----
 

@@ -9,50 +9,24 @@
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 
-import {
-  CADENCES,
-  DRIVERS,
-  READ_KEYS,
-  SIGNALS,
-  type Read,
-} from '../../src/contracts/types.js';
+import type { Read } from '../../src/contracts/types.js';
+import { parseRead } from '../../src/kernel/read.js';
 import type { RelayStore } from './store.js';
 
 const BODY_LIMIT_BYTES = 1_000_000;
 
-/** The route validator (consumes READ_KEYS — never re-declares it). */
+/**
+ * The route validator — an adapter over K1's `parseRead`, so [E25]'s
+ * reject-by-construction has exactly ONE construction. This replaced a 32-line
+ * reimplementation whose error strings had already drifted from the kernel's
+ * (SL-07): duplication was the defect, not a dependency decision.
+ */
 export function validateRead(value: unknown): { ok: true; read: Read } | { ok: false; error: string } {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    return { ok: false, error: 'read must be an object' };
+  try {
+    return { ok: true, read: parseRead(value) };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
   }
-  const record = value as Record<string, unknown>;
-  const allowed = READ_KEYS as readonly string[];
-  const extra = Object.keys(record).filter((key) => !allowed.includes(key));
-  if (extra.length > 0) return { ok: false, error: `read has unexpected field(s): ${extra.join(', ')}` };
-  for (const key of READ_KEYS) {
-    if (!(key in record)) return { ok: false, error: `read is missing "${key}"` };
-  }
-  const readId = record['read_id'];
-  const place = record['place'];
-  if (typeof readId !== 'string' || readId === '') return { ok: false, error: 'read.read_id must be a non-empty string' };
-  if (typeof place !== 'string' || place === '') return { ok: false, error: 'read.place must be a non-empty string' };
-  const signal = record['signal'];
-  if (typeof signal !== 'string' || !(SIGNALS as readonly string[]).includes(signal)) {
-    return { ok: false, error: `read.signal ${JSON.stringify(signal)} is not a known signal` };
-  }
-  const driver = record['driver'];
-  if (typeof driver !== 'string' || !(DRIVERS as readonly string[]).includes(driver)) {
-    return { ok: false, error: `read.driver ${JSON.stringify(driver)} is not a known driver` };
-  }
-  const cadence = record['cadence'];
-  if (typeof cadence !== 'string' || !(CADENCES as readonly string[]).includes(cadence)) {
-    return { ok: false, error: `read.cadence ${JSON.stringify(cadence)} is not a known cadence` };
-  }
-  const weight = record['weight'];
-  if (typeof weight !== 'number' || !Number.isFinite(weight) || weight < 0 || weight > 1) {
-    return { ok: false, error: 'read.weight must be a finite number in [0,1]' };
-  }
-  return { ok: true, read: value as Read };
 }
 
 function readBody(req: IncomingMessage): Promise<unknown> {

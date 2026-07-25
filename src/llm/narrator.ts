@@ -13,7 +13,7 @@
  */
 
 import type { Narrator } from '../contracts/modules.js';
-import type { CardCopy, NarratorFacts, RankedPlace } from '../contracts/types.js';
+import type { CardCopy, NarratorFacts, Place, RankedPlace } from '../contracts/types.js';
 import type { FlagStore } from '../config/flagStore.js';
 import type { Logger } from '../config/logger.js';
 import { KFLOOR } from '../kernel/cohorts.js';
@@ -162,20 +162,54 @@ function parseCopy(response: ModelResponse): CardCopy | null {
 }
 
 /**
- * Reject copy that fails the linter or is not grounded in the assigned pick.
- * The grounding check is the enforceable half of choose-from-corpus: copy that
- * names some other venue cannot contain the pick it was told to write about.
+ * Reject copy that fails the linter or is not grounded in the candidates —
+ * on EVERY line, not just the reason line (SL-05: two hallucinated venues in
+ * rotation/usual lines used to sail through while the docstring claimed
+ * structural enforcement).
+ *
+ * Grounding is two checks per line: no corpus place or dish name outside the
+ * ranked candidates, and no invented multi-word proper noun that matches
+ * nothing we offered. False positives cost one regenerate then template copy —
+ * a safe degrade; a false negative is a hallucinated venue on the card.
  */
-function violation(copy: CardCopy, ranked: RankedPlace[]): string | null {
+function violation(copy: CardCopy, ranked: RankedPlace[], corpus: Place[]): string | null {
   const pick = ranked[0];
   if (pick && !copy.reasonLine.includes(pick.place.name)) {
     return `reason line does not name the pick "${pick.place.name}"`;
   }
-  const lines = [copy.reasonLine, copy.rotationLine, copy.usualLine, copy.cohortMissLine];
-  for (const line of lines) {
+
+  const allowedNames = new Set<string>();
+  for (const entry of ranked) {
+    allowedNames.add(entry.place.name);
+    for (const dish of entry.place.signatureDishes) allowedNames.add(dish.name);
+  }
+  const offCorpusNames = corpus
+    .flatMap((place) => [place.name, ...place.signatureDishes.map((dish) => dish.name)])
+    .filter((name) => !allowedNames.has(name));
+  const allowedTokens = [...allowedNames];
+
+  const fields: Array<[string, string | undefined]> = [
+    ['reasonLine', copy.reasonLine],
+    ['rotationLine', copy.rotationLine],
+    ['usualLine', copy.usualLine],
+    ['cohortMissLine', copy.cohortMissLine],
+  ];
+  for (const [field, line] of fields) {
     if (line === undefined) continue;
     const result = lint(line);
     if (!result.ok) return `banned term(s): ${result.hits.join(', ')}`;
+    for (const name of offCorpusNames) {
+      if (line.includes(name)) return `off-corpus name "${name}" in ${field}`;
+    }
+    // Invented proper nouns: 2+ consecutive Capitalised words that overlap none
+    // of the offered names ("Wagyu Palace", "Louie's Chophouse").
+    for (const match of line.matchAll(/[A-Z][a-zA-Z']*(?: [A-Z][a-zA-Z']*)+/g)) {
+      const candidate = match[0];
+      const offered = allowedTokens.some(
+        (name) => name.includes(candidate) || candidate.includes(name),
+      );
+      if (!offered) return `unrecognised venue or dish "${candidate}" in ${field}`;
+    }
   }
   return null;
 }
@@ -184,10 +218,21 @@ export interface LiveNarratorDeps {
   client: ModelClient;
   flags: FlagStore;
   logger: Logger;
+  /** The full corpus, for the choose-from-corpus grounding check (SL-05). */
+  corpus: Place[];
 }
+
+/** Transport failures in a row before the narrator flag flips (D2 on PR #14):
+ * one 429 is a bad moment, not an unavailable service — a single blip must not
+ * silently degrade every later card. */
+export const FLIP_AFTER_CONSECUTIVE_FAILURES = 3;
 
 export function createLiveNarrator(deps: LiveNarratorDeps): Narrator {
   const template = new TemplateNarrator();
+  // D2 (PR #14): a transient transport error templates THIS call only; the flag
+  // flips — once — after FLIP_AFTER_CONSECUTIVE_FAILURES in a row, and a single
+  // success resets the count.
+  let consecutiveFailures = 0;
 
   return {
     async write(ranked: RankedPlace[], facts: NarratorFacts): Promise<CardCopy> {
@@ -210,17 +255,20 @@ export function createLiveNarrator(deps: LiveNarratorDeps): Narrator {
         let response: ModelResponse;
         try {
           response = await deps.client.complete(request);
+          consecutiveFailures = 0;
         } catch (error) {
-          // Ask assembly unavailable — flip the flag (one logged line) and degrade.
-          deps.flags.set('narrator', 'template', 'model-unavailable');
+          consecutiveFailures += 1;
           deps.logger.line(
-            `narrator degraded to template: ${error instanceof Error ? error.message : String(error)}`,
+            `narrator transport error (${consecutiveFailures}/${FLIP_AFTER_CONSECUTIVE_FAILURES}), templating this card: ${error instanceof Error ? error.message : String(error)}`,
           );
+          if (consecutiveFailures >= FLIP_AFTER_CONSECUTIVE_FAILURES) {
+            deps.flags.set('narrator', 'template', 'model-unavailable');
+          }
           return template.write(ranked, facts);
         }
 
         const copy = parseCopy(response);
-        const problem = copy === null ? 'unparseable model output' : violation(copy, ranked);
+        const problem = copy === null ? 'unparseable model output' : violation(copy, ranked, deps.corpus);
         if (copy !== null && problem === null) return copy;
         deps.logger.line(
           `narrator rejected ${strict ? 'regenerated' : 'first'} attempt: ${problem ?? 'unknown'}`,
