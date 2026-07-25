@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T09:39:43.715Z",
+  "updated_at": "2026-07-25T09:43:15.436Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -775,12 +775,12 @@
       ],
       "mock_start_ok": false,
       "note": "Proposed on the PR #22 review thread and unopposed. G2 asserts propagation GIVEN a profile; this asserts the profile itself comes back RIGHT — the failure mode of SL-04 and the #22 review. Owns tests/guards/settingsIntegrity.test.ts only; disjoint from G1-G5.",
-      "status": "claimed",
+      "status": "in_review",
       "owner": "claude-session-12uj0q",
       "branch": "claude/app-design-task-impl-12uj0q",
-      "pr": null,
+      "pr": "https://github.com/Gambappe/Foodictador/pull/48",
       "claimed_at": "2026-07-25T09:39:43.714Z",
-      "updated_at": "2026-07-25T09:39:43.714Z"
+      "updated_at": "2026-07-25T09:43:15.436Z"
     }
   }
 }
