@@ -2,6 +2,8 @@
 
 **Design doc v0.7 · July 25, 2026 · supersedes v0.6**
 
+> **Superseded by [v0.8](./confit-design-v0.8.md)**, which applies all eight findings from [the v0.7 review](./confit-v0.7-review.md). Kept for the review's section references.
+
 **One-liner:** Every food app knows what you ordered; none know what you regretted. Confit asks the question nobody else asks, keeps a memory of the answers, and recommends from the truth people won't put in a review.
 
 **Basis:** v0.6, with the three adoption conditions and two calibration notes from `docs/confit-v0.6-review.md` applied. Empirical claims are sourced in §14. **[slice]** is the 5-hour hackathon build; **[prod]** is after.
