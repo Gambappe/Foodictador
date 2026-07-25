@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T18:04:13.276Z",
+  "updated_at": "2026-07-25T18:04:16.020Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -976,13 +976,13 @@
         "M12"
       ],
       "mock_start_ok": false,
-      "note": "Built. Moved to generation-marked scopes (SCOPE_GENERATION=v2) rather than purging, per the owner's decision. BOTH scopes: confit:pool:v2 and confit:user:v2:<profile> (the personal scope was the bare profile id, which is why it had no way out of its own history). Settings are unaffected - they live on the relay under D-8 keys, which is what makes a future bump cheap. Guard globs src/** at source level plus behavioural assertions; red-verified against three mutations. OPERATIONAL half done live: 220 reads seeded into the new pool scope as 17 conversations, 0 failed. Old records remain and still cost quota (GET /v1/usage); a purge stays available later and by then nothing depends on the old scope.",
-      "status": "in_review",
+      "note": "Merged to trunk via #71 (0293a0f), which landed the #65 branch intact after the announced takeover deadline; review record on #65. Ownership preserved.",
+      "status": "done",
       "owner": "claude-session-014n6NYRN6Rb",
       "branch": "claude/upload-code-artifact-zop9uz",
       "pr": "65",
       "claimed_at": "2026-07-25T14:44:59.468Z",
-      "updated_at": "2026-07-25T14:51:53.217Z"
+      "updated_at": "2026-07-25T18:04:16.020Z"
     },
     "M16": {
       "title": "The Ask reads all three D-8 inputs: add the PERSONAL synthesis, which is written today and never read",
