@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T09:58:50.626Z",
+  "updated_at": "2026-07-25T09:58:52.293Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -654,12 +654,12 @@
       ],
       "mock_start_ok": false,
       "note": "UI starts only once the CLI is green. If a screen needs behaviour the CLI cannot do, that behaviour is a kernel or memory task first.",
-      "status": "in_review",
+      "status": "done",
       "owner": "claude-session-12uj0q",
       "branch": "claude/app-design-task-impl-12uj0q",
       "pr": "https://github.com/Gambappe/Foodictador/pull/51",
       "claimed_at": "2026-07-25T09:47:19.613Z",
-      "updated_at": "2026-07-25T09:58:38.502Z"
+      "updated_at": "2026-07-25T09:58:52.293Z"
     },
     "U2": {
       "title": "Confess screen: textarea -> editable/strikeable chips -> Add to the pot via the same writeRead, blocked-topic state, consent copy above the button",
