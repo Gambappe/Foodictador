@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T10:26:42.824Z",
+  "updated_at": "2026-07-25T10:27:11.726Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -721,12 +721,12 @@
       ],
       "mock_start_ok": false,
       "note": "Every action maps to an existing confit pass operation — the panel is a view over the CLI, not a second implementation.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "claude-session-12uj0q",
+      "branch": "claude/app-design-task-impl-12uj0q",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T07:37:34.268Z"
+      "claimed_at": "2026-07-25T10:27:11.726Z",
+      "updated_at": "2026-07-25T10:27:11.726Z"
     },
     "K7": {
       "title": "AskEngine: compose K4's ranking, K6's cohorts and K3's suppressions into the card minus copy, plus the NarratorFacts L3 needs",
