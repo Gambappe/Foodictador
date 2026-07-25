@@ -91,18 +91,39 @@ function strongest(stats: CohortStat[]): CohortStat | undefined {
 }
 
 /**
+ * The closed vocabulary of usual-note keys.
+ *
+ * `NarratorFacts.usualNotes` is typed `string[]` by the frozen contract, which is what let
+ * a raw key reach a card: K7 emitted `spice_tolerance_low`, L1 rendered note[0] verbatim,
+ * and nothing in the type system objected. Exporting the vocabulary lets L1's catalog key
+ * a `Record<UsualNoteKey, string>` off it, so a key added here without a phrase there is a
+ * compile error rather than a card that shows an identifier to a user.
+ */
+export const USUAL_NOTE_KEYS = [
+  'spice_tolerance_low',
+  'budget_band_1',
+  'budget_band_2',
+  'budget_band_3',
+  'budget_band_4',
+  'portion_small',
+  'portion_large',
+  'solo_comfortable',
+  'gi_constraint',
+  'has_default_order',
+] as const;
+
+export type UsualNoteKey = (typeof USUAL_NOTE_KEYS)[number];
+
+/**
  * Facts about the Usual, as stable keys rather than prose — same convention as
  * `Suppression.reasonKey`. Copy belongs to L1's catalog; the kernel must not put a
  * sentence in front of the linter's back.
- *
- * The contract types this `string[]`; a key union would be better and is a contract
- * change, so it is noted here rather than taken.
  */
-function usualNotes(input: AskEngineInput): string[] {
-  const notes: string[] = [];
+function usualNotes(input: AskEngineInput): UsualNoteKey[] {
+  const notes: UsualNoteKey[] = [];
   const { usual } = input;
   if (usual.spiceTolerance <= 1) notes.push('spice_tolerance_low');
-  if (usual.budgetBand <= 2) notes.push(`budget_band_${String(usual.budgetBand)}`);
+  if (usual.budgetBand <= 2) notes.push(`budget_band_${String(usual.budgetBand)}` as UsualNoteKey);
   if (usual.portionPref !== 'standard') notes.push(`portion_${usual.portionPref}`);
   if (usual.soloComfort) notes.push('solo_comfortable');
   if (usual.giConstraint) notes.push('gi_constraint');
@@ -158,10 +179,16 @@ export function planAsk(input: AskEngineInput): AskPlan {
   const miss =
     citation === undefined ? strongest(missed(input.usual, input.reads, KFLOOR)) : undefined;
 
+  const hasClaim = input.inducedClaim !== undefined && input.inducedClaim.trim() !== '';
+
   const facts: NarratorFacts = {
     ...(citation !== undefined ? { citation: { driver: citation.driver, k: citation.k } } : {}),
     ...(miss !== undefined ? { cohortMiss: { driver: miss.driver } } : {}),
-    ...(input.inducedClaim !== undefined ? { inducedClaim: input.inducedClaim } : {}),
+    // Non-empty, not merely defined: M2's `inducedClaim()` returns '' to mean "no claim"
+    // (src/memory/pool.ts). Testing `!== undefined` let '' through, and the narrator then
+    // picked the *induced* reason template — producing a headline sentence that opened with
+    // a space and asserted "is where THAT leads" with no antecedent.
+    ...(hasClaim ? { inducedClaim: input.inducedClaim } : {}),
     // Every current suppression, NOT just the pick's dishes. The rotation line exists to
     // explain what was *not* chosen — design v0.8 §5's own example is "Not ramen — twice
     // this week already", about a dish the diner did not get — so filtering to the pick
