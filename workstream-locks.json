@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T11:51:42.015Z",
+  "updated_at": "2026-07-25T11:51:43.553Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -962,12 +962,12 @@
       ],
       "mock_start_ok": false,
       "note": "Dependency is M2, not M12: these two land in ONE change because an episode needs both several messages in a conversation AND prose worth summarising. R4: 'Structured notation extracted 0 facts from 8 complete records. Render structured data to sentences first.' src/memory/pool.ts sends JSON.stringify(read). Before D-7 that had to stay verbatim because readsForDriver parsed it back; D-7 deleted that path, so the payload is free and nothing depends on its shape. Fact count is NOT the argument (measured 19 from JSON vs 9 from prose) — quality is: the JSON-derived induced claim contained 'noodle_shrine' verbatim (L4), the prose one said \"Rosa's Taqueria\".",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "claude-session-014n6NYRN6Rb",
+      "branch": "claude/upload-code-artifact-zop9uz",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T11:51:42.015Z"
+      "claimed_at": "2026-07-25T11:51:43.553Z",
+      "updated_at": "2026-07-25T11:51:43.553Z"
     }
   }
 }
