@@ -9,6 +9,7 @@
  * daily totals — the linter test enforces it, one case per string.
  */
 
+import type { UsualNoteKey } from '../kernel/askEngine.js';
 import type { Driver } from '../contracts/types.js';
 
 export const CATALOG = {
@@ -36,6 +37,39 @@ export const CATALOG = {
 } as const;
 
 export type CatalogKey = keyof typeof CATALOG;
+
+/**
+ * Prose for K7's usual-note keys.
+ *
+ * `Record<UsualNoteKey, string>` on purpose: the engine's vocabulary is closed and
+ * exported, so adding a note key without adding a phrase here fails to compile. Before
+ * this existed, `TemplateNarrator` put the raw key on the card — a user on the default
+ * `narrator: template` path was shown `spice_tolerance_low`.
+ */
+export const USUAL_PHRASES: Record<UsualNoteKey, string> = {
+  spice_tolerance_low: 'nothing that fights back',
+  budget_band_1: 'kept cheap',
+  budget_band_2: 'kept reasonable',
+  budget_band_3: 'room to spend a little',
+  budget_band_4: 'no ceiling tonight',
+  portion_small: 'small plates',
+  portion_large: 'a proper plateful',
+  solo_comfortable: 'fine to eat alone',
+  gi_constraint: 'gentle on you',
+  has_default_order: 'and your usual is there if you want it',
+};
+
+/** The usual line: the diner's own constraints, in their own register. */
+export function usualLineFor(notes: readonly string[]): string | undefined {
+  const phrases = notes
+    .filter((note): note is UsualNoteKey => note in USUAL_PHRASES)
+    .map((note) => USUAL_PHRASES[note]);
+  if (phrases.length === 0) return undefined;
+  const [first, ...rest] = phrases;
+  if (first === undefined) return undefined;
+  const sentence = rest.length === 0 ? first : `${[first, ...rest.slice(0, -1)].join(', ')} and ${rest[rest.length - 1] ?? ''}`;
+  return `${sentence.charAt(0).toUpperCase()}${sentence.slice(1)}.`;
+}
 
 /**
  * How a cohort is named on the card — a human phrase per driver, never the

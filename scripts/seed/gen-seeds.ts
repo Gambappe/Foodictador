@@ -103,6 +103,23 @@ const TEXTURE_DRIVERS: Driver[] = [
 
 const CADENCE_WHEEL = ['weekly', 'monthly', 'rarely', 'daily', 'once'] as const;
 
+
+/**
+ * Wrap-around element access.
+ *
+ * `noUncheckedIndexedAccess` types every index read as possibly-undefined, and the four
+ * call sites below index arrays that are provably non-empty. Funnelling them through one
+ * checked accessor removes four `?? fallback` clauses that could never fire — and that
+ * disagreed with each other about what the fallback should be.
+ */
+function at<T>(items: readonly T[], index: number): T {
+  const value = items[index % items.length];
+  if (value === undefined) {
+    throw new Error(`gen-seeds: index ${String(index)} into an empty array`);
+  }
+  return value;
+}
+
 function structuralReads(corpus: Place[], rand: () => number): Read[] {
   const reads: Read[] = [];
   const pick = <T>(list: T[]): T => {
@@ -122,10 +139,10 @@ function structuralReads(corpus: Place[], rand: () => number): Read[] {
     for (let i = 0; i < plan.k; i++) {
       reads.push({
         read_id: seededReadId(rand),
-        place: pool[i % pool.length] ?? pool[0]!,
+        place: at(pool, i),
         signal: signalFor(plan.lean, i),
         driver: plan.driver,
-        cadence: CADENCE_WHEEL[i % CADENCE_WHEEL.length] ?? 'weekly',
+        cadence: at(CADENCE_WHEEL, i),
         weight: round2(0.55 + rand() * 0.35),
       });
     }
@@ -134,13 +151,13 @@ function structuralReads(corpus: Place[], rand: () => number): Read[] {
   const remaining = SEED_COUNT - reads.length;
   const allPlaces = corpus.map((p) => p.id);
   for (let i = 0; i < remaining; i++) {
-    const driver = TEXTURE_DRIVERS[i % TEXTURE_DRIVERS.length] ?? 'companion_constraint';
+    const driver = at(TEXTURE_DRIVERS, i);
     reads.push({
       read_id: seededReadId(rand),
       place: pick(allPlaces),
-      signal: pick([...POSITIVE, ...NEGATIVE, 'pretends_preference' as Signal]),
+      signal: pick([...POSITIVE, ...NEGATIVE, 'pretends_preference']),
       driver,
-      cadence: CADENCE_WHEEL[i % CADENCE_WHEEL.length] ?? 'monthly',
+      cadence: at(CADENCE_WHEEL, i),
       weight: round2(0.4 + rand() * 0.5),
     });
   }

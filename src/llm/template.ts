@@ -11,7 +11,7 @@
 import type { Narrator } from '../contracts/modules.js';
 import type { CardCopy, NarratorFacts, RankedPlace } from '../contracts/types.js';
 import { KFLOOR } from '../kernel/cohorts.js';
-import { CATALOG, DRIVER_PHRASES, renderTemplate } from './catalog.js';
+import { CATALOG, DRIVER_PHRASES, renderTemplate, usualLineFor } from './catalog.js';
 
 /** Display form of a dish id — the narrator has no corpus to look names up in. */
 function dishName(dishId: string): string {
@@ -35,7 +35,7 @@ function reasonLine(ranked: RankedPlace[], facts: NarratorFacts): string {
   const citation = flooredCitation(facts);
 
   let line: string;
-  if (citation && claim !== undefined) {
+  if (citation && hasText(claim)) {
     line = renderTemplate('reason_induced_cited', {
       claim,
       pick,
@@ -48,7 +48,7 @@ function reasonLine(ranked: RankedPlace[], facts: NarratorFacts): string {
       k: String(citation.k),
       driverPhrase: DRIVER_PHRASES[citation.driver],
     });
-  } else if (claim !== undefined) {
+  } else if (hasText(claim)) {
     line = renderTemplate('reason_induced', { claim, pick });
   } else {
     line = renderTemplate('reason_plain', { pick });
@@ -58,6 +58,14 @@ function reasonLine(ranked: RankedPlace[], facts: NarratorFacts): string {
   // lives in the catalog so it is linted with everything else.
   if (facts.degradedPool) line = `${line} ${CATALOG.degraded_pool}`;
   return line;
+}
+
+/**
+ * Present AND non-empty. M2 returns '' for "no induced claim", so a defined-check alone
+ * selects the induced template for a claim that does not exist.
+ */
+function hasText(value: string | undefined): value is string {
+  return value !== undefined && value.trim() !== '';
 }
 
 export class TemplateNarrator implements Narrator {
@@ -75,10 +83,10 @@ export class TemplateNarrator implements Narrator {
           : renderTemplate('rotation_generic', slots);
     }
 
-    // Usual notes arrive as already-formed facts from the Ask engine; the first
-    // one is the card's usual line verbatim. G3 lints engine-produced notes.
-    const usualNote = facts.usualNotes[0];
-    if (usualNote !== undefined) copy.usualLine = usualNote;
+    // Usual notes are KEYS from the Ask engine, never copy. Rendering note[0] verbatim
+    // put `spice_tolerance_low` on the card for every user on the default template path.
+    const usualLine = usualLineFor(facts.usualNotes);
+    if (usualLine !== undefined) copy.usualLine = usualLine;
 
     return Promise.resolve(copy);
   }

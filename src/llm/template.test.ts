@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { corpusFixture } from '../contracts/fixtures/index.js';
 import type { NarratorFacts, RankedPlace } from '../contracts/types.js';
 import { lint } from '../kernel/copylint.js';
-import { CATALOG, DRIVER_PHRASES, renderTemplate, type CatalogKey } from './catalog.js';
+import { CATALOG, DRIVER_PHRASES, renderTemplate, usualLineFor, type CatalogKey } from './catalog.js';
+import { USUAL_NOTE_KEYS } from '../kernel/askEngine.js';
 import { TemplateNarrator, templateNarrator } from './template.js';
 
 /** Benign slot values for lint-rendering every template. */
@@ -118,9 +119,59 @@ describe('L1 template narrator', () => {
     expect(copy.reasonLine.endsWith(CATALOG.degraded_pool)).toBe(true);
   });
 
-  it('passes the first usual note through as the usual line', async () => {
-    const copy = await narrator.write(ranked(), facts({ usualNotes: ['The counter seat you always take.'] }));
-    expect(copy.usualLine).toBe('The counter seat you always take.');
+  it('renders usual-note KEYS into prose, never the key itself', async () => {
+    // The test this replaces fed prose into usualNotes and asserted it came back
+    // verbatim. The Ask engine only ever puts KEYS there, so the old test passed while
+    // the real integration put `spice_tolerance_low` on the card.
+    const copy = await narrator.write(
+      ranked(),
+      facts({ usualNotes: ['spice_tolerance_low', 'portion_small'] }),
+    );
+    expect(copy.usualLine).toBe('Nothing that fights back and small plates.');
+    expect(copy.usualLine).not.toContain('_');
+  });
+
+  it('renders a phrase for every key in the engine vocabulary', () => {
+    // Record<UsualNoteKey, string> already makes a missing phrase a compile error; this
+    // catches the other half — a phrase that is present but is just the key echoed back.
+    for (const key of USUAL_NOTE_KEYS) {
+      const line = usualLineFor([key]);
+      expect(line).toBeDefined();
+      expect(line).not.toContain(key);
+    }
+  });
+
+  it('omits the usual line rather than emitting an unknown key', async () => {
+    const copy = await narrator.write(ranked(), facts({ usualNotes: ['not_a_real_key'] }));
+    expect(copy.usualLine).toBeUndefined();
+  });
+
+  it('never lets a raw key reach any card line', async () => {
+    // The invariant the defect broke: an underscore in user-facing copy means an
+    // identifier escaped. Checked across every line the narrator can produce.
+    const copy = await templateNarrator.write(
+      ranked(),
+      facts({
+        citation: { driver: 'budget_ceiling', k: 7 },
+        suppressions: [{ dishId: 'al_pastor', reasonKey: 'eaten_twice_recently' }],
+        usualNotes: [...USUAL_NOTE_KEYS],
+        degradedPool: true,
+      }),
+    );
+    for (const line of [copy.reasonLine, copy.rotationLine, copy.usualLine, copy.cohortMissLine]) {
+      if (line === undefined) continue;
+      expect(line).not.toMatch(/[a-z]_[a-z]/);
+    }
+  });
+
+  it('does not select the induced template for an empty claim', async () => {
+    // Independent of the engine's own guard: '' must never produce " X is where that
+    // leads tonight." — a sentence that opens with a space and has no antecedent.
+    for (const empty of ['', '  ']) {
+      const copy = await narrator.write(ranked(), facts({ inducedClaim: empty }));
+      expect(copy.reasonLine.startsWith(' ')).toBe(false);
+      expect(copy.reasonLine).not.toContain('that leads');
+    }
   });
 
   it('still writes a reason line with an empty ranking', async () => {
@@ -137,7 +188,7 @@ describe('L1 template narrator', () => {
         inducedClaim: 'The lunch menu is the honest menu here.',
         cohortMiss: { driver: 'sensory_shift' },
         suppressions: [{ dishId: 'al_pastor', reasonKey: 'eaten_twice_recently' }],
-        usualNotes: ['Small plates, shared table, early evening.'],
+        usualNotes: ['portion_small', 'solo_comfortable'],
         degradedPool: true,
       }),
     );
