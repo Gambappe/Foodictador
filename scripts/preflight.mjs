@@ -127,10 +127,30 @@ if (xtraceBase === null || xtraceKey === null) {
 }
 
 const anthropicKey = env('ANTHROPIC_API_KEY');
-if (anthropicKey === null) {
+/**
+ * `CONFIT_SCRIPTED=1` says template copy and seeded chips are the INTENT, not a
+ * degradation — a rehearsed demo on the seeded profiles, where determinism is worth more
+ * than model copy and the spend should be exactly zero.
+ *
+ * The distinction matters in both directions. Without it, a correctly-configured scripted
+ * laptop prints a warning telling the operator to go fix something that is not broken.
+ * With it, a key that is still set is worth flagging: the CLI goes live by DEFAULT, so a
+ * key present on a laptop meant to run scripted will quietly spend on every card. A flag
+ * can be forgotten; an absent key cannot spend.
+ */
+const scripted = env('CONFIT_SCRIPTED') === '1';
+
+if (scripted && anthropicKey !== null) {
+  soft('CONFIT_SCRIPTED=1 but ANTHROPIC_API_KEY is set — the CLI goes LIVE by default and');
+  cont('will spend on every confess and every ask. Unset the key for a guaranteed-zero');
+  cont("spend, or set the flags explicitly: pass flags --set narrator=template");
+  cont('and --set extraction=seeded.');
+} else if (anthropicKey === null && scripted) {
+  ok('ANTHROPIC_API_KEY unset — scripted demo: L1 template copy and seeded chips, zero spend');
+} else if (anthropicKey === null) {
   soft("ANTHROPIC_API_KEY unset — extraction degrades to 'seeded', narrator to 'template'.");
-  cont('Cards are L1 copy, not model copy. Fine on a diner laptop, wrong on the operator');
-  cont('laptop.');
+  cont('Cards are L1 copy, not model copy. Intended? Set CONFIT_SCRIPTED=1 and this becomes');
+  cont('a pass rather than a warning.');
 } else {
   // One token on the cheap model: enough to clear auth, quota and billing.
   const verdict = await probe('anthropic', (signal) =>

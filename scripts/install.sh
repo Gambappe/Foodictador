@@ -71,6 +71,11 @@ export XTRACE_BASE_URL=https://api.production.xtrace.ai
 export XTRACE_API_KEY=
 
 export SETTLE_WINDOW_SECONDS=480
+
+# Scripted demo: template copy and seeded chips are the INTENT, so ANTHROPIC_API_KEY is
+# deliberately absent. The CLI goes live by DEFAULT — a flag can be forgotten, an absent
+# key cannot spend. Pre-flight reads this and passes rather than warning.
+export CONFIT_SCRIPTED=1
 EOF
   if [ "$operator" -eq 1 ]; then
     cat >> "$env_file" <<'EOF'
