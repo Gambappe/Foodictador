@@ -58,7 +58,12 @@ function reportLines(report: SweepReport, heading: string): string[] {
   ];
 }
 
-function reportData(report: SweepReport): Record<string, unknown> {
+/**
+ * The `--json` payload. Exported so U5's `actions.test.ts` can check the Pass panel's
+ * field names against the real thing: D-7 renamed every key in `SweepReport`, and the
+ * panel went on reading the old ones while its own fixtures staged them back.
+ */
+export function sweepPayload(report: SweepReport): Record<string, unknown> {
   return {
     pooled: report.pooled,
     reingested: report.reingested,
@@ -82,7 +87,7 @@ export function createSweepCommand(deps: SweepCommandDeps): CommandHandler {
       const report = await deps.sweep(now());
       return {
         lines: reportLines(report, 'Sweep report:'),
-        data: { mode: 'once', ...reportData(report) },
+        data: { mode: 'once', ...sweepPayload(report) },
       };
     }
 
@@ -133,7 +138,7 @@ export function createSweepCommand(deps: SweepCommandDeps): CommandHandler {
         mode: 'watch',
         passes,
         totals: { ...totals },
-        last: reportData(last),
+        last: sweepPayload(last),
       },
       exit: EXIT.ok, // SIGINT is how a watch is supposed to end
     };

@@ -75,7 +75,7 @@ export async function runSeed(deps: SeedOpsDeps): Promise<CommandResult> {
   const report = await deps.loadSeeds();
   const lines = [
     `Seeded: ${report.poolLoaded}/${report.total} pooled, ${report.relaySeeded} on the relay.`,
-    `Induction warm no earlier than ${report.warmAt} — seed hours ahead of a demo.`,
+    `Reads are countable now; induction warm no earlier than ${report.warmAt}.`,
   ];
   if (report.rerunDetected) lines.push('Re-run detected: pool duplicates created; census stays stable via dedup.');
   if (report.failed.length > 0) {
