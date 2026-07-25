@@ -32,6 +32,7 @@ import type { MemoryClient, Relay } from '../contracts/modules.js';
 import type { Logger } from '../config/logger.js';
 import { POOL_SCOPE } from './pool.js';
 import { personalScope } from './scopes.js';
+import type { ProseBuffer } from './proseBuffer.js';
 
 
 export type ForgetTargetStatus = 'deleted' | 'nothing_to_delete' | 'skipped' | 'failed';
@@ -48,6 +49,15 @@ export interface ForgetReport {
   pool: ForgetTargetReport;
   relay: ForgetTargetReport;
   user: ForgetTargetReport;
+  /**
+   * The local confession buffer — the FOURTH target (SL-50).
+   *
+   * M20 gave the raw confession a fourth home and `forget` was not told. Executed: `forget`
+   * reported ok on all three targets, and the next flush ingested the confession it had just
+   * promised to delete. A deletion promise that a later batch quietly reverses is worse than
+   * one that admits it cannot reach something.
+   */
+  buffer: ForgetTargetReport;
   /** True unless some target FAILED. An unknown read_id everywhere is still ok. */
   ok: boolean;
 }
@@ -55,6 +65,14 @@ export interface ForgetReport {
 export interface ForgetDeps {
   client: MemoryClient;
   relay: Relay;
+  /**
+   * The confession buffer, so a forgotten confession is not sent by the next flush (SL-50).
+   *
+   * Optional so callers that predate the buffer still compile, and the report says `skipped`
+   * with a reason rather than silently claiming the target was clean — the same honesty rule
+   * the XTrace targets already follow.
+   */
+  buffer?: ProseBuffer;
   logger: Logger;
 }
 
@@ -137,16 +155,39 @@ async function forgetUser(
  * read_id is not an error: the relay reports nothing_to_delete and ok stays
  * true.
  */
+/**
+ * The buffered copy — deleted before it can be sent, not after (SL-50).
+ *
+ * Synchronous and local, so it is done first rather than in the `Promise.all`: every moment
+ * between the user asking and the entry going is a moment a concurrent flush could send it.
+ */
+function forgetBuffer(readId: string, deps: ForgetDeps): ForgetTargetReport {
+  if (deps.buffer === undefined) {
+    return {
+      status: 'skipped',
+      detail: 'no confession buffer wired into this caller — a buffered copy may still be sent',
+    };
+  }
+  try {
+    const removed = deps.buffer.forget(readId);
+    return removed === 0 ? { status: 'nothing_to_delete' } : { status: 'deleted', count: removed };
+  } catch (error) {
+    return { status: 'failed', detail: error instanceof Error ? error.message : String(error) };
+  }
+}
+
 export async function forget(
   readId: string,
   deps: ForgetDeps,
   options: ForgetOptions = {},
 ): Promise<ForgetReport> {
+  // The buffer first: it is the only target that can still SEND the thing being forgotten.
+  const buffer = forgetBuffer(readId, deps);
   const [pool, relay, user] = await Promise.all([
     forgetPool(deps, options.poolMemories),
     forgetRelay(readId, deps),
     forgetUser(deps, options.userMemories),
   ]);
-  const ok = [pool, relay, user].every((target) => target.status !== 'failed');
-  return { read_id: readId, pool, relay, user, ok };
+  const ok = [pool, relay, user, buffer].every((target) => target.status !== 'failed');
+  return { read_id: readId, pool, relay, user, buffer, ok };
 }

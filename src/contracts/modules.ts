@@ -133,10 +133,22 @@ export interface SettingsStore {
  * are sitting in a buffer is a false receipt, and deferral is not loss.
  */
 export interface ProseWrite {
-  /** Confessions now waiting to be sent, after this call. `0` means this call sent them. */
+  /** Confessions now waiting to be sent, after this call. */
   buffered: number;
   /** Present only when this call triggered a flush. */
   jobId?: string;
+  /**
+   * `true` when a CONCURRENT process claimed the batch this confession is in.
+   *
+   * `buffered: 0` used to be read as "this call sent them", which is false in exactly one
+   * case: two `confess` processes cross the threshold together, one claims the batch, and the
+   * other finds nothing left to hold. That process sent nothing, yet printed
+   * `ok (your words, sent to your tier only)` — measured 9 times in 60 (SL-49).
+   *
+   * The confession is not lost: the other process has it. But "I sent it" and "someone else
+   * is sending it" are different claims, and a receipt may only make the one that is true.
+   */
+  handedOff?: boolean;
 }
 
 export interface UserStore {
@@ -147,8 +159,12 @@ export interface UserStore {
    * batched because XTrace generates an episode per ingest CALL: measured, eight
    * one-at-a-time confessions produced eight per-confession paraphrases across eight
    * `conv_id`s, and a shared `conv_id` across separate POSTs does not merge them (M20).
+   *
+   * `readId` ties the buffered copy to the read it came from, so `forget` can delete it before
+   * it is ever sent — without it, `forget` reported success on all three of its targets while
+   * a copy of the raw confession waited on disk for the next flush (SL-50).
    */
-  writeProse(profile: string, text: string): Promise<ProseWrite>;
+  writeProse(profile: string, text: string, readId?: string): Promise<ProseWrite>;
   /**
    * XTrace's synthesis over THIS user's own confessions — D-8's second input (M16).
    *

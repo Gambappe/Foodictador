@@ -4,6 +4,11 @@ import type { MemoryClient, Relay } from '../contracts/modules.js';
 import type { MemoryRow, RelayEntry } from '../contracts/types.js';
 import { createLogger } from '../config/logger.js';
 import { sampleRead } from '../contracts/fixtures/index.js';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import { createProseBuffer } from './proseBuffer.js';
 import { POOL_SCOPE } from './pool.js';
 import { personalScope } from './scopes.js';
 import { forget } from './forget.js';
@@ -146,5 +151,42 @@ describe('M8 forget — the XTrace targets are honest about what they cannot do'
     // And the authoritative delete still happened — targets are independent.
     expect(report.relay.status).toBe('deleted');
     expect(f.relayEntries).toHaveLength(0);
+  });
+});
+
+describe('M8 forget — the FOURTH target, the local confession buffer (SL-50)', () => {
+  it('deletes the buffered copy, so the next flush cannot send it', async () => {
+    // Executed before this existed: `forget` reported ok on all three targets and the next
+    // flush ingested the confession it had just promised to delete. A deletion promise a later
+    // batch quietly reverses is worse than one that admits it cannot reach something.
+    const path = mkdtempSync(join(tmpdir(), 'confit-forget-buffer-'));
+    const buffer = createProseBuffer({ path, logger: createLogger(() => undefined) });
+    buffer.append('A', 'the confession being forgotten', sampleRead.read_id);
+    buffer.append('A', 'an unrelated one', 'some-other-read');
+
+    const f = fakes({ relayEntries: [entry()] });
+    const report = await forget(sampleRead.read_id, { ...f.deps, buffer });
+
+    expect(report.buffer).toEqual({ status: 'deleted', count: 1 });
+    expect(report.ok).toBe(true);
+    // And what is left is only the unrelated confession.
+    expect(buffer.drain().flatMap((fl) => fl.texts)).toEqual(['an unrelated one']);
+  });
+
+  it('reports nothing_to_delete when no buffered copy carries the id', async () => {
+    const path = mkdtempSync(join(tmpdir(), 'confit-forget-buffer-'));
+    const buffer = createProseBuffer({ path, logger: createLogger(() => undefined) });
+    const f = fakes({ relayEntries: [entry()] });
+    const report = await forget(sampleRead.read_id, { ...f.deps, buffer });
+    expect(report.buffer).toEqual({ status: 'nothing_to_delete' });
+  });
+
+  it('a caller with NO buffer wired says skipped-with-reason, never a silent clean', async () => {
+    // The same honesty rule the XTrace targets follow. Claiming the target was clean when it
+    // was never looked at is how SL-50 stayed invisible.
+    const f = fakes({ relayEntries: [entry()] });
+    const report = await forget(sampleRead.read_id, f.deps);
+    expect(report.buffer.status).toBe('skipped');
+    expect(report.buffer.detail).toMatch(/buffered copy may still be sent/);
   });
 });

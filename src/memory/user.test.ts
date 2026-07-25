@@ -80,7 +80,7 @@ function harness(settings: SettingsStore = new StubSettingsStore()) {
   // A real buffer over a temp file: batching is the behaviour under test, and a fake buffer
   // would let a broken threshold pass.
   const path = mkdtempSync(join(tmpdir(), 'confit-prose-'));
-  const buffer = createProseBuffer({ path });
+  const buffer = createProseBuffer({ path, logger });
   const store = createUserStore({ client: substrate.client, settings, buffer, logger });
   return { store, lines, logger, settings, buffer, ...substrate };
 }
@@ -166,6 +166,30 @@ describe('M3 writeProse — batched into XTrace, not one at a time (M20)', () =>
     expect(h.buffer.pending('A')).toBe(0); // gone, not silently retried forever
   });
 
+  it('a confession taken by a CONCURRENT batch is not reported as sent (SL-49)', async () => {
+    // Two `confess` processes cross the threshold together: one claims the batch, the other
+    // finds nothing left to hold. `buffered: 0` was read as "this call sent them" and printed
+    // `ok (your words, sent to your tier only)` from a process that sent nothing — measured 9
+    // times in 60. Not lost, but a receipt may only claim what this process actually did.
+    const h = harness();
+    const buffer = {
+      append: () => null, // the batch went to someone else
+      drain: () => [],
+      pending: () => 0, // and nothing is left waiting
+      forget: () => 0,
+    };
+    const store = createUserStore({
+      client: h.client,
+      settings: new StubSettingsStore(),
+      buffer,
+      logger: h.logger,
+    });
+    const result = await store.writeProse('A', 'mine');
+    expect(result).toEqual({ buffered: 0, handedOff: true });
+    expect(h.batches).toHaveLength(0); // this process really did send nothing
+    expect(h.lines.join('\n')).toMatch(/taken by a concurrent batch/);
+  });
+
   it('a failed BATCH send says how many were lost, not "a confession" (SL-41)', async () => {
     // The batch is out of the buffer before the ingest, so a 503 on the flushing confession
     // destroys all four — while `writeRead`'s warning is about "this confession" and would
@@ -189,7 +213,10 @@ describe('M3 writeProse — batched into XTrace, not one at a time (M20)', () =>
     // The reason it is a file at all. Every confession arrives in its own CLI process, so
     // batching is impossible without holding the text across them. Two stores over one
     // buffer file stand in for two `confit confess` invocations.
-    const buffer = createProseBuffer({ path: mkdtempSync(join(tmpdir(), 'confit-prose-')) });
+    const buffer = createProseBuffer({
+      path: mkdtempSync(join(tmpdir(), 'confit-prose-')),
+      logger: createLogger(() => undefined),
+    });
     const substrate = fakeSubstrate();
     const store = () =>
       createUserStore({
@@ -433,7 +460,10 @@ describe('M3 personalClaim — D-8\'s second input (M16)', () => {
     const store = createUserStore({
       client: spy,
       settings: new StubSettingsStore(),
-      buffer: createProseBuffer({ path: join(mkdtempSync(join(tmpdir(), 'confit-prose-')), 'b.json') }),
+      buffer: createProseBuffer({
+        path: mkdtempSync(join(tmpdir(), 'confit-prose-')),
+        logger: createLogger(() => undefined),
+      }),
       logger: createLogger(() => undefined),
     });
     await store.personalClaim('A', 'q');
@@ -454,7 +484,10 @@ describe('M3 personalClaim — D-8\'s second input (M16)', () => {
     const store = createUserStore({
       client: spy,
       settings: new StubSettingsStore(),
-      buffer: createProseBuffer({ path: join(mkdtempSync(join(tmpdir(), 'confit-prose-')), 'b.json') }),
+      buffer: createProseBuffer({
+        path: mkdtempSync(join(tmpdir(), 'confit-prose-')),
+        logger: createLogger(() => undefined),
+      }),
       logger: createLogger(() => undefined),
     });
     await store.personalClaim('profile-B', 'q');

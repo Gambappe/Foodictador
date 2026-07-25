@@ -51,6 +51,14 @@ export interface WriteReadReport {
    * receipt — deferral is not loss, but the receipt has to name which one it is.
    */
   proseBuffered: number;
+  /**
+   * `true` when a CONCURRENT `confess` claimed the batch this confession is in (SL-49).
+   *
+   * `proseBuffered === 0` has two causes — this process sent the batch, or another process
+   * took it — and only the first may be reported as "sent". The confession is not lost either
+   * way, but a receipt may only claim what this process actually did.
+   */
+  proseHandedOff: boolean;
   /** Honest per-target accounting for the caller to surface (X2). */
   warnings: string[];
 }
@@ -116,13 +124,19 @@ export async function writeRead(
   // immediately (M20): XTrace makes an episode per ingest CALL, so one-at-a-time ingests can
   // only ever produce per-confession paraphrases.
   let proseBuffered = 0;
+  let proseHandedOff = false;
   try {
-    proseBuffered = (await deps.user.writeProse(input.profile, input.text)).buffered;
+    // The read_id travels with the prose so `forget` can delete the buffered copy before it is
+    // ever sent (SL-50) — otherwise `forget` reports success on three targets while a fourth
+    // copy waits on disk.
+    const written = await deps.user.writeProse(input.profile, input.text, read.read_id);
+    proseBuffered = written.buffered;
+    proseHandedOff = written.handedOff === true;
     wrote.prose = true;
   } catch (error) {
     warnings.push(`prose write failed — personal memory not recorded: ${message(error)}`);
     deps.logger.line(`writeRead: prose write failed for ${read.read_id}: ${message(error)}`);
   }
 
-  return { read_id: read.read_id, wrote, proseBuffered, warnings };
+  return { read_id: read.read_id, wrote, proseBuffered, proseHandedOff, warnings };
 }

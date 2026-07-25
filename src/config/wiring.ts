@@ -45,7 +45,7 @@ import { createPoolView } from '../memory/poolView.js';
 import { createRelayClient } from '../memory/relay.js';
 import { createUserStore } from '../memory/user.js';
 import { createSettingsClient } from '../memory/settings.js';
-import { createProseBuffer } from '../memory/proseBuffer.js';
+import { createProseBuffer, type ProseBuffer } from '../memory/proseBuffer.js';
 import { createLiveExtractor } from '../llm/extractor.js';
 import { createFetchModelClient, createLiveNarrator } from '../llm/narrator.js';
 import { templateNarrator } from '../llm/template.js';
@@ -66,6 +66,11 @@ export interface AdapterGraph {
    */
   user: UserStoreHandle;
   relay: Relay;
+  /**
+   * The confession buffer, exposed because `forget` needs it as a fourth target (SL-50) —
+   * the raw confession has a local copy that no XTrace or relay deletion can reach.
+   */
+  buffer: ProseBuffer;
   poolView: PoolView;
   extractor: Extractor;
   narrator: Narrator;
@@ -100,7 +105,7 @@ export function liveGraph(config: AppConfig, logger: Logger, existing?: FlagStor
   // Confessions are held here until several can share one ingest call (M20). Local, because
   // a buffer is only ever flushed by a process on the machine that wrote it — and raw
   // confessions must not sit on the relay, whose single token reads everything.
-  const buffer = createProseBuffer({ path: config.proseBufferPath });
+  const buffer = createProseBuffer({ path: config.proseBufferPath, logger });
   const user = createUserStore({ client, settings, buffer, logger });
   const relay = createRelayClient({ url: config.relayUrl, token: config.relayToken, logger });
   const poolView = createPoolView({ relay, flags, logger });
@@ -125,6 +130,7 @@ export function liveGraph(config: AppConfig, logger: Logger, existing?: FlagStor
     pool,
     user,
     relay,
+    buffer,
     poolView,
     extractor,
     narrator,
@@ -179,13 +185,14 @@ export function fixtureGraph(options: FixtureGraphOptions): AdapterGraph {
   const pool = createPoolStore({ client, logger, placeName: placeNames(loadCorpus()) });
   // A Map, not the HTTP client: this graph must build with no config and open no socket.
   // Faithful rather than a pretence — a keyed store IS a Map, which is M11's whole argument.
-  const user = createUserStore({
-    client,
-    settings: new StubSettingsStore(),
-    // A temp path: the fixture graph must open no socket and must not write into the repo.
-    buffer: createProseBuffer({ path: join(mkdtempSync(join(tmpdir(), 'confit-spool-')), 'prose.json') }),
+  // A temp DIRECTORY: the fixture graph must open no socket and must not write into the repo.
+  // A directory, not a file — the buffer holds one file per confession (SL-51 caught this line
+  // still naming `prose.json` after the layout changed).
+  const buffer = createProseBuffer({
+    path: mkdtempSync(join(tmpdir(), 'confit-buffer-')),
     logger,
   });
+  const user = createUserStore({ client, settings: new StubSettingsStore(), buffer, logger });
   const poolView = createPoolView({ relay, flags, logger });
 
   return {
@@ -193,6 +200,7 @@ export function fixtureGraph(options: FixtureGraphOptions): AdapterGraph {
     pool,
     user,
     relay,
+    buffer,
     poolView,
     extractor: new StubExtractor(),
     // The real L1 narrator, not StubNarrator: template copy is the default production

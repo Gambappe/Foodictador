@@ -166,10 +166,21 @@ export function createUserStore(deps: UserStoreDeps): UserStoreHandle {
      * is buffered byte-identical and sent byte-identical, so buffering changes WHEN a
      * confession is ingested, never WHAT.
      */
-    async writeProse(profile: string, text: string): Promise<ProseWrite> {
-      const flush = deps.buffer.append(profile, text);
+    async writeProse(profile: string, text: string, readId?: string): Promise<ProseWrite> {
+      const flush = deps.buffer.append(profile, text, readId);
       if (flush === null) {
         const held = deps.buffer.pending(profile);
+        if (held === 0) {
+          // Nothing held AND no flush: another `confess` running at the same time crossed the
+          // threshold first and took this confession in its batch. Not lost — but this process
+          // sent nothing, and reporting `buffered: 0` as "sent" is the false receipt SL-49
+          // measured 9 times in 60.
+          deps.logger.line(
+            `user: confession for ${profile} was taken by a concurrent batch — another process ` +
+              `is sending it, this one did not`,
+          );
+          return { buffered: 0, handedOff: true };
+        }
         deps.logger.line(
           `user: confession held for ${profile} — ${String(held)}/${String(BATCH_SIZE)} until the batch is sent`,
         );

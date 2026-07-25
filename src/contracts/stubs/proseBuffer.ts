@@ -13,26 +13,42 @@ import type { Flush, ProseBuffer } from '../../memory/proseBuffer.js';
  * drift from the real one.
  */
 export class StubProseBuffer implements ProseBuffer {
-  private readonly texts = new Map<string, string[]>();
+  private readonly entries = new Map<string, Array<{ text: string; readId?: string }>>();
   private batches = 0;
 
-  append(profile: string, text: string): Flush | null {
-    this.texts.set(profile, [...(this.texts.get(profile) ?? []), text]);
+  append(profile: string, text: string, readId?: string): Flush | null {
+    const entry = readId === undefined ? { text } : { text, readId };
+    this.entries.set(profile, [...(this.entries.get(profile) ?? []), entry]);
     return null; // never flushes on append — see the note above
   }
 
   drain(): Flush[] {
     const flushes: Flush[] = [];
-    for (const [profile, texts] of this.texts) {
-      if (texts.length === 0) continue;
+    for (const [profile, entries] of this.entries) {
+      if (entries.length === 0) continue;
       this.batches += 1;
-      flushes.push({ profile, texts: [...texts], convId: `stub:${profile}:${String(this.batches)}` });
+      flushes.push({
+        profile,
+        texts: entries.map((e) => e.text),
+        convId: `stub:${profile}:${String(this.batches)}`,
+      });
     }
-    this.texts.clear();
+    this.entries.clear();
     return flushes;
   }
 
   pending(profile: string): number {
-    return (this.texts.get(profile) ?? []).length;
+    return (this.entries.get(profile) ?? []).length;
+  }
+
+  /** Real, not a no-op: `forget`'s fourth target is behaviour a UI test may need to assert. */
+  forget(readId: string): number {
+    let removed = 0;
+    for (const [profile, entries] of this.entries) {
+      const kept = entries.filter((e) => e.readId !== readId);
+      removed += entries.length - kept.length;
+      this.entries.set(profile, kept);
+    }
+    return removed;
   }
 }

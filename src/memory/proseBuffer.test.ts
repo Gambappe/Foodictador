@@ -3,11 +3,15 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+import { createLogger } from '../config/logger.js';
 import { BATCH_SIZE, createProseBuffer } from './proseBuffer.js';
 
-function buffer() {
+/** Drops log lines by default; suites that assert on them make their own. */
+const LOG = createLogger(() => undefined);
+
+function buffer(onLine: (line: string) => void = () => undefined) {
   const path = mkdtempSync(join(tmpdir(), 'confit-prose-'));
-  return { path, buf: createProseBuffer({ path }) };
+  return { path, buf: createProseBuffer({ path, logger: createLogger(onLine) }) };
 }
 
 /** Every file under the buffer root, at any depth — used to prove text does not linger. */
@@ -82,7 +86,7 @@ describe('the confession buffer (M20)', () => {
     // holding text across them, and that is the whole justification for touching disk.
     const { path, buf } = buffer();
     buf.append('A', 'from process one');
-    expect(createProseBuffer({ path }).pending('A')).toBe(1);
+    expect(createProseBuffer({ path, logger: LOG }).pending('A')).toBe(1);
   });
 
   it('drain takes everything waiting, whatever the count', () => {
@@ -143,11 +147,11 @@ describe('the confession buffer (M20)', () => {
 
   it('a missing directory is empty, not an error', () => {
     const path = join(mkdtempSync(join(tmpdir(), 'confit-prose-')), 'never-created');
-    const buf = createProseBuffer({ path });
+    const buf = createProseBuffer({ path, logger: LOG });
     expect(buf.pending('A')).toBe(0);
     expect(buf.drain()).toEqual([]);
     buf.append('A', 'one'); // creates the directory on the way
-    expect(createProseBuffer({ path }).pending('A')).toBe(1);
+    expect(createProseBuffer({ path, logger: LOG }).pending('A')).toBe(1);
   });
 
   it('a foreign file under the buffer root is left alone, not read as a profile', () => {
@@ -173,9 +177,63 @@ describe('the confession buffer (M20)', () => {
     // leaves behind: the text is gone from the buffer and exists only in the returned value.
     const { path, buf } = buffer();
     for (let i = 0; i < BATCH_SIZE; i++) buf.append('A', `t${String(i)}`);
-    const failedSend = createProseBuffer({ path });
+    const failedSend = createProseBuffer({ path, logger: LOG });
     expect(failedSend.pending('A')).toBe(0);
     expect(failedSend.drain()).toEqual([]);
+  });
+
+  it('forget removes a buffered confession before it can be sent (SL-50)', () => {
+    // `forget` deletes from the relay, the pool and the personal scope. M20 gave the raw
+    // confession a FOURTH home and nothing told `forget` — executed, `forget` reported ok and
+    // the next flush ingested the confession it had promised to delete.
+    const { buf } = buffer();
+    buf.append('A', 'keep this one', 'read-keep');
+    buf.append('A', 'forget this one', 'read-forget');
+    buf.append('B', 'another profile, same read id', 'read-forget');
+
+    expect(buf.forget('read-forget')).toBe(2); // across profiles, not just the current one
+    expect(buf.drain().flatMap((f) => f.texts)).toEqual(['keep this one']);
+  });
+
+  it('forget on an unknown read id removes nothing and does not throw', () => {
+    const { buf } = buffer();
+    buf.append('A', 'mine', 'read-1');
+    expect(buf.forget('read-never-existed')).toBe(0);
+    expect(buf.pending('A')).toBe(1);
+  });
+
+  it('an entry without a read id survives forget — it cannot be matched', () => {
+    // Honest rather than aggressive: deleting un-idd entries would make `forget <id>` delete
+    // other people's confessions, which is a worse failure than the one it fixes.
+    const { buf } = buffer();
+    buf.append('A', 'no id on this one');
+    expect(buf.forget('read-1')).toBe(0);
+    expect(buf.pending('A')).toBe(1);
+  });
+
+  it('a dropped confession is LOGGED, never silent (SL-53, §1)', () => {
+    // Every catch in this module discards a confession. Without a log line the SL-39
+    // recurrence was invisible: the product lost data and said nothing, which is why it took a
+    // measurement rather than a report to find.
+    const lines: string[] = [];
+    const { path, buf } = buffer((l) => lines.push(l));
+    buf.append('A', 'the good one');
+    const dir = join(path, readdirSync(path)[0] ?? '');
+    writeFileSync(join(dir, `${'0'.repeat(15)}-0000-junk.json`), 'not json');
+    buf.drain();
+    expect(lines.some((l) => /DROPPED an unreadable confession/.test(l))).toBe(true);
+  });
+
+  it('a path that is a FILE fails loudly at construction, not ENOTDIR for ever (SL-51)', () => {
+    // The layout went from one json file to a directory of them, and CONFIT_PROSE_BUFFER is an
+    // operator-set path that may still name the old file. Without this, every `append` threw
+    // ENOTDIR for ever with a message that named a path rather than the reason.
+    const dir = mkdtempSync(join(tmpdir(), 'confit-prose-'));
+    const asFile = join(dir, 'prose-buffer.json');
+    writeFileSync(asFile, '{"profiles":{}}'); // exactly what a pre-M20 buffer looked like
+    expect(() => createProseBuffer({ path: asFile, logger: LOG })).toThrow(
+      /is a file, not a directory/,
+    );
   });
 
   it('batches exactly BATCH_SIZE=4 at a time — 1 is the defect, and 2 is not the fix', () => {
@@ -207,6 +265,103 @@ describe('the confession buffer (M20)', () => {
  * only that it did not happen to collide. Both go red against the shared-document version.
  */
 describe('the confession buffer under concurrency (SL-39, SL-40)', () => {
+  it('two INDEPENDENT buffers appending in the same millisecond do not collide', () => {
+    // The mutation SL-52 caught: dropping `randomUUID()` from the entry name left 924/924
+    // green while destroying a confession in 172 of 200 two-process runs. It survived because
+    // `seq` makes names unique WITHIN one process — and every `confess` is its own process,
+    // where `seq` restarts at 1.
+    //
+    // Two buffer instances model that exactly: each carries its own `seq`, so both produce
+    // `<same-ms>-0001-…` and only the uuid keeps them apart. No subprocess needed to catch it.
+    const { path } = buffer();
+    const one = createProseBuffer({ path, logger: LOG });
+    const two = createProseBuffer({ path, logger: LOG });
+    one.append('A', 'from the first process');
+    two.append('A', 'from the second process');
+    expect(one.pending('A')).toBe(2);
+    expect(two.drain()[0]?.texts.sort()).toEqual([
+      'from the first process',
+      'from the second process',
+    ]);
+  });
+
+  it('many independent buffers in one millisecond all survive', () => {
+    // Sharpens the above: one collision in two appends is a coin flip an unlucky mutation
+    // might pass. Twenty appends across twenty fresh instances inside the same millisecond
+    // makes name collision the overwhelmingly likely outcome without the uuid.
+    const { path } = buffer();
+    const texts = Array.from({ length: 20 }, (_, i) => `confession ${String(i)}`);
+    // Every account of every confession: the ones a threshold-crossing append flushed, plus
+    // whatever is still waiting. A name collision shows up as a text missing from the total.
+    const sent: string[] = [];
+    for (const text of texts) {
+      const flush = createProseBuffer({ path, logger: LOG }).append('A', text);
+      if (flush !== null) sent.push(...flush.texts);
+    }
+    const held = createProseBuffer({ path, logger: LOG })
+      .drain()
+      .flatMap((f) => f.texts);
+    expect([...sent, ...held].sort()).toEqual([...texts].sort());
+  });
+
+  it('a pending name never names an incomplete file (SL-39, re-opened)', () => {
+    // The loss that survived the first fix was a READER inside a WRITER's window:
+    // `writeFileSync` publishes the directory entry before the bytes, so a concurrent claim
+    // could list a name whose file was empty, rename it, fail to parse it, and drop it —
+    // measured, 427 of 30,000 claims hit that window.
+    //
+    // Asserted structurally, because the window is microseconds wide and a timing test would
+    // pass for the wrong reason: every file that has ever carried a PENDING name must be
+    // complete, which holds only if publication is a rename from a temporary name.
+    const { path, buf } = buffer();
+    // Contents are captured AS the files are observed, not afterwards: a flush deletes the
+    // entries it sends, so reading them later would just be reading nothing.
+    let observed = 0;
+    for (let i = 0; i < BATCH_SIZE * 2; i++) {
+      buf.append('A', `confession ${String(i)}`);
+      for (const file of allFiles(path)) {
+        // No `.writing` file may outlive the append that created it.
+        expect(file.endsWith('.writing')).toBe(false);
+        if (!file.endsWith('.json')) continue;
+        const raw = readFileSync(file, 'utf8');
+        expect(raw).not.toBe(''); // the zero-byte window SL-39's re-open measured
+        expect(() => JSON.parse(raw) as unknown).not.toThrow();
+        observed += 1;
+      }
+    }
+    expect(observed).toBeGreaterThan(0); // the loop actually inspected files
+  });
+
+  it('publishes by RENAME, never by writing the pending name directly', () => {
+    // Source-level, and deliberately so. The window is microseconds wide and lives BETWEEN
+    // processes: in one thread `writeFileSync` always finishes before anything can look, so a
+    // behavioural test passes whether publication is atomic or not — verified, replacing the
+    // rename with a direct `writeFileSync` left all 19 behavioural tests green while
+    // reintroducing the loss that 427 of 30,000 claims hit. Measuring it honestly would need
+    // thousands of subprocess iterations, which is not a test, it is a benchmark.
+    //
+    // So this asserts the MECHANISM: nothing may create a file already carrying the pending
+    // suffix, because a reader can act on any name it can see.
+    const source = readFileSync(new URL('./proseBuffer.ts', import.meta.url), 'utf8')
+      .replaceAll(/\/\*[\s\S]*?\*\//g, '')
+      .replaceAll(/(^|\s)\/\/.*$/gm, '');
+    // The publish step exists...
+    expect(source).toMatch(/renameSync\(\s*`\$\{base\}\$\{WRITING\}`\s*,\s*`\$\{base\}\$\{PENDING\}`\s*\)/);
+    // ...and no write targets a pending name.
+    expect(source).not.toMatch(/writeFileSync\([^)]*\$\{PENDING\}/);
+    expect(source).toMatch(/writeFileSync\(\s*`\$\{base\}\$\{WRITING\}`/);
+  });
+
+  it('a failed claim rename ABANDONS that entry — it does not fall through', () => {
+    // Source-level for the same reason as publication, and verified the same way: removing the
+    // `continue` so a losing claim proceeds anyway left all 20 behavioural tests green while
+    // making two processes able to send the same confession twice. `rename` failing IS the
+    // signal that another process owns the entry, so the only correct response is to skip it.
+    const source = readFileSync(new URL('./proseBuffer.ts', import.meta.url), 'utf8');
+    const claimRename = /renameSync\(from, to\);\s*\}\s*catch\s*\{[\s\S]{0,200}?continue;/;
+    expect(source).toMatch(claimRename);
+  });
+
   it('an append never touches an existing file, so two appends cannot lose each other', () => {
     // The read-modify-write is the defect, and its absence is the fix: a confession is a NEW
     // file at a path no other process can also choose. With one shared document, the second
@@ -226,8 +381,8 @@ describe('the confession buffer under concurrency (SL-39, SL-40)', () => {
     // The claim is a rename, which is atomic and fails with ENOENT for the loser — so the
     // texts are partitioned between them, never copied into both.
     const { path } = buffer();
-    const one = createProseBuffer({ path });
-    const two = createProseBuffer({ path });
+    const one = createProseBuffer({ path, logger: LOG });
+    const two = createProseBuffer({ path, logger: LOG });
     // One under the threshold, so `append` never claims and both drains race for the same
     // pending files — which is the interleaving the shared document lost data in.
     const texts = Array.from({ length: BATCH_SIZE - 1 }, (_, i) => `c${String(i)}`);
