@@ -1,0 +1,732 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-07-25T07:37:34.303Z",
+  "tasks": {
+    "P0.1": {
+      "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
+      "phase": "P0",
+      "depends_on": [],
+      "mock_start_ok": false,
+      "note": null,
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "P0.2": {
+      "title": "Contracts freeze v0.8: types (Read = exactly six fields, READ_KEYS), flags, module interfaces, working fixture stubs",
+      "phase": "P0",
+      "depends_on": [
+        "P0.1"
+      ],
+      "mock_start_ok": false,
+      "note": "After this merges src/contracts/** is integrator-only. READ_KEYS lives here and is the single source of truth — K1, P0.4 and G1 all import it rather than re-declaring the field list. Read has no createdAt and no received_at (DAG doc §3).",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "P0.3": {
+      "title": "Runtime config, degrade flags, logger: XTrace/relay config fails fast, ANTHROPIC_API_KEY is optional and defaults flags to seeded/template",
+      "phase": "P0",
+      "depends_on": [
+        "P0.2"
+      ],
+      "mock_start_ok": false,
+      "note": "The optional-key rule is load-bearing: G5 requires a green acceptance run with no API key and no network, so a fail-fast on the model key would make the gate unpassable.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "P0.4": {
+      "title": "Relay service: seven routes incl. POST /reads/{read_id}/ingest-job, write token, exact READ_KEYS validation, server-assigned received_at, oldest_entry_age_seconds in /stats",
+      "phase": "P0",
+      "depends_on": [
+        "P0.2"
+      ],
+      "mock_start_ok": false,
+      "note": "received_at and ingest_job_id are server-side metadata — a body carrying either must 400. The field is oldest_entry_age_seconds, not oldest_unverified_age: the relay tracks no verification state, and since M7 drops only verified entries, every entry still present is unverified by construction.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "P0.5": {
+      "title": "Gate zero runner (scripts/gate0.ts, npm run gate0): N=12, two re-ingest rounds, pass = all 12 retrievable, plus DELETE + verify-gone; also measures and records SETTLE_WINDOW_SECONDS",
+      "phase": "P0",
+      "depends_on": [
+        "M1",
+        "K1"
+      ],
+      "mock_start_ok": false,
+      "note": "BLOCKS BUILD DAY (design v0.8 §11, D-3). A standalone script, not a confit subcommand. It is also the only task that measures the ingest->retrievable window, which M7 and S3 both read — skip it and those two are guessing. If it fails, stop and escalate: the sole-store decision [E9] reopens.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "K1": {
+      "title": "Read validator + mintReadId: closed schema checked against READ_KEYS from contracts, enum checks, weight in [0,1]",
+      "phase": "K",
+      "depends_on": [
+        "P0.2"
+      ],
+      "mock_start_ok": false,
+      "note": "Import READ_KEYS — do not re-declare the six field names here.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "K2": {
+      "title": "Off-limits matcher: isBlocked(text, topics), substring match, case- and accent-insensitive, deliberately over-blocking",
+      "phase": "K",
+      "depends_on": [
+        "P0.2"
+      ],
+      "mock_start_ok": false,
+      "note": "Substring, not word-boundary: a topic of 'gluten' must fire on 'glutenous'. This is the gate that stops a flagged confession being ingested anywhere ([E24]) — a false negative is a duty-of-care failure, a false positive is an annoyance. Put that reasoning in a comment so nobody 'improves' it.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "K3": {
+      "title": "Rotation: appetite curve, half-life fit from >=3 observations else seeded median, suppressions returning reason keys not prose",
+      "phase": "K",
+      "depends_on": [
+        "P0.2"
+      ],
+      "mock_start_ok": false,
+      "note": "Formula is plan v1.0 §3.5 verbatim — copy it, don't reinvent it. now is a parameter everywhere; no Date.now() in the module.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "K4": {
+      "title": "Ask scoring: plan v1.0 §3.4 verbatim, calling Cohorts.matched for pool(p); constants.ts holds KFLOOR=5 and COUNTING_K=200; stable documented tie-break",
+      "phase": "K",
+      "depends_on": [
+        "P0.2",
+        "K6"
+      ],
+      "mock_start_ok": false,
+      "note": "Depends on K6 because pool(p) sums over cohorts matched to the Usual — call K6, do not re-derive cohorts here.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "K5": {
+      "title": "Copy linter: banned-lexicon scan (quantity, weight, calories, progress, streaks, scores, totals) with lexicon as data in its own file",
+      "phase": "K",
+      "depends_on": [
+        "P0.2"
+      ],
+      "mock_start_ok": false,
+      "note": null,
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "K6": {
+      "title": "Cohort counting: census + matched at KFLOOR, deduped on read_id before counting; sub-floor cohorts returned as cohortMiss, never citable",
+      "phase": "K",
+      "depends_on": [
+        "P0.2"
+      ],
+      "mock_start_ok": false,
+      "note": "The motivating test ([E20]): four reads plus a duplicate must NOT satisfy k>=5; five identical-but-distinct reads must.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "M1": {
+      "title": "MemoryClient over XTrace: ingest/search/remove, user_id a required positional parameter, explicit episode-slot reservation, pollable ingest handle",
+      "phase": "M",
+      "depends_on": [
+        "P0.2",
+        "P0.3"
+      ],
+      "mock_start_ok": false,
+      "note": "Resolves D-2 — confirm real endpoint paths against the live API and record them in src/memory/README.md. Omitting user_id searches app-wide, so it must be impossible to omit.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "M2": {
+      "title": "PoolStore: writeRead to confit:pool with read_id in content; readsForDriver is the per-driver counting query at COUNTING_K; inducedClaim stays top-k",
+      "phase": "M",
+      "depends_on": [
+        "M1",
+        "K1"
+      ],
+      "mock_start_ok": false,
+      "note": "Counting and induction are separate methods ([E22]) — induction may stay top-k, counting may not. read_id must be in the record content so M7's fallback verification can find it.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "M3": {
+      "title": "UserStore: writeProse ingests raw prose unmodified, usual/setUsual (off-limits topics live in UsualProfile), mealLog; warn when unconfirmed prose is dropped",
+      "phase": "M",
+      "depends_on": [
+        "M1"
+      ],
+      "mock_start_ok": false,
+      "note": "setUsual is the only write path for off-limits topics — G2, X7 and U4 all go through it. Do not pre-clean or pre-structure prose ([E11], §14). The prose has no relay copy by design, so its retry dies with the process; that asymmetry is intended.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "M4": {
+      "title": "Relay client: typed routes incl. setJob, parseRead before sending, bounded backoff on 5xx and network only",
+      "phase": "M",
+      "depends_on": [
+        "P0.3",
+        "P0.4",
+        "K1"
+      ],
+      "mock_start_ok": false,
+      "note": null,
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "M5": {
+      "title": "Approval write path + write guard: isBlocked -> mint -> parseRead -> relay, pool, setJob (best-effort), prose; blocked writes nothing anywhere",
+      "phase": "M",
+      "depends_on": [
+        "M2",
+        "M3",
+        "M4",
+        "K1",
+        "K2"
+      ],
+      "mock_start_ok": false,
+      "note": "Write ORDER is a correctness requirement: relay first, because the relay entry is the record M7 re-ingests from. Pool-first loses a read on a crash; relay-first risks only a duplicate, which K6 dedups. This isBlocked check is the authoritative one ([E24] §9 fix, covers the prose too) — L2's earlier check is an optimisation; keep both. Owns src/memory/guard.ts, which G1 tests.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "M6": {
+      "title": "PoolView: pool union relay for a driver deduped on read_id; under pool=relay-only serve data/seeds/induction-set.json plus relay and return degraded",
+      "phase": "M",
+      "depends_on": [
+        "M2",
+        "M4",
+        "S2"
+      ],
+      "mock_start_ok": false,
+      "note": "Depends on S2 because the relay-only induction set is an S2 artifact.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "M7": {
+      "title": "Settle-sweeper: verify each entry older than SETTLE_WINDOW_SECONDS, drop if retrievable, re-ingest from the entry's own six fields if not; verified-drop only, never TTL",
+      "phase": "M",
+      "depends_on": [
+        "M2",
+        "M4"
+      ],
+      "mock_start_ok": false,
+      "note": "Two verification paths, both required (D-1): poll ingest_job_id when present, else search the pool for the read_id — setJob is best-effort so the fallback is not optional. The never-drop-unverified test is the point of this task.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "M8": {
+      "title": "Deletion by read_id across pool scope, user scope and relay, with a per-target report",
+      "phase": "M",
+      "depends_on": [
+        "M2",
+        "M3",
+        "M4"
+      ],
+      "mock_start_ok": false,
+      "note": "Front-end copy is 'deleted from Confit' — never imply cryptographic enforcement (design v0.8 §7).",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "L1": {
+      "title": "Template narrator + copy catalog keyed by reason key: reason, rotation, usual and cohort-miss lines, all linter-clean",
+      "phase": "L",
+      "depends_on": [
+        "P0.2",
+        "K5"
+      ],
+      "mock_start_ok": false,
+      "note": "Lands before the live narrator — it is both the narrator=template degrade path and the fixture the whole suite narrates with.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "L2": {
+      "title": "Chip preview on claude-haiku-4-5: structured output for the five chips, off-limits check before and after, one retry then extraction=seeded",
+      "phase": "L",
+      "depends_on": [
+        "P0.3",
+        "K2"
+      ],
+      "mock_start_ok": false,
+      "note": "UI-only by design (§6) — nothing downstream may depend on this being correct, only on it being schema-valid; M5 is what guarantees blocking. A blocked topic must make zero model calls, and with no API key the module must not attempt a request.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "L3": {
+      "title": "Live narrator on claude-sonnet-5: facts-only prompt, choose-from-corpus contract, linter gate -> one regenerate -> template fallback",
+      "phase": "L",
+      "depends_on": [
+        "L1",
+        "K5",
+        "P0.3"
+      ],
+      "mock_start_ok": false,
+      "note": "The prompt must contain no confession prose and must never cite a cohort below KFLOOR. Under narrator=template, delegate to L1 without a request.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "X1": {
+      "title": "CLI skeleton: subcommand dispatch, --profile/--json/--yes/--help, documented exit codes, rendering separated from logic",
+      "phase": "X",
+      "depends_on": [
+        "P0.1",
+        "P0.3"
+      ],
+      "mock_start_ok": false,
+      "note": "No business logic in this lane. Commands return plain objects; render.ts prints them. Exit codes: 0 ok, 1 expected failure, 2 usage, 3 config/connectivity — a cohort miss is NOT a failure.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "X2": {
+      "title": "confit confess: chips preview -> confirm -> writeRead, prints read_id and per-target status; consent copy states both halves",
+      "phase": "X",
+      "depends_on": [
+        "X1",
+        "L2",
+        "M5"
+      ],
+      "mock_start_ok": true,
+      "note": "Stub-first, but NOT claimable in wave 1: mock-start skips every dependency check, so this shows ready before contracts exist. Claim only once P0.2 has merged — you build against its fixture stubs. The [E27] consent sentence is asserted in a test so it cannot be dropped silently.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "X3": {
+      "title": "confit ask: assemble and print the card — pick, reason line, cohort citation or cohort-miss, rotation/usual lines, degraded disclosure, runners-up, full score map under --json",
+      "phase": "X",
+      "depends_on": [
+        "X1",
+        "M3",
+        "M6",
+        "K3",
+        "K4",
+        "K6",
+        "L3",
+        "S1"
+      ],
+      "mock_start_ok": true,
+      "note": "Stub-first, but NOT claimable in wave 1: mock-start skips every dependency check, so this shows ready before contracts exist. Claim only once P0.2 has merged. Acceptance runs against the P0.2 fixture pool, NOT the S2 seed — the seed-based near-tie assertion is G4's, and keeping them apart is what lets this land before seeds exist. Never print a confession; never cite below KFLOOR.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "X4": {
+      "title": "confit sweep: --once and --watch over the settle-sweeper, printing verified/re-ingested/retained and oldest_entry_age_seconds",
+      "phase": "X",
+      "depends_on": [
+        "X1",
+        "M7"
+      ],
+      "mock_start_ok": false,
+      "note": "This is the operator-run sweeper of [E21] — the thing that must work when the author's session is gone.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "X5": {
+      "title": "confit forget <read_id>: per-target deletion results in the 'deleted from Confit' register",
+      "phase": "X",
+      "depends_on": [
+        "X1",
+        "M8"
+      ],
+      "mock_start_ok": false,
+      "note": null,
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "X6": {
+      "title": "confit pass census + neartie (read-only): per-driver k, citable at KFLOOR, seed-manifest cross-check, score spread and judge-read delta",
+      "phase": "X",
+      "depends_on": [
+        "X1",
+        "K4",
+        "K6",
+        "M6",
+        "S2"
+      ],
+      "mock_start_ok": false,
+      "note": "Read-only, which is why it is split from X7 and can land earlier. The census cross-check is the [E22] guard working — a COUNTING_K sized for the seed but not seed-plus-live reads must fail here, not on stage.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "X7": {
+      "title": "confit pass mutations: provision (writes S4 profiles via setUsual), seed, reset, flags --set, nudge --arm",
+      "phase": "X",
+      "depends_on": [
+        "X1",
+        "M3",
+        "S3",
+        "N1"
+      ],
+      "mock_start_ok": false,
+      "note": "provision is what makes a fresh checkout usable — without it there are no profiles to ask as.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "S1": {
+      "title": "Corpus: 40 hand-picked places against the Place schema with signature dishes and spice levels, plus a validator script",
+      "phase": "S",
+      "depends_on": [
+        "P0.2"
+      ],
+      "mock_start_ok": false,
+      "note": null,
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "S4": {
+      "title": "Demo profiles: UsualProfile + meal log for accounts A and B, validator; B's log rich enough for K3 to fit half-lives",
+      "phase": "S",
+      "depends_on": [
+        "P0.2"
+      ],
+      "mock_start_ok": false,
+      "note": "This is the task the old plan called D1. Nothing else creates profiles, so S2, X3, X7 and G4 all sit downstream. B is the near-tie account, so B's profile and S2's seed are tuned together.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "S2": {
+      "title": "Seed generator: 220 reads, every demo driver k in [5,9] across distinct places, near-tie tuned against profile B, deterministic from a fixed PRNG seed; emits reads.json, manifest.json and induction-set.json",
+      "phase": "S",
+      "depends_on": [
+        "S1",
+        "S4",
+        "K1",
+        "K4"
+      ],
+      "mock_start_ok": false,
+      "note": "Near-tie target: score(top1)-score(top3) <= 0.04 and a judge read (weight >= 0.7) shifts >= 0.05, evaluated with K4 against S4's profile B. No unseeded Math.random anywhere.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "S3": {
+      "title": "Seed loader: push generated reads to the pool scope and relay, reporting any that did not land and closing with the settle window",
+      "phase": "S",
+      "depends_on": [
+        "S2",
+        "M2",
+        "M4"
+      ],
+      "mock_start_ok": false,
+      "note": "XTrace has no upsert semantics, so a re-run creates duplicate pool records — K6's dedup on read_id is what keeps the census stable. Do not try to implement upsert; do warn on a detected re-run. Seeding must happen hours ahead of a demo because induction operates over the pool (design v0.8 §11).",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "N1": {
+      "title": "Nudge rules: opt-in default off, at most once per local-timezone day, permanent silence in one call, arm() for demo control; pure over injected now",
+      "phase": "N",
+      "depends_on": [
+        "P0.2"
+      ],
+      "mock_start_ok": false,
+      "note": "Day key must come from the device's local timezone, not UTC, or a 23:00 nudge fires twice in one evening west of Greenwich. No timers in this module. Copy comes from L1's catalog, never a model.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "G1": {
+      "title": "Pool-write schema guard test: adversarial suite around src/memory/guard.ts asserting every pool/relay-bound body is exactly READ_KEYS, closed and enum-checked",
+      "phase": "G",
+      "depends_on": [
+        "K1",
+        "M5"
+      ],
+      "mock_start_ok": false,
+      "note": "The guard module itself is M5's deliverable (lane M owns src/memory/**); this task is the test. Prove the guard sits at the boundary by calling the pool store directly, bypassing writeRead, and still being stopped.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "G2": {
+      "title": "Off-limits propagation test: a flagged topic yields zero new records in BOTH tiers — no pool read, no relay entry, no user-scope prose",
+      "phase": "G",
+      "depends_on": [
+        "K2",
+        "M3",
+        "M5"
+      ],
+      "mock_start_ok": false,
+      "note": "v0.7's version checked only the pool, which is exactly how the §9 violation survived a review cycle. Verify the suite goes red when either block is removed, and record in the docblock that you did.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "G3": {
+      "title": "Copy-linter regression: every template in the catalog and every narrator fixture through the linter, one case per banned lexicon entry",
+      "phase": "G",
+      "depends_on": [
+        "K5",
+        "L1",
+        "L3"
+      ],
+      "mock_start_ok": false,
+      "note": null,
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "G4": {
+      "title": "Near-tie invariant against the actual seed file and profile B, plus the cohort-count cross-check against the S2 manifest",
+      "phase": "G",
+      "depends_on": [
+        "K4",
+        "K6",
+        "S2",
+        "S4"
+      ],
+      "mock_start_ok": false,
+      "note": "The demo's climax is CI-protected (plan v1.0 §3.4). Lowering COUNTING_K below the largest cohort must make the cross-check fail.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "G5": {
+      "title": "CI wiring + npm run gate:cli: typecheck, full suite, then scripted provision -> seed -> confess -> ask -> sweep -> forget -> census end-to-end with no network",
+      "phase": "G",
+      "depends_on": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "X2",
+        "X3",
+        "X4",
+        "X5",
+        "X6",
+        "X7",
+        "P0.5"
+      ],
+      "mock_start_ok": false,
+      "note": "Must be green with no network and no ANTHROPIC_API_KEY — P0.3's optional-key rule is what makes that possible. Fails if docs/gate0-results.md records no gate-zero pass (D-3). This is the gate the UI lane waits on.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "U1": {
+      "title": "Vite + React shell: add UI deps, routes /confess /ask /settings /pass, design tokens; imports the same core as the CLI and adds no domain logic",
+      "phase": "U",
+      "depends_on": [
+        "G5"
+      ],
+      "mock_start_ok": false,
+      "note": "UI starts only once the CLI is green. If a screen needs behaviour the CLI cannot do, that behaviour is a kernel or memory task first.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "U2": {
+      "title": "Confess screen: textarea -> editable/strikeable chips -> Add to the pot via the same writeRead, blocked-topic state, consent copy above the button",
+      "phase": "U",
+      "depends_on": [
+        "U1",
+        "X2"
+      ],
+      "mock_start_ok": false,
+      "note": null,
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "U3": {
+      "title": "Ask card: pick, reason line, cohort citation, rotation/usual lines, cohort-miss variant, degraded-pool disclosure, runners-up",
+      "phase": "U",
+      "depends_on": [
+        "U1",
+        "X3"
+      ],
+      "mock_start_ok": false,
+      "note": "Assert that no confession text can reach the DOM on the citation and cohort-miss paths.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "U4": {
+      "title": "Settings + nudge surface: off-limits editor writing through setUsual, nudge opt-in, quiet banner with dismiss and silence-forever",
+      "phase": "U",
+      "depends_on": [
+        "U1",
+        "N1",
+        "K2",
+        "M3"
+      ],
+      "mock_start_ok": false,
+      "note": null,
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "U5": {
+      "title": "The Pass panel: census table, near-tie inspector, provision, seed/reset, flag toggles, sweeper status with oldest_entry_age_seconds",
+      "phase": "U",
+      "depends_on": [
+        "U1",
+        "X6",
+        "X7"
+      ],
+      "mock_start_ok": false,
+      "note": "Every action maps to an existing confit pass operation — the panel is a view over the CLI, not a second implementation.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T07:37:34.268Z"
+    }
+  }
+}
