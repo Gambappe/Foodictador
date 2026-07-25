@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T10:58:24.707Z",
+  "updated_at": "2026-07-25T10:59:57.813Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -821,13 +821,13 @@
         "P0.4"
       ],
       "mock_start_ok": false,
-      "note": "PR #57. Persistence moved INSIDE the mutation (a write is on disk before put returns; a timer cannot provide that at any frequency because ack and durability are unordered) and the write became atomic: temp -> fsync temp -> rename -> fsync dir. P0.4 had TWO loss modes, not one: the 10s timer, and writeFileSync truncating the live file so a crash mid-write loses everything rather than 10s. Failed snapshot rolls back and throws; corrupt snapshot quarantines and refuses to boot; RELAY_DUMP_PATH required unless RELAY_EPHEMERAL=1; SIGTERM handled (P0.4 handled only SIGINT, so docker stop was the one path that skipped the flush). CAUTION FOR REVIEWERS: the SIGKILL acceptance test initially PASSED against a no-durability implementation because npx forks the interpreter, so killing the wrapper left a grandchild holding the port — fixed to spawn the binary directly in its own process group. [E26] deliberately NOT closed: split to P0.9.",
-      "status": "in_review",
+      "note": "Merged as #57. Persistence is inside the mutation (on disk before put returns) and atomic (temp/fsync/rename/fsync-dir). P0.4 had TWO loss modes: the 10s timer, and writeFileSync truncating the live file so a crash mid-write lost everything rather than 10s. Failed snapshot rolls back and throws; corrupt snapshot quarantines and refuses to boot; RELAY_DUMP_PATH required unless RELAY_EPHEMERAL=1; SIGTERM handled. NOTE: the SIGKILL acceptance test first PASSED against a no-durability build because npx forks the interpreter and killing the wrapper left a grandchild on the port — now spawns the binary directly in its own process group. [E26] split to P0.9 (analysis in infra/relay/README.md), re-verified against merged M9 that the sweeper still needs seconds-precision received_at. G7's 'blocked on P0.8' dependency is now satisfied.",
+      "status": "done",
       "owner": "claude-session-12uj0q",
       "branch": "claude/app-design-task-impl-12uj0q",
       "pr": null,
       "claimed_at": "2026-07-25T10:41:21.594Z",
-      "updated_at": "2026-07-25T10:54:28.338Z"
+      "updated_at": "2026-07-25T10:59:57.812Z"
     },
     "M10": {
       "title": "Ingest ledger (D-7/M10): capture memories_created[] handles at write time so forget deletes both XTrace scopes instead of reporting skipped",
