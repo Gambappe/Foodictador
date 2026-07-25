@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T18:07:03.194Z",
+  "updated_at": "2026-07-25T18:07:44.252Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -1187,13 +1187,13 @@
         "M20"
       ],
       "mock_start_ok": false,
-      "note": "Emerged from having D-8's three inputs working at once, which nothing had seen before. A live card now runs: a reason line that names SEVENTEEN places in one paragraph (the pool claim, interpolated into reason_induced_cited), a cohort-miss line, a rotation line, a usual line, and a four-sentence personal claim. Roughly 200 words where design v0.8 §5 specifies four lines. Neither claim is ours to rewrite — both are XTrace synthesis — so this is a LENGTH and SELECTION problem, not a copy-quality one: decide how much substrate prose a card may carry, and where it is truncated or summarised. Note the substrate's episode register leaks through both ('The conversation centered on...', 'The session ended by reinforcing...'), which reads as a transcript summary rather than a recommendation. Do NOT fix by sending the claim to a model to shorten — that adds a third layer of paraphrase to text already twice-removed from the user's words, and the personal claim is where drift matters most (see the withPersonalLine note in src/llm/narrator.ts).",
-      "status": "claimed",
+      "note": "Merged as #76. claimClamp: order-preserving verbatim sentence selection in safeClaim before the lint — register dropped when substantive remains, 2-sentence/~240-char budget, overlong single sentence drops the claim (no mid-sentence cuts). One implementation, both claims, both narrators.",
+      "status": "done",
       "owner": "fable-session-0dd9z8",
       "branch": "feat/l5-claim-clamp",
       "pr": null,
       "claimed_at": "2026-07-25T18:07:03.194Z",
-      "updated_at": "2026-07-25T18:07:03.194Z"
+      "updated_at": "2026-07-25T18:07:44.251Z"
     },
     "DEPLOY.1": {
       "title": "Live-demo deployment: cloud relay, three laptop clients, preflight and runbook",
