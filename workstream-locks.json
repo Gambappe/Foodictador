@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T15:31:33.930Z",
+  "updated_at": "2026-07-25T15:33:56.224Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -1048,12 +1048,12 @@
       "depends_on": [],
       "mock_start_ok": false,
       "note": "SL-08 in docs/defect-log.md (still open, escalated since K7 / DAG §4 D-6). src/contracts/modules.ts:126-128 declares AskEngine.ask(input) -> Card as synchronous/pure, which K7 proved impossible (a card needs a model call). src/contracts/stubs/askEngine.ts + contracts.test.ts still assert the impossible shape. src/contracts/** is integrator-only — this is explicitly named as the integrator's to fix.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "claude-session-014n6NYRN6Rb",
+      "branch": "claude/upload-code-artifact-zop9uz",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T12:47:27.776Z"
+      "claimed_at": "2026-07-25T15:33:56.223Z",
+      "updated_at": "2026-07-25T15:33:56.223Z"
     },
     "M18": {
       "title": "SL-14: URL(...).pathname used as a filesystem path breaks on spaced checkouts",
