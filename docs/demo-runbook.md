@@ -250,11 +250,13 @@ on stage.
    A read with no recorded handle — confessed before the ledger existed, or whose ingest
    job never succeeded — is reported `skipped` rather than dressed up as deleted. If
    asked, the accurate answer is "yes, and it tells you when it couldn't."
-2. **The settle window is still an estimate.** `SETTLE_WINDOW_SECONDS=480` was meant to
-   be *measured*. G7's rewritten gate zero records claim 1 (the relay survives a kill
-   losing nothing) as a **PASS**, but the two claims needing live credentials — deletion
-   by handle, and induction yielding a usable claim — are still outstanding, and nothing
-   has measured the real settle time against the live substrate.
+2. **The settle window is still an estimate**, even though gate zero now passes.
+   `docs/gate0-results.md` records **PASS** on all three D-7 claims against the live
+   substrate — the relay survives a kill losing nothing, deletion deletes by handle, and
+   induction yields a claim that grounds in a seeded place name. What it does *not* do is
+   measure the settle time: `SETTLE_WINDOW_SECONDS=480` remains a guess, and it is what
+   the sweeper's re-ingest timing and the seed's "warm no earlier than" both key off. If
+   induction looks cold at T−1h, seeding earlier is the lever, not a smaller number here.
 3. **A live poller still sees arrivals as they happen.** P0.9 closed the reconstruct-any-
    past-day channel, not this one; §7 accepted it for the slice. If your relay is
    reachable by the audience, someone watching it in real time can correlate an arrival

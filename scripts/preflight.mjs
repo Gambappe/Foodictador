@@ -90,7 +90,7 @@ if (env('ANTHROPIC_API_KEY') === null) {
 
 note(
   `settle window = ${env('SETTLE_WINDOW_SECONDS') ?? '480'}s (the 480 default is an ESTIMATE — ` +
-    'nothing has measured it against the live substrate; see G7)',
+    'gate zero PASSES all three D-7 claims, but none of them measures the settle time)',
 );
 
 // ---------------------------------------------------------------- relay
