@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T09:12:32.323Z",
+  "updated_at": "2026-07-25T09:13:10.896Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -429,12 +429,12 @@
       ],
       "mock_start_ok": false,
       "note": " | X1 landed: do NOT edit src/cli/main.ts to register your command — it is X1's file (§2). Build your module under src/cli/ and the integrator wires the registry handler on merge. Your command already resolves, validates its options and exits 1 from a placeholder naming your task. Return a CommandResult {lines, data, exit?} from render.ts; do not print. Exit codes: 0 ok, 1 expected failure, 2 usage, 3 environment.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "claude-session-12uj0q",
+      "branch": "claude/app-design-task-impl-12uj0q",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T09:02:34.490Z"
+      "claimed_at": "2026-07-25T09:13:10.895Z",
+      "updated_at": "2026-07-25T09:13:10.895Z"
     },
     "X6": {
       "title": "confit pass census + neartie (read-only): per-driver k, citable at KFLOOR, seed-manifest cross-check, score spread and judge-read delta",
