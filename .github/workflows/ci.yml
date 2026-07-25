@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# The whole point of P0.3's optional model key and P0.6's fixtureGraph: this job needs no
+# secrets. Nothing here sets XTRACE_BASE_URL, XTRACE_API_KEY, RELAY_URL, RELAY_TOKEN or
+# ANTHROPIC_API_KEY, and the suite must stay green without them.
+jobs:
+  code:
+    name: code checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      # Run these as separate steps rather than through gate-cli.sh, so a red build names
+      # the failing check in the job summary instead of making someone open the log.
+      - name: typecheck
+        run: npm run typecheck
+      - name: lint
+        run: npm run lint
+      - name: tests
+        run: npm test
+      - name: build
+        run: npm run build
+
+  gate-zero:
+    name: gate zero recorded (DAG D-3)
+    runs-on: ubuntu-latest
+    # Separate job on purpose. This is expected to be red until someone with XTrace
+    # credentials runs `npm run gate0`, and it must not be mistaken for broken code —
+    # `code checks` is the signal for that. It also must not be deleted to get a green
+    # tick: design v0.8 §11 makes this a precondition for the sole-store architecture,
+    # so a repo that has forgotten it is a repo shipping on an unverified assumption.
+    steps:
+      - uses: actions/checkout@v4
+      # Delegates to the gate script so the PASS pattern is defined in exactly one
+      # place. --gate0-only skips the code checks (the `code` job above owns those) and
+      # can only report the blocker, never clear it.
+      - name: check for a recorded PASS
+        run: bash scripts/gate-cli.sh --gate0-only
