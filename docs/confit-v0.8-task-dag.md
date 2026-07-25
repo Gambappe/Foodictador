@@ -51,8 +51,11 @@ Every path below is owned by exactly one lane. If your task needs a file outside
 | Nudge | `N` | `src/nudge/**` |
 | Guards & CI | `G` | `tests/guards/**`, `.github/workflows/**`, `scripts/gate-cli.sh` |
 | UI | `U` | `src/ui/**`, `index.html`, `vite.config.ts`, `tailwind.config.ts` |
+| **Specs and docs** | *integrator* | `docs/**` |
 
 Tests for a lane's own modules live beside them (`src/kernel/rotation.test.ts`). `tests/guards/**` is only for the cross-cutting guards in lane G. Nothing outside this table may be created without the integrator adding a row.
+
+**Editing this document is an integrator change, and it gets its own commit.** `docs/**` had no owner in this table until now, which is how the D-6 resolution came to be narrowed inside the very PR that implemented K7 — by the agent whose task it describes, in a forty-line commit message that mentioned everything except the spec edit (defect log SL-12). The substance happened to be right; the process was not. A task that needs a spec change raises it as a note on the task, and a spec change lands as a commit that does nothing else, so it is reviewable as a spec change rather than buried in an implementation diff.
 
 **Adding a dependency is an integrator change.** `package.json` and `package-lock.json` belong to lane P0, so a task that needs a new package — `U1` adding React and Vite is the obvious one — does not edit them itself. Ask the integrator, who adds the dependency and pushes the lockfile. This keeps one agent responsible for the lockfile and stops two lanes racing on it.
 
@@ -257,6 +260,24 @@ Format: **Owns** (files you may touch) · **Depends** · **Build** · **Acceptan
   Write token required on all mutations; reads open. **`POST /reads` validates the body against `READ_KEYS` exactly and rejects anything else with 400** — extra keys included. The server assigns `received_at` and stores `ingest_job_id` as metadata *outside* the read object; `RelayEntry` is `{read, received_at, ingest_job_id?}`.
   **`oldest_entry_age_seconds`, not `oldest_unverified_age`:** the relay does not track verification state and must not pretend to. Because M7 drops an entry only once it is verified, *every entry still present is unverified by construction* — the age of the oldest entry is exactly the stuck-entry signal the operator needs. In-memory store plus periodic JSON dump is fine.
 - **Acceptance:** `infra/relay/relay.test.ts` covers: valid read → 201; read with a seventh key → 400; read with `received_at` or `ingest_job_id` in the body → 400; missing token on write → 401; `DELETE` of an unknown `read_id` → 404; `ingest-job` on an unknown `read_id` → 404; `oldest_entry_age_seconds` grows with a stale entry. Plus a documented two-machine curl round-trip.
+
+**P0.6 — Adapter wiring**
+- **Owns:** `src/config/wiring.ts` + test
+- **Depends:** P0.3, M2, M3, M4, L2, L3
+- **Build:** the missing seam, found while implementing X2. Every `X` command needs a store
+  graph — `MemoryClient`, `PoolStore`, `UserStore`, `Relay`, `Extractor`, `Narrator` —
+  constructed from an `AppConfig`, and **no task builds one**. Each command currently takes
+  its dependencies injected, which is right for testing and leaves nobody responsible for
+  production assembly. Two factories: `liveGraph(config, logger)` for the real thing, and
+  `fixtureGraph()` returning the P0.2 stubs, which is what lets `gate:cli` run the whole
+  flow with no network and no API key. Honour the degrade flags when choosing between live
+  and template/seeded implementations.
+- **Acceptance:** `fixtureGraph()` drives a full confess→ask→sweep→forget sequence with no
+  network; `liveGraph` fails fast with a message naming the missing config; a test asserts
+  no command module constructs an adapter itself.
+- **Note:** `X2`–`X7` and `G5` all need this. It is not in their `depends_on` because it was
+  registered after them; treat it as a prerequisite for wiring any command into X1's
+  registry.
 
 **P0.5 — Gate zero runner and settle-window measurement**
 - **Owns:** `scripts/gate0.ts`, `docs/gate0-results.md`

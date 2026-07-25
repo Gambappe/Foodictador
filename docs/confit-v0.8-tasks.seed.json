@@ -423,6 +423,19 @@
         "K6"
       ],
       "note": "Added after the initial seed — see DAG §4 D-6. AskEngine was declared in contracts and stubbed at P0.2 but no task built it, while X3 was specced to assemble the card in the CLI lane, contradicting §1's 'no behaviour in a front end'. Pure, so it cannot produce reasonLine (that is L3's async job): return the ranking, citation/miss, suppressions and NarratorFacts, and let the caller assemble. Owns src/kernel/askEngine.ts."
+    },
+    "P0.6": {
+      "title": "Adapter wiring: liveGraph(config) and fixtureGraph() building the store/LLM graph every X command needs",
+      "phase": "P0",
+      "depends_on": [
+        "P0.3",
+        "M2",
+        "M3",
+        "M4",
+        "L2",
+        "L3"
+      ],
+      "note": "Registered after the initial seed, found while implementing X2. Every X command takes its adapters injected — right for testing, and it left nobody responsible for production assembly. fixtureGraph() is what lets gate:cli run the whole flow with no network and no API key. X2-X7 and G5 all need this; it is not in their depends_on because it was registered later, so treat it as a prerequisite for wiring any command into X1's registry."
     }
   }
 }
