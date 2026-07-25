@@ -50,26 +50,27 @@ ordered — the client is told "stored" and *then* the process dies.
   ordering, and compaction-crash handling, none of which earn their keep for a relay
   that holds a demo.
 
-## Known gap: [E26] is still open
+## [E26] closed for the slice (P0.9 / D-12)
 
-`GET /reads` is unauthenticated and returns full-precision `received_at`, so anyone who
-can reach the relay can correlate an arrival time with whoever just visibly confessed.
-Design v0.8 §7 accepted this while the relay held minutes of data; **D-7 makes it hold
-everything, for ever, which is what P0.8's brief means by "coarse timestamps move from
-the [prod] list to required".**
+`GET /reads` and `GET /stats` stay open — the disclosure posture is the point: anyone can
+see WHAT the pool holds, six identity-free fields per read. What the open surface no longer
+serves is WHEN and IN WHAT ORDER:
 
-It is not fixed here because neither available fix fits inside `infra/relay/**`:
+- open `received_at` is **day precision** (`2026-07-25`), entries sorted by `read_id`
+  (arrival-independent), and `ingest_job_id`/`pool_memories` are omitted;
+- open `?since=` is refused with `401` — it is an ordering query by construction;
+- open `/stats` floors `oldest_entry_age_seconds` to whole days; `count` stays exact.
 
-- Coarsening `received_at` changes `RelayEntry` in `src/contracts/types.ts` (frozen —
-  integrator only), and the sweeper computes a seconds-precision settle window from that
-  exact field. Still true after M9: `src/memory/sweeper.ts` derives `ageSeconds` from
-  `entry.received_at` and compares it against `settleWindowSeconds`.
-- Requiring the token on `GET /reads` contradicts P0.4's tested "reads stay open" and
-  breaks M4's client, which sends no token on `list()`.
+The same routes with the `x-relay-token` header (M11's convention) serve exactly the
+pre-P0.9 view: seconds precision, arrival order, `since` filtering, full metadata. M4's
+client sends the header on every request, so the sweeper's settle window, PoolView counting,
+and the pass reports are unchanged — `RelayEntry` in the frozen contracts did not move.
 
-Tracked as **P0.9**. Doing half of it — coarsening the field while the sweeper still
-needs seconds — would break the sweeper and leave the side channel open through
-`?since=` anyway.
+What remains, deliberately: a live poller diffing open snapshots still observes new arrivals
+as they happen. That is the [E26] risk design v0.8 §7 accepted and disclosed for the slice —
+it needs no timestamp to work, and closing it means closing the open surface entirely
+([prod]'s call, not ours). What D-7 had silently added — reconstructing ANY PAST DAY's
+arrival ordering from a one-shot open read — is what this closes.
 
 ## Routes
 
@@ -77,9 +78,10 @@ needs seconds — would break the sweeper and leave the side channel open throug
 | --- | --- | --- |
 | `POST /reads` `{token, read}` | token | 201; validates against `READ_KEYS` exactly — extra keys (incl. `received_at`, `ingest_job_id`) → 400 |
 | `POST /reads/{read_id}/ingest-job` `{token, ingest_job_id}` | token | 204; 404 unknown read |
-| `GET /reads?since=` | open | `RelayEntry[]` = `{read, received_at, ingest_job_id?}` — see the [E26] gap above |
+| `GET /reads` | open | coarse view: `{read, received_at}` day-precision, `read_id` order, no metadata; `?since=` → 401 ([E26]/P0.9) |
+| `GET /reads?since=` | `x-relay-token` | operator view: `RelayEntry[]` = `{read, received_at, ingest_job_id?, pool_memories?}`, seconds precision, arrival order |
 | `DELETE /reads/{read_id}` `{token}` | token | 204; 404 unknown — **`forget` only.** The sweeper's verified-drop used to call this and no longer may (D-7) |
-| `GET /stats` | open | `{count, oldest_entry_age_seconds}` — `count` is the pool size. Oldest age is **no longer** a stuck-entry signal: nothing is removed, so it is just the oldest read ever confessed. Use `SweepReport.pending` |
+| `GET /stats` | open (coarse) / `x-relay-token` (precise) | `{count, oldest_entry_age_seconds}` — `count` is the pool size, exact on both views; open age is day-floored (P0.9). Oldest age is **no longer** a stuck-entry signal: nothing is removed, so it is just the oldest read ever confessed. Use `SweepReport.pending` |
 | `POST /seed` `{token, reads[]}` | token | `{count}`; batch is all-or-nothing, 400 names the failing index |
 | `POST /reset` `{token}` | token | `{count: 0}` |
 

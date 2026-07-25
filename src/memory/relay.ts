@@ -57,9 +57,15 @@ export function createRelayClient(config: RelayClientConfig): Relay {
     let lastError: Error = new RelayError('relay: no attempt made');
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       try {
-        const init: RequestInit = { method };
+        // The token rides every request as M11's header (P0.9/D-12). Mutations still
+        // carry it in the body — the server checks there — but GETs have no body, and
+        // an unheadered GET now gets the coarse public view: day-precision timestamps
+        // in read_id order, no `since`. This client IS the operator's client — the
+        // sweeper's settle window reads seconds off `received_at` — so it must always
+        // identify itself.
+        const init: RequestInit = { method, headers: { 'x-relay-token': config.token } };
         if (body !== undefined) {
-          init.headers = { 'content-type': 'application/json' };
+          init.headers = { 'content-type': 'application/json', 'x-relay-token': config.token };
           init.body = JSON.stringify(body);
         }
         const res = await fetchFn(new URL(path, config.url), init);
