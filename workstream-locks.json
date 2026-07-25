@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T18:04:16.020Z",
+  "updated_at": "2026-07-25T18:04:17.560Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -1171,13 +1171,13 @@
         "M17"
       ],
       "mock_start_ok": false,
-      "note": "Built and pushed. Batching verified live: 4 confessions produced 1 conv_id and 1 episode synthesising all four (was 8 confessions, 8 episodes, 8 conv_ids). Buffer is local, plain writeFileSync, clears before the caller ingests -- the loss D-10 sanctions. Dead verifyPendingProse/dropUnconfirmedProse deleted (no production caller, and they cleared on job completion rather than memory survival). confess receipt now distinguishes held from sent. offLimits guard hardened: batching had made its zero-row assertion tautological. Gate green except gate zero, which is blocked by design on G7.",
-      "status": "in_review",
+      "note": "Merged to trunk via #71 (0293a0f), which landed the #65 branch intact after the announced takeover deadline; review record on #65. Ownership preserved.",
+      "status": "done",
       "owner": "claude-session-014n6NYRN6Rb",
       "branch": "claude/upload-code-artifact-zop9uz",
       "pr": "65",
       "claimed_at": "2026-07-25T13:43:04.090Z",
-      "updated_at": "2026-07-25T14:03:38.563Z"
+      "updated_at": "2026-07-25T18:04:17.560Z"
     },
     "L5": {
       "title": "The card is now too long: with all three D-8 inputs live, the reason line alone is a 17-place paragraph",
