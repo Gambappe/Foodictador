@@ -1,0 +1,247 @@
+{
+  "comment": "Seed for scripts/workstream-lock.mjs — the CLI-first task DAG for design v0.8, specified in docs/confit-v0.8-task-dag.md. `phase` is P0 for foundation tasks, otherwise the owning lane (K kernel, M memory, L llm, X cli, S data, N nudge, G guards, U ui). Ids do not collide with the v0.3-era seed in confit-tasks.seed.json, so both can coexist while the old lanes are retired. Read the task spec in the DAG doc before claiming — the title is a label, not the spec.",
+  "tasks": {
+    "P0.1": {
+      "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts, no UI deps yet",
+      "phase": "P0",
+      "depends_on": []
+    },
+    "P0.2": {
+      "title": "Contracts freeze v0.8: types (Read = exactly six fields), flags, module interfaces, working fixture stubs",
+      "phase": "P0",
+      "depends_on": ["P0.1"],
+      "note": "After this merges src/contracts/** is integrator-only. Read is six fields — no createdAt, no received_at (DAG doc §3)."
+    },
+    "P0.3": {
+      "title": "Runtime config, degrade flags (extraction/narrator/pool/demoMode), logger that records every degrade transition",
+      "phase": "P0",
+      "depends_on": ["P0.2"]
+    },
+    "P0.4": {
+      "title": "Relay service: six routes, write token, exact-schema validation on POST /reads, server-assigned received_at, oldest_unverified_age in /stats",
+      "phase": "P0",
+      "depends_on": ["P0.2"],
+      "note": "received_at and any ingest handle are server-side metadata, never part of the read body — a body carrying them must 400."
+    },
+    "P0.5": {
+      "title": "Gate zero runner (confit gate0): N=12, two re-ingest rounds, pass = all 12 retrievable, plus DELETE + verify-gone; record to docs/gate0-results.md",
+      "phase": "P0",
+      "depends_on": ["M1", "X1"],
+      "note": "BLOCKS BUILD DAY (design v0.8 §11, D-3). Run the moment M1 merges. If it fails, stop and escalate — the sole-store decision [E9] reopens and this DAG needs re-cutting."
+    },
+    "K1": {
+      "title": "Read validator + mintReadId: closed six-field schema, enum checks, weight in [0,1]; export READ_KEYS as the single source of truth",
+      "phase": "K",
+      "depends_on": ["P0.2"]
+    },
+    "K2": {
+      "title": "Off-limits matcher: isBlocked(text, topics), case/accent-insensitive, deliberately conservative",
+      "phase": "K",
+      "depends_on": ["P0.2"],
+      "note": "This is the gate that stops a flagged confession being ingested anywhere ([E24]). A false negative is a duty-of-care failure; a false positive is an annoyance. Tune accordingly."
+    },
+    "K3": {
+      "title": "Rotation: appetite curve, half-life fit from >=3 observations else seeded median, suppressions returning reason keys not prose",
+      "phase": "K",
+      "depends_on": ["P0.2"],
+      "note": "Formula is plan v1.0 §3.5 verbatim — copy it, don't reinvent it."
+    },
+    "K4": {
+      "title": "Ask scoring: plan v1.0 §3.4 verbatim, all tunable constants in constants.ts incl. KFLOOR=5, stable documented tie-break",
+      "phase": "K",
+      "depends_on": ["P0.2"]
+    },
+    "K5": {
+      "title": "Copy linter: banned-lexicon scan (quantity, weight, calories, progress, streaks, scores, totals) with lexicon as data in its own file",
+      "phase": "K",
+      "depends_on": ["P0.2"]
+    },
+    "K6": {
+      "title": "Cohort counting: census + matched at KFLOOR, deduped on read_id before counting; sub-floor cohorts returned as cohortMiss, never citable",
+      "phase": "K",
+      "depends_on": ["P0.2"],
+      "note": "The motivating test ([E20]): four reads plus a duplicate must NOT satisfy k>=5; five identical-but-distinct reads must."
+    },
+    "M1": {
+      "title": "MemoryClient over XTrace: ingest/search/remove, user_id required (not optional), explicit episode-slot reservation, pollable ingest handle",
+      "phase": "M",
+      "depends_on": ["P0.2", "P0.3"],
+      "note": "Resolves D-2 — confirm real endpoint paths against the live API and record them in src/memory/README.md. Omitting user_id searches app-wide, so make it a required parameter."
+    },
+    "M2": {
+      "title": "PoolStore: writeRead to confit:pool with read_id in content; readsForDriver implements the per-driver counting query with k above the largest seeded cohort",
+      "phase": "M",
+      "depends_on": ["M1", "K1"],
+      "note": "Counting query and induction query are separate methods ([E22]) — induction may stay top-k, counting may not."
+    },
+    "M3": {
+      "title": "UserStore: writeProse ingests raw prose unmodified, usual() and mealLog() read the personal tier; warn when unconfirmed prose is dropped",
+      "phase": "M",
+      "depends_on": ["M1"],
+      "note": "Do not pre-clean or pre-structure the prose ([E11], §14). The prose has no relay copy by design, so its retry dies with the process — that asymmetry is intended."
+    },
+    "M4": {
+      "title": "Relay client: typed six routes, parseRead before sending, bounded backoff on 5xx only",
+      "phase": "M",
+      "depends_on": ["P0.3", "P0.4", "K1"]
+    },
+    "M5": {
+      "title": "Approval write path: isBlocked -> mint read_id -> parseRead -> three writes (user prose, pool read, relay); blocked writes nothing anywhere",
+      "phase": "M",
+      "depends_on": ["M2", "M3", "M4", "K1", "K2"],
+      "note": "The §9 fix ([E24]) lives here: a flagged confession must not reach the prose tier either. Relay write must succeed for a read to count as pooled; a failed pool write is recoverable because the relay is the re-ingest source."
+    },
+    "M6": {
+      "title": "PoolView: pool union relay for a driver, deduped on read_id; under pool=relay-only serve seeded induction set + relay and mark degraded",
+      "phase": "M",
+      "depends_on": ["M2", "M4"]
+    },
+    "M7": {
+      "title": "Settle-sweeper: verify each stale relay entry, drop if retrievable, re-ingest from the entry's own six fields if not; verified-drop only, never TTL",
+      "phase": "M",
+      "depends_on": ["M2", "M4"],
+      "note": "Confirm D-1 (how verification is keyed — recommended: opaque ingest_job_id as relay metadata) with the integrator before claiming. The never-drop-unverified test is the point of this task."
+    },
+    "M8": {
+      "title": "Deletion by read_id across pool scope, user scope and relay, with a per-target report",
+      "phase": "M",
+      "depends_on": ["M2", "M3", "M4"],
+      "note": "Front-end copy is 'deleted from Confit' — never imply cryptographic enforcement (design v0.8 §7)."
+    },
+    "L1": {
+      "title": "Template narrator + copy catalog keyed by reason key: reason, rotation, usual and cohort-miss lines, all linter-clean",
+      "phase": "L",
+      "depends_on": ["P0.2", "K5"],
+      "note": "Lands before the live narrator — it is both the narrator=template degrade path and the fixture the whole suite narrates with."
+    },
+    "L2": {
+      "title": "Chip preview on claude-haiku-4-5: structured output for the five chips, off-limits check before and after, one retry then extraction=seeded",
+      "phase": "L",
+      "depends_on": ["P0.3", "K2"],
+      "note": "UI-only by design (§6) — nothing downstream may depend on this being correct, only on it being schema-valid. A blocked topic must make zero model calls."
+    },
+    "L3": {
+      "title": "Live narrator on claude-sonnet-5: facts-only prompt, choose-from-corpus contract, linter gate -> one regenerate -> template fallback",
+      "phase": "L",
+      "depends_on": ["L1", "K5", "P0.3"],
+      "note": "The prompt must contain no confession prose and must never cite a cohort below KFLOOR."
+    },
+    "X1": {
+      "title": "CLI skeleton: subcommand dispatch, --profile/--json/--yes/--help, documented exit codes, rendering separated from logic",
+      "phase": "X",
+      "depends_on": ["P0.1", "P0.3"],
+      "note": "No business logic in this lane. Commands return plain objects; render.ts prints them."
+    },
+    "X2": {
+      "title": "confit confess: chips preview -> confirm -> writeRead, prints read_id and per-target status; consent copy states both halves",
+      "phase": "X",
+      "depends_on": ["X1", "L2", "M5"],
+      "mock_start_ok": true,
+      "note": "Stub-first, but NOT claimable in wave 1: mock-start skips every dependency check, so this shows ready before contracts exist. Claim only once P0.2 has merged — you build against its fixture stubs. The [E27] consent sentence is asserted in a test so it cannot be dropped silently."
+    },
+    "X3": {
+      "title": "confit ask: assemble and print the card — pick, reason line, cohort citation or cohort-miss, rotation/usual lines, runners-up, full score map under --json",
+      "phase": "X",
+      "depends_on": ["X1", "M3", "M6", "K3", "K4", "K6", "L3", "S1"],
+      "mock_start_ok": true,
+      "note": "Stub-first, but NOT claimable in wave 1: mock-start skips every dependency check, so this shows ready before contracts exist. Claim only once P0.2 has merged — build against its stub engine/narrator/cohorts. This is the integration point. Never print a confession; never cite a cohort below KFLOOR."
+    },
+    "X4": {
+      "title": "confit sweep: --once and --watch over the settle-sweeper, printing verified/re-ingested/retained and oldest_unverified_age",
+      "phase": "X",
+      "depends_on": ["X1", "M7"],
+      "note": "This is the operator-run sweeper of [E21] — the thing that must work when the author's session is gone."
+    },
+    "X5": {
+      "title": "confit forget <read_id>: per-target deletion results in the 'deleted from Confit' register",
+      "phase": "X",
+      "depends_on": ["X1", "M8"]
+    },
+    "X6": {
+      "title": "confit pass: census with seed-manifest cross-check, seed, reset, flags --set, neartie, nudge --arm",
+      "phase": "X",
+      "depends_on": ["X1", "K6", "M6", "S3", "N1"],
+      "note": "The census cross-check is the [E22] guard working — a counting k sized for the seed but not seed-plus-live reads must fail here, not on stage."
+    },
+    "S1": {
+      "title": "Corpus: 40 hand-picked places against the Place schema with signature dishes and spice levels, plus a validator script",
+      "phase": "S",
+      "depends_on": ["P0.2"]
+    },
+    "S2": {
+      "title": "Seed generator: 220 reads, every demo driver k in [5,9] across distinct places, near-tie tuned, deterministic from a fixed PRNG seed; emits manifest.json",
+      "phase": "S",
+      "depends_on": ["S1", "K1", "K4"],
+      "note": "Near-tie target: score(top1)-score(top3) <= 0.04 and a judge read (weight >= 0.7) shifts >= 0.05. No unseeded Math.random anywhere."
+    },
+    "S3": {
+      "title": "Seed loader: push generated reads to the pool scope and relay idempotently keyed on read_id, reporting any that did not land",
+      "phase": "S",
+      "depends_on": ["S2", "M2", "M4"],
+      "note": "Seeding must run hours ahead of a demo because induction operates over the pool, not over one new read (design v0.8 §11)."
+    },
+    "N1": {
+      "title": "Nudge rules: opt-in default off, at most once per calendar day, permanent silence in one call, arm() for demo control; pure over injected now",
+      "phase": "N",
+      "depends_on": ["P0.2"],
+      "note": "No timers in this module. Copy comes from L1's catalog, never a model."
+    },
+    "G1": {
+      "title": "Pool-write schema guard: every pool/relay-bound body must be exactly READ_KEYS, closed and enum-checked; active in production code, not just tests",
+      "phase": "G",
+      "depends_on": ["K1", "M5"],
+      "note": "[E25] replaced 'detect narrative text' with reject-by-construction because CI cannot recognise narrative. Prove the guard is active by bypassing writeRead in a test."
+    },
+    "G2": {
+      "title": "Off-limits propagation test: a flagged topic yields zero new records in BOTH tiers — no pool read, no relay entry, no user-scope prose",
+      "phase": "G",
+      "depends_on": ["K2", "M5"],
+      "note": "v0.7's version checked only the pool, which is exactly how the §9 violation survived a review cycle. Verify the test goes red when either block is removed."
+    },
+    "G3": {
+      "title": "Copy-linter regression: every template in the catalog and every narrator fixture through the linter, one case per banned lexicon entry",
+      "phase": "G",
+      "depends_on": ["K5", "L1", "L3"]
+    },
+    "G4": {
+      "title": "Near-tie invariant against the actual seed file, plus the cohort-count cross-check against the S2 manifest",
+      "phase": "G",
+      "depends_on": ["K4", "K6", "S2"],
+      "note": "The demo's climax is CI-protected (plan v1.0 §3.4). Shrinking the counting k below the largest cohort must make the cross-check fail."
+    },
+    "G5": {
+      "title": "CI wiring + npm run gate:cli: typecheck, full suite, then scripted seed -> confess -> ask -> sweep -> forget -> census end-to-end with no network",
+      "phase": "G",
+      "depends_on": ["G1", "G2", "G3", "G4", "X2", "X3", "X4", "X5", "X6", "P0.5"],
+      "note": "Fails if docs/gate0-results.md records no gate-zero pass (D-3). This is the gate the UI lane waits on."
+    },
+    "U1": {
+      "title": "Vite + React shell: add UI deps, routes /confess /ask /settings /pass, design tokens; imports the same core as the CLI and adds no domain logic",
+      "phase": "U",
+      "depends_on": ["G5"],
+      "note": "UI starts only once the CLI is green. If a screen needs behaviour the CLI cannot do, that behaviour is a kernel or memory task first."
+    },
+    "U2": {
+      "title": "Confess screen: textarea -> editable/strikeable chips -> Add to the pot via the same writeRead, blocked-topic state, consent copy above the button",
+      "phase": "U",
+      "depends_on": ["U1", "X2"]
+    },
+    "U3": {
+      "title": "Ask card: pick, reason line, cohort citation, rotation/usual lines, cohort-miss variant, runners-up",
+      "phase": "U",
+      "depends_on": ["U1", "X3"],
+      "note": "Assert that no confession text can reach the DOM on the citation and cohort-miss paths."
+    },
+    "U4": {
+      "title": "Settings + nudge surface: off-limits editor, nudge opt-in, quiet banner with dismiss and silence-forever",
+      "phase": "U",
+      "depends_on": ["U1", "N1", "K2"]
+    },
+    "U5": {
+      "title": "The Pass panel: census table, near-tie inspector, seed/reset, flag toggles, sweeper status with oldest_unverified_age",
+      "phase": "U",
+      "depends_on": ["U1", "X6"],
+      "note": "Every action maps to an existing confit pass operation — the panel is a view over the CLI, not a second implementation."
+    }
+  }
+}
