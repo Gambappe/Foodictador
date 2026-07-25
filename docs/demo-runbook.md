@@ -27,14 +27,24 @@ costs nothing; a lost disk costs everything.
 
 ### Network
 
-> **Do not expose the relay on plain HTTP.** `GET /reads` is unauthenticated and returns
-> full-precision arrival times ([E26], tracked as **P0.9**), and `RELAY_TOKEN` is a shared
-> bearer secret. On conference wifi that token crosses a hostile network in cleartext.
+**P0.9 closed the ordering side channel.** The open `GET /reads` now serves day-precision
+timestamps in `read_id` order with metadata stripped, `?since=` is refused with 401, and
+open `/stats` floors the age to whole days. Precise, arrival-ordered data requires the
+`x-relay-token` header. So an exposed relay no longer lets a passer-by reconstruct when
+each confession arrived.
+
+> **It still must not run on plain HTTP.** The operator token now travels as an
+> `x-relay-token` header on *every* request — sweeper, census, ask, confess. On conference
+> wifi that is a shared bearer secret in cleartext, and this is a demo about privacy.
 >
 > Put the relay behind Tailscale/WireGuard (recommended — outbound-only, so venue client
-> isolation cannot block it, and the box is never publicly reachable), or behind a
-> TLS-terminating proxy with a bearer header. The first keeps P0.9 contained; the second
-> requires closing P0.9 first.
+> isolation cannot block it, and the box is never publicly reachable), or terminate TLS in
+> front of it. Either is fine now that P0.9 has landed; the choice is operational rather
+> than a release blocker.
+>
+> What remains by design: a live poller diffing open snapshots still sees new arrivals as
+> they happen. Design v0.8 §7 accepted and disclosed that for the slice — it needs no
+> timestamp to work, and closing it means closing the open surface entirely.
 
 ---
 
@@ -166,16 +176,20 @@ need it.
 Three things this build does not do. Say them accurately if asked; do not discover them
 on stage.
 
-1. **`confit forget` cannot fully delete.** It clears the relay but reports `skipped` for
-   the XTrace scopes (**M10**). The honest answer is "from the pool yes, from my own
-   memory tier not yet."
-2. **The settle window is an estimate.** `SETTLE_WINDOW_SECONDS=480` was meant to be
-   *measured* by gate zero, and gate zero is void (**G7**) — its protocol tests a
-   round-trip XTrace provably cannot do. Nothing has measured the real settle time
-   against the live substrate.
-3. **The relay's arrival ordering is a side channel** ([E26]/**P0.9**). Anyone who can
-   reach `GET /reads` sees when each confession arrived, which correlates with whoever
-   just visibly confessed. Contained only by keeping the relay off the public internet.
+1. **`confit forget` deletes by recorded handle, and says so when it cannot.** M10 landed
+   the ingest ledger, so a read whose pool ingest succeeded is deleted from XTrace too.
+   A read with no recorded handle — confessed before the ledger existed, or whose ingest
+   job never succeeded — is reported `skipped` rather than dressed up as deleted. If
+   asked, the accurate answer is "yes, and it tells you when it couldn't."
+2. **The settle window is still an estimate.** `SETTLE_WINDOW_SECONDS=480` was meant to
+   be *measured*. G7's rewritten gate zero records claim 1 (the relay survives a kill
+   losing nothing) as a **PASS**, but the two claims needing live credentials — deletion
+   by handle, and induction yielding a usable claim — are still outstanding, and nothing
+   has measured the real settle time against the live substrate.
+3. **A live poller still sees arrivals as they happen.** P0.9 closed the reconstruct-any-
+   past-day channel, not this one; §7 accepted it for the slice. If your relay is
+   reachable by the audience, someone watching it in real time can correlate an arrival
+   with whoever just visibly confessed.
 
 ---
 
