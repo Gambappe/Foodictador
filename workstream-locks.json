@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T13:00:34.255Z",
+  "updated_at": "2026-07-25T13:01:47.417Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -946,13 +946,13 @@
         "M2"
       ],
       "mock_start_ok": false,
-      "note": "MEASURED: POST /v1/memories/search with a made-up field 'wibble_slots:99' returns 200, not 422. So sending a parameter proves NOTHING about whether it is honoured, and src/memory/client.ts:142's comment ('Explicit reservation: facts are returned before episodes') asserts a server behaviour we cannot verify. Runs with episode_slots:4, without it, and with the bogus field returned 4, 3 and 2 episodes respectively — variation that tracks non-determinism, not the parameter. The operational guide's R3 says the reservation is a CLIENT-side job and does not list episode_slots as a parameter at all. Fix: keep sending it (harmless) but implement selectTopK-style reservation in src/memory/pool.ts so the guarantee is ours. Confirmed separately: episodes DO sort after facts (first episode at index 7, consistently), so the truncation risk R3 describes is real.",
-      "status": "claimed",
-      "owner": "claude-routine-inspiring-carson",
-      "branch": "claude/inspiring-carson-7ryzny",
+      "note": "Released unstarted: the correct fix depends on characterizing XTrace's real search-truncation behavior (whether episode_slots is honored, whether top_k truncates before or after any kind bias), which the original note says was MEASURED against a live substrate. This session has no live XTrace access to re-measure or verify a fix against, and guessing at server behavior is exactly the failure mode this defect log exists to catch. Needs a session with live API access.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
       "pr": null,
-      "claimed_at": "2026-07-25T13:00:34.255Z",
-      "updated_at": "2026-07-25T13:00:34.255Z"
+      "claimed_at": null,
+      "updated_at": "2026-07-25T13:01:47.416Z"
     },
     "M14": {
       "title": "Pool ingests as prose, not JSON (guide R4) — ships WITH M12's conv_id batching; neither half works alone",
