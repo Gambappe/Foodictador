@@ -85,7 +85,10 @@ export function createCensusCommand(deps: CensusDeps): CommandHandler {
     const mismatches = rows.filter((row) => row.crosscheck === 'MISMATCH').map((r) => r.driver);
     const width = Math.max(...DRIVERS.map((d) => d.length));
     const lines = [
-      `Census (KFLOOR=${KFLOOR}${degraded ? ', POOL DEGRADED — counts from induction set + relay' : ''}):`,
+      // Counts come from the relay either way under D-7, so they are exact even
+      // when degraded. Saying "counts may be incomplete" here would tell an
+      // operator to distrust the one number on this screen that is reliable.
+      `Census (KFLOOR=${KFLOOR}${degraded ? ', induction unavailable — counts still exact' : ''}):`,
       ...rows.map(
         (row) =>
           `  ${row.driver.padEnd(width)}  k=${String(row.k).padStart(3)}  ` +

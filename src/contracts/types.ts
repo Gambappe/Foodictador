@@ -207,18 +207,32 @@ export interface RelayEntry {
 export interface RelayStats {
   count: number;
   /**
-   * Age of the oldest entry, in seconds. Because the sweeper drops entries only once
-   * verified (M7), every entry still present is unverified by construction — this IS
-   * the stuck-entry signal (DAG §4 D-4).
+   * Age of the oldest entry, in seconds.
+   *
+   * This was the stuck-entry signal while the sweeper dropped verified entries —
+   * a surviving entry was unverified by construction. Under DAG §4 D-7 the relay
+   * is the durable store and the sweeper never deletes, so the oldest entry is
+   * simply the oldest read anyone ever confessed. It says nothing about health.
+   * The stuck-entry signal is now `SweepReport.pending`.
    */
   oldest_entry_age_seconds: number;
 }
 
+/**
+ * One sweep pass (M7 under D-7). The sweeper is an induction backfill: it never
+ * deletes, so these count what XTrace knows, not what the relay has shed.
+ */
 export interface SweepReport {
-  verified: number;
+  /** Past the settle window and confirmed present in XTrace's induction index. */
+  pooled: number;
+  /** Re-sent to XTrace this pass, because the ingest failed or was never annotated. */
   reingested: number;
-  retained: number;
-  oldestEntryAgeSeconds: number;
+  /** Past the window and still unconfirmed. THE stuck-entry signal under D-7. */
+  pending: number;
+  /** Reads the relay holds. This is the pool size, not a backlog. */
+  stored: number;
+  /** Age of the oldest stored read. Store age — for a health signal use `pending`. */
+  oldestStoredAgeSeconds: number;
 }
 
 export interface NudgeState {

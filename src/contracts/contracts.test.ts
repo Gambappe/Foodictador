@@ -96,12 +96,15 @@ describe('every stub constructs and answers every method', () => {
     expect(await client.search('profile-a', '', { topK: 10, episodeSlots: 2 })).toHaveLength(0);
   });
 
-  it('StubPoolStore: writeRead/readsForDriver/inducedClaim', async () => {
+  it('StubPoolStore: writeRead records the induction feed; there is no read path', async () => {
+    // The stub deliberately cannot hand a read back. A stub that round-tripped
+    // one would model a substrate that does not exist, which is how the counting
+    // query shipped against a store that could never serve it (D-7).
     const pool = new StubPoolStore();
-    expect(await pool.readsForDriver('spice_tolerance_low')).toHaveLength(5);
-    await pool.writeRead({ ...sampleRead, driver: 'spice_tolerance_low' });
-    expect(await pool.readsForDriver('spice_tolerance_low')).toHaveLength(6);
-    expect(await pool.readsForDriver('spice_tolerance_low', { k: 2 })).toHaveLength(2);
+    const read = { ...sampleRead, driver: 'spice_tolerance_low' as const };
+    const handle = await pool.writeRead(read);
+    expect(handle.jobId).toBeTruthy();
+    expect(pool.ingested).toEqual([read]);
     expect(await pool.inducedClaim('loyalty')).toMatch(/loyalty/);
   });
 

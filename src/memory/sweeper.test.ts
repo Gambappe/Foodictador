@@ -1,14 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { MemoryClient, PoolStore, Relay } from '../contracts/modules.js';
-import type {
-  Driver,
-  IngestJobStatus,
-  JobHandle,
-  Read,
-  RelayEntry,
-  RelayStats,
-} from '../contracts/types.js';
+import type { IngestJobStatus, JobHandle, Read, RelayEntry, RelayStats } from '../contracts/types.js';
 import { createLogger } from '../config/logger.js';
 import { sampleRead } from '../contracts/fixtures/index.js';
 import { createSweeper } from './sweeper.js';
@@ -20,15 +13,21 @@ function at(secondsBeforeNow: number): string {
   return new Date(Date.parse(NOW) - secondsBeforeNow * 1000).toISOString();
 }
 
-/** Purpose-built fakes: precise control over job states and pool contents. */
+/**
+ * Purpose-built fakes: precise control over job states.
+ *
+ * The relay fake still implements `drop` and still records every call, even
+ * though nothing should ever call it. That is deliberate — a fake that threw on
+ * `drop` would turn the regression into a crash somewhere inside the sweep, and
+ * `calls.drop` is the assertion that matters most in this file.
+ */
 function fakes(init: {
   entries: RelayEntry[];
-  poolReads?: Read[];
   jobs?: Record<string, IngestJobStatus>;
   failSetJob?: boolean;
 }) {
   const entries = [...init.entries];
-  const poolReads = [...(init.poolReads ?? [])];
+  const ingested: Read[] = [];
   const jobs = { ...(init.jobs ?? {}) };
   const log: string[] = [];
   const calls = { writeRead: 0, setJob: 0, drop: [] as string[] };
@@ -64,14 +63,12 @@ function fakes(init: {
   const pool: PoolStore = {
     writeRead(read): Promise<JobHandle> {
       calls.writeRead += 1;
-      poolReads.push(read);
+      ingested.push(read);
       jobSeq += 1;
       const jobId = `fresh-job-${jobSeq}`;
       jobs[jobId] = 'pending';
       return Promise.resolve({ jobId });
     },
-    readsForDriver: (driver: Driver) =>
-      Promise.resolve(poolReads.filter((r) => r.driver === driver)),
     inducedClaim: () => Promise.reject(new Error('unused')),
   };
 
@@ -90,109 +87,180 @@ function fakes(init: {
     settleWindowSeconds: WINDOW,
   });
 
-  return { sweeper, entries, poolReads, jobs, calls, log };
+  return { sweeper, entries, ingested, jobs, calls, log };
 }
 
 function read(id: string, driver: Read['driver'] = 'solo_comfort'): Read {
   return { ...sampleRead, read_id: id, driver };
 }
 
-describe('M7 settle-sweeper', () => {
-  it('an entry that verifies by job is dropped', async () => {
+describe('M7 induction backfill — it deletes nothing', () => {
+  /**
+   * The load-bearing test in this file. Under D-7 the relay is the only place a
+   * read exists, so a `drop` here is the read destroyed with no second copy —
+   * exactly the [E12] loss the sweeper was written to prevent, committed by the
+   * sweeper itself. Every state below is asserted against `calls.drop`.
+   */
+  it.each([
+    ['a confirmed ingest', { jobs: { j: 'complete' as IngestJobStatus } }],
+    ['a failed ingest', { jobs: { j: 'failed' as IngestJobStatus } }],
+    ['a pending ingest', { jobs: { j: 'pending' as IngestJobStatus } }],
+    ['a vanished job', { jobs: {} }],
+  ])('never drops an entry: %s', async (_label, init) => {
+    const f = fakes({
+      entries: [{ read: read('r1'), received_at: at(WINDOW + 60), ingest_job_id: 'j' }],
+      ...init,
+    });
+    await f.sweeper.sweepOnce(NOW);
+    expect(f.calls.drop).toEqual([]);
+    expect(f.entries.map((e) => e.read.read_id)).toEqual(['r1']);
+  });
+
+  it('never drops an entry older than any conceivable TTL', async () => {
+    // A month old, confirmed pooled, and still kept. The old sweeper dropped
+    // exactly this entry, which is what made XTrace the sole copy of it.
+    const f = fakes({
+      entries: [{ read: read('ancient'), received_at: at(30 * 24 * 3600), ingest_job_id: 'j' }],
+      jobs: { j: 'complete' },
+    });
+    const report = await f.sweeper.sweepOnce(NOW);
+    expect(f.calls.drop).toEqual([]);
+    expect(report.pooled).toBe(1);
+    expect(report.stored).toBe(1);
+    expect(report.oldestStoredAgeSeconds).toBeGreaterThan(29 * 24 * 3600);
+  });
+});
+
+describe('M7 confirmation and backfill', () => {
+  it('a complete job counts as pooled and re-ingests nothing', async () => {
     const f = fakes({
       entries: [{ read: read('r1'), received_at: at(WINDOW + 60), ingest_job_id: 'job-1' }],
       jobs: { 'job-1': 'complete' },
     });
     const report = await f.sweeper.sweepOnce(NOW);
-    expect(report).toMatchObject({ verified: 1, reingested: 0, retained: 0 });
-    expect(f.calls.drop).toEqual(['r1']);
+    expect(report).toMatchObject({ pooled: 1, reingested: 0, pending: 0, stored: 1 });
+    expect(f.calls.writeRead).toBe(0);
   });
 
-  it('an entry with no job id verifies by the search fallback', async () => {
+  it('a failed job re-ingests from the entry\'s own six fields', async () => {
     const f = fakes({
-      entries: [{ read: read('r2'), received_at: at(WINDOW + 60) }],
-      poolReads: [read('r2')],
+      entries: [{ read: read('rf'), received_at: at(WINDOW + 10), ingest_job_id: 'job-failed' }],
+      jobs: { 'job-failed': 'failed' },
     });
     const report = await f.sweeper.sweepOnce(NOW);
-    expect(report.verified).toBe(1);
-    expect(f.calls.drop).toEqual(['r2']);
+    expect(report).toMatchObject({ pooled: 0, reingested: 1, pending: 0 });
+    expect(f.ingested.map((r) => r.read_id)).toEqual(['rf']);
+    expect(f.entries[0]?.ingest_job_id).toBe('fresh-job-1'); // re-annotated for the next pass
   });
 
-  it('a missing entry is re-ingested from its own six fields and retained', async () => {
+  it('a pending job waits — neither pooled nor re-ingested', async () => {
     const f = fakes({
-      entries: [{ read: read('r3'), received_at: at(WINDOW + 120) }],
+      entries: [{ read: read('rp'), received_at: at(WINDOW + 10), ingest_job_id: 'job-pending' }],
+      jobs: { 'job-pending': 'pending' },
     });
     const report = await f.sweeper.sweepOnce(NOW);
-    expect(report).toMatchObject({ verified: 0, reingested: 1, retained: 1 });
-    expect(f.poolReads.map((r) => r.read_id)).toEqual(['r3']);
-    expect(f.calls.drop).toEqual([]);
-    // the entry was re-annotated so the next pass polls the fresh job
+    expect(report).toMatchObject({ pooled: 0, reingested: 0, pending: 1 });
+    expect(f.calls.writeRead).toBe(0);
+  });
+
+  it('an entry never annotated at all is re-ingested and annotated', async () => {
+    const f = fakes({ entries: [{ read: read('r3'), received_at: at(WINDOW + 120) }] });
+    const report = await f.sweeper.sweepOnce(NOW);
+    expect(report).toMatchObject({ pooled: 0, reingested: 1, pending: 0, stored: 1 });
+    expect(f.ingested.map((r) => r.read_id)).toEqual(['r3']);
     expect(f.entries[0]?.ingest_job_id).toBe('fresh-job-1');
   });
 
-  it('THE POINT: an entry older than any conceivable TTL is still not dropped while unverified', async () => {
+  it('an unknown job is left alone rather than re-ingested on a guess', async () => {
+    // The old sweeper fell through to a pool search here. That search cannot
+    // succeed under D-7, so keeping it would have re-ingested this entry on
+    // every pass forever — N duplicate prose copies of one read, which makes
+    // induction read a single confession as a crowd.
     const f = fakes({
-      entries: [{ read: read('r4'), received_at: at(30 * 24 * 3600) }], // a month old
+      entries: [{ read: read('ru'), received_at: at(WINDOW + 10), ingest_job_id: 'job-vanished' }],
     });
     const report = await f.sweeper.sweepOnce(NOW);
-    expect(f.calls.drop).toEqual([]);
-    expect(report.retained).toBe(1);
-    expect(report.oldestEntryAgeSeconds).toBeGreaterThan(29 * 24 * 3600);
+    expect(report).toMatchObject({ pooled: 0, reingested: 0, pending: 1 });
+    expect(f.calls.writeRead).toBe(0);
+    expect(f.log.some((l) => l.includes('not re-ingesting on a guess'))).toBe(true);
   });
 
-  it('a failed job re-ingests; a pending job waits; a stale/unknown job falls back to search', async () => {
+  it('repeated sweeps of an unknown job never accumulate duplicates', async () => {
+    const f = fakes({
+      entries: [{ read: read('ru'), received_at: at(WINDOW + 10), ingest_job_id: 'job-vanished' }],
+    });
+    for (let i = 0; i < 5; i++) await f.sweeper.sweepOnce(NOW);
+    expect(f.calls.writeRead).toBe(0);
+  });
+
+  it('mixed states are counted independently in one pass', async () => {
     const f = fakes({
       entries: [
+        { read: read('rc'), received_at: at(WINDOW + 10), ingest_job_id: 'job-complete' },
         { read: read('rf'), received_at: at(WINDOW + 10), ingest_job_id: 'job-failed' },
         { read: read('rp'), received_at: at(WINDOW + 10), ingest_job_id: 'job-pending' },
         { read: read('ru'), received_at: at(WINDOW + 10), ingest_job_id: 'job-vanished' },
       ],
-      jobs: { 'job-failed': 'failed', 'job-pending': 'pending' },
-      poolReads: [read('ru')], // the unknown-job entry IS retrievable — search finds it
+      jobs: { 'job-complete': 'complete', 'job-failed': 'failed', 'job-pending': 'pending' },
     });
     const report = await f.sweeper.sweepOnce(NOW);
-    expect(report.verified).toBe(1); // ru via fallback
-    expect(report.reingested).toBe(1); // rf
-    expect(f.calls.drop).toEqual(['ru']);
-    expect(f.entries.map((e) => e.read.read_id).sort()).toEqual(['rf', 'rp']);
+    expect(report).toMatchObject({ pooled: 1, reingested: 1, pending: 2, stored: 4 });
+    expect(f.calls.drop).toEqual([]);
   });
 
   it('entries younger than the settle window are not examined at all', async () => {
-    const f = fakes({
-      entries: [{ read: read('young'), received_at: at(WINDOW - 60) }],
-    });
+    const f = fakes({ entries: [{ read: read('young'), received_at: at(WINDOW - 60) }] });
     const report = await f.sweeper.sweepOnce(NOW);
-    expect(report).toMatchObject({ verified: 0, reingested: 0, retained: 1 });
+    // Not `pending`: it is not late, it is early. Counting it as pending would
+    // make a healthy relay look stuck on every pass.
+    expect(report).toMatchObject({ pooled: 0, reingested: 0, pending: 0, stored: 1 });
     expect(f.calls.writeRead).toBe(0);
   });
 
-  it('two consecutive sweeps are idempotent: the second pass re-ingests nothing new', async () => {
-    const f = fakes({
-      entries: [{ read: read('r5'), received_at: at(WINDOW + 60) }],
-    });
-    const first = await f.sweeper.sweepOnce(NOW);
-    expect(first.reingested).toBe(1);
+  it('an entry exactly at the window boundary is not yet examined', async () => {
+    const f = fakes({ entries: [{ read: read('edge'), received_at: at(WINDOW) }] });
+    expect(await f.sweeper.sweepOnce(NOW)).toMatchObject({ reingested: 0, pending: 0 });
+  });
+
+  it('re-ingest converges: pass 2 waits on the fresh job, pass 3 confirms it', async () => {
+    const f = fakes({ entries: [{ read: read('r5'), received_at: at(WINDOW + 60) }] });
+
+    expect((await f.sweeper.sweepOnce(NOW)).reingested).toBe(1);
+
     const second = await f.sweeper.sweepOnce(NOW);
-    // the fresh job is pending → wait, not a second re-ingest
-    expect(second.reingested).toBe(0);
+    expect(second).toMatchObject({ reingested: 0, pending: 1 }); // fresh job is pending
     expect(f.calls.writeRead).toBe(1);
-    expect(second.retained).toBe(1);
-    // and once the job completes, the third pass verifies and drops
+
     const freshJob = f.entries[0]?.ingest_job_id;
     expect(freshJob).toBeDefined();
     if (freshJob) f.jobs[freshJob] = 'complete';
+
     const third = await f.sweeper.sweepOnce(NOW);
-    expect(third.verified).toBe(1);
-    expect(third.retained).toBe(0);
+    expect(third).toMatchObject({ pooled: 1, pending: 0, stored: 1 });
+    expect(f.calls.drop).toEqual([]); // confirmed, and STILL kept
   });
 
-  it('a failed job annotation is best-effort: logged, not fatal, re-ingest still counts', async () => {
+  it('a failed annotation is logged as a repeat, not as success', async () => {
+    // The honest failure mode: a relay that rejects setJob makes this entry
+    // re-ingest once per pass. The log has to say so, because `reingested: 1`
+    // on every pass otherwise reads as steady progress.
     const f = fakes({
       entries: [{ read: read('r6'), received_at: at(WINDOW + 60) }],
       failSetJob: true,
     });
-    const report = await f.sweeper.sweepOnce(NOW);
-    expect(report.reingested).toBe(1);
-    expect(f.log.some((line) => line.includes('job annotation failed'))).toBe(true);
+    expect((await f.sweeper.sweepOnce(NOW)).reingested).toBe(1);
+    expect(f.log.some((l) => l.includes('re-ingest again next pass'))).toBe(true);
+    expect((await f.sweeper.sweepOnce(NOW)).reingested).toBe(1); // and it does
+  });
+
+  it('an empty relay sweeps to all zeroes', async () => {
+    const f = fakes({ entries: [] });
+    expect(await f.sweeper.sweepOnce(NOW)).toEqual({
+      pooled: 0,
+      reingested: 0,
+      pending: 0,
+      stored: 0,
+      oldestStoredAgeSeconds: 0,
+    });
   });
 });

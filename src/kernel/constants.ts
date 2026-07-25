@@ -36,9 +36,3 @@ export const PRICE_STRETCH_FIT = 0.5;
 /** Returned by a sub-fit that has nothing to go on, so absence of evidence stays neutral. */
 export const NEUTRAL_FIT = 0.5;
 
-/**
- * Top-k for M2's per-driver counting query — roughly 20x the largest seeded cohort of 9,
- * affordable because the query is scoped to one driver at a time (design v0.8 §8, [E22]).
- * G4 fails if this is ever sized below the largest real cohort.
- */
-export const COUNTING_K = 200;

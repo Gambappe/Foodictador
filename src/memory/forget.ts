@@ -5,23 +5,33 @@
  * app-mediated, and nothing here or downstream may imply cryptographic
  * enforcement.
  *
- * Scope reality, documented rather than papered over: pool records embed the
- * read_id in their content (M2), so the pool target is findable. User-scope
- * prose memories carry NO read_id linkage — the confession went in as raw
- * prose [E11] and XTrace's derived memories are not keyed to the read. The
- * user target therefore deletes only when the caller supplies memory handles,
- * and reports `skipped` with the reason otherwise. Closing that gap needs an
- * ingest ledger (write-time capture of job→memory handles), recorded in
- * src/memory/README.md as an open integrator decision.
+ * Scope reality, documented rather than papered over.
+ *
+ * The **relay** delete is the authoritative one under DAG §4 D-7: the relay
+ * holds the read, so once its entry is gone the read is gone from every place
+ * that can produce it, and it stops being counted in any cohort immediately.
+ *
+ * Neither XTrace target can be keyed by read_id, and for the same reason. Gate
+ * zero established that XTrace extracts rather than stores: a pool read becomes
+ * five prose facts, a user confession becomes prose derived from [E11]'s raw
+ * text, and in neither case does a derived memory carry the read_id. Searching
+ * for it and deleting what comes back would be a fuzzy match deciding what to
+ * destroy — a near-miss deletes someone else's row. So both XTrace targets
+ * delete only against caller-supplied memory handles, and report `skipped` with
+ * the reason otherwise. That is a weaker guarantee than "forget removes every
+ * trace", and it is reported as `skipped` rather than dressed up as
+ * `nothing_to_delete`, because a deletion report that overstates itself is the
+ * one kind of bug this flow must not have.
+ *
+ * Closing the gap needs an ingest ledger: `result.memories_created[]` on a
+ * succeeded job carries `{id, type, text}`, so the handles exist and can be
+ * captured at write time. Registered as M10.
  */
 
 import type { MemoryClient, Relay } from '../contracts/modules.js';
 import type { Logger } from '../config/logger.js';
-import { parseRead } from '../kernel/read.js';
 import { POOL_SCOPE } from './pool.js';
 
-/** Wide enough to catch every copy of a duplicated re-ingest at demo scale. */
-const FORGET_SEARCH_K = 100;
 
 export type ForgetTargetStatus = 'deleted' | 'nothing_to_delete' | 'skipped' | 'failed';
 
@@ -50,35 +60,26 @@ export interface ForgetDeps {
 export interface ForgetOptions {
   /** User-scope handles captured at write time, when the caller has them. */
   userMemories?: Array<{ profile: string; memoryId: string }>;
+  /** Pool-scope handles captured at write time, when the caller has them. */
+  poolMemories?: string[];
 }
 
-/** Does this pool row's content parse to exactly the read being forgotten? */
-function rowIsRead(content: string, readId: string): boolean {
-  try {
-    return parseRead(JSON.parse(content)).read_id === readId;
-  } catch {
-    return false;
+async function forgetPool(
+  deps: ForgetDeps,
+  poolMemories: ForgetOptions['poolMemories'],
+): Promise<ForgetTargetReport> {
+  if (poolMemories === undefined || poolMemories.length === 0) {
+    return {
+      status: 'skipped',
+      detail:
+        'no pool-scope handles for this read — XTrace holds prose derived from it, not the read, and derived memories are not keyed by read_id (see src/memory/README.md, M10)',
+    };
   }
-}
-
-async function forgetPool(readId: string, deps: ForgetDeps): Promise<ForgetTargetReport> {
   try {
-    const rows = await deps.client.search(POOL_SCOPE, readId, {
-      topK: FORGET_SEARCH_K,
-      episodeSlots: 0,
-    });
-    const matching = rows.filter((row) => rowIsRead(row.content, readId));
-    const mentionsOnly = rows.length - matching.length;
-    if (mentionsOnly > 0) {
-      deps.logger.line(
-        `forget: ${mentionsOnly} pool row(s) mention ${readId} without being it — left in place`,
-      );
+    for (const memoryId of poolMemories) {
+      await deps.client.remove(POOL_SCOPE, memoryId);
     }
-    if (matching.length === 0) return { status: 'nothing_to_delete' };
-    for (const row of matching) {
-      await deps.client.remove(POOL_SCOPE, row.memoryId);
-    }
-    return { status: 'deleted', count: matching.length };
+    return { status: 'deleted', count: poolMemories.length };
   } catch (error) {
     return {
       status: 'failed',
@@ -87,6 +88,10 @@ async function forgetPool(readId: string, deps: ForgetDeps): Promise<ForgetTarge
   }
 }
 
+/**
+ * The authoritative delete (D-7). Once the entry is gone the read cannot be
+ * produced by any query, so it leaves every cohort count on the next Ask.
+ */
 async function forgetRelay(readId: string, deps: ForgetDeps): Promise<ForgetTargetReport> {
   try {
     const entries = await deps.relay.list();
@@ -127,8 +132,8 @@ async function forgetUser(
 
 /**
  * Every target is attempted regardless of the others' outcomes — a relay
- * failure must not stop the pool purge, and vice versa. Forgetting an unknown
- * read_id is not an error: every target reports nothing_to_delete and ok stays
+ * failure must not stop the XTrace purge, and vice versa. Forgetting an unknown
+ * read_id is not an error: the relay reports nothing_to_delete and ok stays
  * true.
  */
 export async function forget(
@@ -137,7 +142,7 @@ export async function forget(
   options: ForgetOptions = {},
 ): Promise<ForgetReport> {
   const [pool, relay, user] = await Promise.all([
-    forgetPool(readId, deps),
+    forgetPool(deps, options.poolMemories),
     forgetRelay(readId, deps),
     forgetUser(deps, options.userMemories),
   ]);

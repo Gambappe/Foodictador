@@ -154,7 +154,18 @@ Consequences, all of which are code changes rather than opinions:
 - **`[E12]`'s correctness risk is downgraded.** XTrace's measured 11/16 retention costs *induction quality*, not data. That was the single largest risk in design v0.8 §12 and it stops being one.
 - **`[E26]`'s side-channel gets worse and needs re-reading.** The relay now holds every read for ever rather than for minutes, so arrival ordering is no longer a minutes-long exposure. Coarse timestamps move from the `[prod]` list to required.
 
+- **`forget` gets weaker at two targets and honest about it.** The relay delete is now the authoritative one and removes the read outright. Neither XTrace scope can be keyed by `read_id` — both hold prose *derived* from the read — so both report `skipped` with the reason unless the caller supplies memory handles. The pool target previously reported `nothing_to_delete` after searching for JSON rows that cannot exist, which told the user nothing was there while derived facts remained. The handles do exist (`result.memories_created[]`), so this is closeable: registered as **M10**.
+- **`COUNTING_K` is deleted, and G4's guard changes subject.** The counting query was top-k, so `[E22]` was about sizing `k` above the largest cohort. The relay's `GET /reads` takes no limit, so there is no `k`. G4 now guards that the read path does not cap at all, and asserts it through the real `PoolView` rather than a re-implementation of the arithmetic.
+
 **Design v0.8 is superseded on this point.** `[E9]` (single substrate), `[E14]` (relay as transport, not memory), `[E21]` (verified-drop) and `[E12]` (durability as a correctness risk) all describe an architecture this decision replaces. A v0.9 revision should absorb it; until then this entry is authoritative and the design doc's §6 is not.
+
+**D-3 is amended, not cleared.** Gate zero as specced asks whether a *dropped* read can be recovered by re-ingesting it — a question that only exists because the sweeper dropped. Nothing drops now, and `scripts/gate0.ts` defines "retrievable" as finding a read by searching its `read_id`, which is precisely the round-trip gate zero disproved. **The script can no longer pass, and passing it would no longer mean anything.** What must be proved before build day under D-7 is a different set:
+
+1. **The relay survives restart losing nothing.** It is the sole store of reads, so this is now the load-bearing architectural assumption — the position `[E9]`'s sole store used to occupy. Blocked on P0.8 building the durability first.
+2. **Deletion actually deletes**, against handles from `memories_created[]` rather than a search (M10).
+3. **Induction produces a usable claim** from N ingested reads — the one role XTrace kept, so far measured only incidentally.
+
+Rewriting the runner and the pass criteria is registered as **G7**. Until it lands, `npm run gate:cli` still exits 3, correctly: the architecture is still unverified, just for different reasons than the message used to give.
 
 **D-6 — `AskEngine` is declared, stubbed, and implemented by nobody.** Found while implementing K4. `src/contracts/modules.ts` declares `AskEngine.ask(input) → Card`, P0.2 ships a fixture stub for it, and no task in lane K builds it: K1 is the read validator, K2 off-limits, K3 rotation, K4 scoring, K5 the linter, K6 cohorts. Meanwhile X3's spec has the CLI doing exactly that job — "assemble the card — candidates from the corpus, reads from `PoolView`, cohort counts from K6, suppressions from K3, scores from K4, copy from L3."
 

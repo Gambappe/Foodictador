@@ -1,23 +1,32 @@
 /**
- * Settle-sweeper (M7) — the owner of verification that outlives the author's
- * session (design v0.8 [E21]).
+ * Settle-sweeper (M7) — the induction backfill, under DAG §4 D-7.
  *
- * For each relay entry older than the settle window: verify the read is
- * retrievable from the pool; verified → drop the relay entry; missing →
- * re-ingest to the pool FROM THE ENTRY'S OWN SIX FIELDS and leave the entry
- * for the next pass. **Verified-drop only, never a TTL**: an entry dropped
- * unverified is a read lost while the UI claimed it pooled — the exact [E12]
- * failure this module exists to prevent. There is deliberately no code path
- * that removes an entry without a positive verification.
+ * **This module deletes nothing.** It used to: the relay was a settle-window
+ * buffer in front of XTrace, and an entry XTrace had confirmed was redundant.
+ * D-7 inverted that. The relay is now the durable store of reads, XTrace cannot
+ * hand a read back (gate zero: five unjoinable prose facts, no round trip), and
+ * so a relay entry dropped here would be the read itself gone — not delayed,
+ * gone, with no second copy anywhere. There is deliberately no code path in this
+ * file that removes an entry, and `guards/relayDurability.test.ts` fails the
+ * build if one appears.
  *
- * Verification is two-path per DAG §4 D-1, because `setJob` is best-effort:
- *   - entry carries `ingest_job_id` → poll the job (primary);
- *   - no job id, or the job is unknown → search the pool for the `read_id`
- *     via the per-driver counting query (weaker, but always available).
+ * What remains is the half that was always real: XTrace's induction index only
+ * knows about reads that were successfully ingested, and ingestion is
+ * best-effort at write time. Each pass asks, of every entry past the settle
+ * window, "did this reach the induction index?" and re-ingests the ones that
+ * did not.
+ *
+ * Confirmation is job-status only, per D-1's primary path. The old fallback —
+ * search the pool for the read_id — is gone because it can no longer succeed;
+ * keeping it would have re-ingested every entry on every pass forever. An entry
+ * whose job id is missing or unknown is therefore counted `pending` rather than
+ * re-ingested on spec: the read is safe in the relay, so the only thing at stake
+ * is induction quality, and duplicate prose degrades induction (N copies of one
+ * read look like N reads) rather than improving it.
  */
 
 import type { MemoryClient, PoolStore, Relay } from '../contracts/modules.js';
-import type { RelayEntry, SweepReport } from '../contracts/types.js';
+import type { IngestJobStatus, SweepReport } from '../contracts/types.js';
 import type { Logger } from '../config/logger.js';
 
 export interface SweeperDeps {
@@ -28,61 +37,80 @@ export interface SweeperDeps {
   settleWindowSeconds: number;
 }
 
-type Verdict = 'verified' | 'missing' | 'wait';
+/**
+ * `pooled` — XTrace has it. `reingest` — it does not, send it again.
+ * `pending` — cannot tell yet, and guessing costs more than waiting.
+ */
+type Verdict = 'pooled' | 'reingest' | 'pending';
 
-async function verify(entry: RelayEntry, deps: SweeperDeps): Promise<Verdict> {
-  const { read } = entry;
-  if (entry.ingest_job_id !== undefined) {
-    const status = await deps.client.jobStatus(entry.ingest_job_id);
-    if (status === 'complete') return 'verified';
-    if (status === 'failed') return 'missing';
-    if (status === 'pending') return 'wait';
-    // 'unknown': the annotation may be stale — fall through to the search path.
+function classify(status: IngestJobStatus): Verdict {
+  switch (status) {
+    case 'complete':
+      return 'pooled';
+    case 'failed':
+      return 'reingest';
+    case 'pending':
+      return 'pending';
+    default:
+      // 'unknown': the annotation is stale or the job expired. Under D-7 there is
+      // no second way to check, and re-ingesting on a guess duplicates induction
+      // prose on every pass. Surface it and leave it alone.
+      return 'pending';
   }
-  const reads = await deps.pool.readsForDriver(read.driver);
-  return reads.some((candidate) => candidate.read_id === read.read_id) ? 'verified' : 'missing';
 }
 
 export function createSweeper(deps: SweeperDeps) {
   return {
     /**
      * One pass. `now` is the caller's clock (X4's `--once`/`--watch` owns the
-     * timer); nothing here reads a clock. Report semantics: `verified` were
-     * dropped this pass, `reingested` were re-written to the pool and retained,
-     * `retained` is everything still on the relay afterwards (young entries
-     * included), `oldestEntryAgeSeconds` is the post-sweep stuck-entry signal.
+     * timer); nothing here reads a clock. Entries younger than the settle window
+     * are skipped entirely — they are not yet expected to have settled, so they
+     * count towards neither `pooled` nor `pending`.
      */
     async sweepOnce(now: string): Promise<SweepReport> {
       const nowMs = Date.parse(now);
       const entries = await deps.relay.list();
-      let verified = 0;
+      let pooled = 0;
       let reingested = 0;
+      let pending = 0;
 
       for (const entry of entries) {
         const ageSeconds = (nowMs - Date.parse(entry.received_at)) / 1000;
         if (ageSeconds <= deps.settleWindowSeconds) continue; // still settling — not ours yet
 
-        const verdict = await verify(entry, deps);
-        if (verdict === 'verified') {
-          await deps.relay.drop(entry.read.read_id);
-          verified += 1;
-          continue;
+        if (entry.ingest_job_id !== undefined) {
+          const verdict = classify(await deps.client.jobStatus(entry.ingest_job_id));
+          if (verdict === 'pooled') {
+            pooled += 1;
+            continue;
+          }
+          if (verdict === 'pending') {
+            pending += 1;
+            deps.logger.line(
+              `sweeper: ${entry.read.read_id} unconfirmed after ${Math.round(ageSeconds)}s (job ${entry.ingest_job_id}) — not re-ingesting on a guess`,
+            );
+            continue;
+          }
+          // 'reingest' falls through to the backfill below.
         }
-        if (verdict === 'wait') continue; // job still pending — next pass decides
 
-        // Missing from the pool: the relay entry is the recovery record. Re-ingest
-        // from its own six fields and re-annotate so the NEXT pass polls the fresh
-        // job instead of re-ingesting again. Annotation stays best-effort (D-1).
+        // Either the ingest failed, or the entry was never annotated at all
+        // (setJob is best-effort, D-1). Re-ingest from the entry's own six
+        // fields and re-annotate so the next pass polls the fresh job.
         const handle = await deps.pool.writeRead(entry.read);
         reingested += 1;
         deps.logger.line(
-          `sweeper: re-ingested ${entry.read.read_id} (job ${handle.jobId}) — missing after ${Math.round(ageSeconds)}s`,
+          `sweeper: re-ingested ${entry.read.read_id} (job ${handle.jobId}) — unpooled after ${Math.round(ageSeconds)}s`,
         );
         try {
           await deps.relay.setJob(entry.read.read_id, handle.jobId);
         } catch (error) {
+          // Annotation is best-effort, but a relay that persistently rejects it
+          // makes this entry re-ingest once per pass. The signature is visible:
+          // `reingested` stays non-zero while `pending` never falls. Say so here
+          // rather than let it look like progress.
           deps.logger.line(
-            `sweeper: job annotation failed for ${entry.read.read_id} (best-effort): ${
+            `sweeper: job annotation failed for ${entry.read.read_id} — it will re-ingest again next pass: ${
               error instanceof Error ? error.message : String(error)
             }`,
           );
@@ -91,10 +119,11 @@ export function createSweeper(deps: SweeperDeps) {
 
       const stats = await deps.relay.stats();
       return {
-        verified,
+        pooled,
         reingested,
-        retained: stats.count,
-        oldestEntryAgeSeconds: stats.oldest_entry_age_seconds,
+        pending,
+        stored: stats.count,
+        oldestStoredAgeSeconds: stats.oldest_entry_age_seconds,
       };
     },
   };

@@ -4,7 +4,6 @@ import type { MemoryClient } from '../contracts/modules.js';
 import type { MemoryRow, SearchOpts } from '../contracts/types.js';
 import { sampleRead } from '../contracts/fixtures/index.js';
 import { createLogger } from '../config/logger.js';
-import { COUNTING_K } from '../kernel/constants.js';
 import { POOL_SCOPE, createPoolStore } from './pool.js';
 
 interface RecordedSearch {
@@ -60,70 +59,14 @@ describe('M2 writeRead', () => {
   });
 });
 
-describe('M2 readsForDriver — the counting query', () => {
-  it('is scoped to one driver and passes COUNTING_K', async () => {
-    const { pool, searches } = harness();
-    await pool.readsForDriver('spice_tolerance_low');
-    expect(searches).toHaveLength(1);
-    expect(searches[0]?.scope).toBe(POOL_SCOPE);
-    expect(searches[0]?.query).toBe('spice_tolerance_low');
-    expect(searches[0]?.opts.topK).toBe(COUNTING_K);
-    expect(searches[0]?.opts.episodeSlots).toBe(0);
-  });
-
-  it('honours an explicit k override', async () => {
-    const { pool, searches } = harness();
-    await pool.readsForDriver('budget_ceiling', { k: 12 });
-    expect(searches[0]?.opts.topK).toBe(12);
-  });
-
-  it('parses rows through parseRead and returns matching reads', async () => {
-    const other = { ...sampleRead, read_id: '11111111-1111-4111-8111-111111111111' };
-    const { pool } = harness([
-      row('m1', JSON.stringify(sampleRead)),
-      row('m2', JSON.stringify(other)),
-    ]);
-    const reads = await pool.readsForDriver(sampleRead.driver);
-    expect(reads).toEqual([sampleRead, other]);
-  });
-
-  it('drops reads for another driver — the scope is enforced, not assumed', async () => {
-    const offScope = {
-      ...sampleRead,
-      read_id: '22222222-2222-4222-8222-222222222222',
-      driver: 'budget_ceiling' as const,
-    };
-    const { pool, lines } = harness([
-      row('m1', JSON.stringify(sampleRead)),
-      row('m2', JSON.stringify(offScope)),
-    ]);
-    const reads = await pool.readsForDriver(sampleRead.driver);
-    expect(reads).toEqual([sampleRead]);
-    // Off-scope is filtering, not damage — no warning line for it.
-    expect(lines).toEqual([]);
-  });
-
-  it('skips a malformed row with a logged warning rather than crashing the Ask', async () => {
-    const badWeight = { ...sampleRead, weight: 7 };
-    const { pool, lines } = harness([
-      row('m1', 'not json at all'),
-      row('m2', JSON.stringify(badWeight)),
-      row('m3', JSON.stringify(sampleRead)),
-    ]);
-    const reads = await pool.readsForDriver(sampleRead.driver);
-    expect(reads).toEqual([sampleRead]);
-    expect(lines).toHaveLength(2);
-    expect(lines[0]).toContain('m1');
-    expect(lines[0]).toContain('not JSON');
-    expect(lines[1]).toContain('m2');
-    expect(lines[1]).toContain('weight');
-  });
-
-  it('a read with an extra key is malformed, not countable', async () => {
-    const smuggled = { ...sampleRead, received_at: '2026-07-25T12:00:00Z' };
-    const { pool, lines } = harness([row('m1', JSON.stringify(smuggled))]);
-    expect(await pool.readsForDriver(sampleRead.driver)).toEqual([]);
-    expect(lines[0]).toContain('received_at');
+describe('M2 has no counting query, on purpose', () => {
+  it('exposes exactly writeRead and inducedClaim', () => {
+    // Not a style assertion. Gate zero proved XTrace cannot hand a read back, so
+    // a `readsForDriver` on this store could only ever return [] while looking
+    // like it worked — a cohort silently counted as zero. Counting moved to the
+    // relay (M6, D-7); if this list grows a read path again, that regressed.
+    const { pool } = harness();
+    expect(Object.keys(pool).sort()).toEqual(['inducedClaim', 'writeRead']);
   });
 });
 
@@ -136,7 +79,7 @@ describe('M2 inducedClaim — the induction query', () => {
     const claim = await pool.inducedClaim('what predicts loyalty');
     expect(claim).toBe('Hygiene complaints under-predict loyalty here.');
     expect(searches[0]?.opts.episodeSlots).toBeGreaterThan(0);
-    expect(searches[0]?.opts.topK).toBeLessThan(COUNTING_K); // top-k stays top-k
+    expect(searches[0]?.opts.topK).toBe(12); // induction stays top-k
   });
 
   it('returns an empty claim when the pool has no episodes', async () => {
