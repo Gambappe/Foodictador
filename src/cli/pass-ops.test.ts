@@ -95,6 +95,38 @@ describe('X7 pass seed / reset', () => {
     expect(partial.lines.join('\n')).toMatch(/Re-run detected/);
   });
 
+  /**
+   * DEMO.2: the pack receipt must distinguish three states, because the middle one is a
+   * silent wrong answer. An operator who typed `--pack` on a checkout that never ran
+   * `npm run demo:pack` gets the thin corpus — the exact condition the flag exists to
+   * avoid — and a receipt that looked identical to a successful pack load would send them
+   * on stage with the flat 0.6625 landscape believing they had depth.
+   */
+  it('the pack receipt tells "loaded", "asked for but missing" and "not asked" apart', async () => {
+    const report = {
+      total: 326,
+      relaySeeded: 326,
+      poolLoaded: 326,
+      failed: [],
+      rerunDetected: false,
+      warmAt: '2026-07-25T10:08:00.000Z',
+    };
+    const run = (extra: { packRequested?: boolean; packReads?: number }) =>
+      runSeed({ relay: new StubRelay(), loadSeeds: () => Promise.resolve(report), ...extra });
+
+    const loaded = (await run({ packRequested: true, packReads: 106 })).lines.join('\n');
+    expect(loaded).toMatch(/Demo pack included: 106/);
+
+    const missing = (await run({ packRequested: true, packReads: 0 })).lines.join('\n');
+    expect(missing).toMatch(/base corpus ONLY/);
+    expect(missing).toMatch(/npm run demo:pack/);
+    // The distinguishing assertion: "missing" must NOT read as a successful load.
+    expect(missing).not.toMatch(/Demo pack included/);
+
+    const notAsked = (await run({})).lines.join('\n');
+    expect(notAsked).not.toMatch(/Demo pack/);
+  });
+
   it('reset deletes every read and says so, with the count', async () => {
     const relay = new StubRelay();
     await relay.put(sampleRead);

@@ -70,6 +70,16 @@ export async function runProvision(
 export interface SeedOpsDeps {
   relay: Relay;
   loadSeeds: () => Promise<LoadReport>;
+  /**
+   * How many of the loaded reads came from the demo pack (DEMO.2), for the receipt.
+   *
+   * The count is reported rather than a boolean because `--pack` on a checkout that has
+   * never run `npm run demo:pack` loads zero extra reads, and an operator who asked for
+   * depth and silently got the thin corpus is the exact failure this flag exists to end.
+   * "requested but the artifact is missing" and "not requested" must not print the same.
+   */
+  packRequested?: boolean;
+  packReads?: number;
 }
 
 export async function runSeed(deps: SeedOpsDeps): Promise<CommandResult> {
@@ -78,6 +88,14 @@ export async function runSeed(deps: SeedOpsDeps): Promise<CommandResult> {
     `Seeded: ${report.poolLoaded}/${report.total} pooled, ${report.relaySeeded} on the relay.`,
     `Reads are countable now; induction warm no earlier than ${report.warmAt}.`,
   ];
+  if (deps.packRequested === true) {
+    lines.push(
+      (deps.packReads ?? 0) > 0
+        ? `Demo pack included: ${String(deps.packReads)} of those reads came from data/demo/pack.json.`
+        : 'Demo pack requested but data/demo/pack.json is missing — seeded the base corpus ONLY. ' +
+          'Run `npm run demo:pack` first if you wanted the deeper cohorts.',
+    );
+  }
   if (report.rerunDetected) lines.push('Re-run detected: pool duplicates created; census stays stable via dedup.');
   if (report.failed.length > 0) {
     lines.push(`Failed pool writes (relay copy remains, sweeper recovers): ${report.failed.join(', ')}`);
@@ -219,7 +237,7 @@ export function runNudgeArm(nudge: Nudge, armed: boolean): CommandResult {
 
 import type { CommandContext, CommandHandler } from './main.js';
 import { createNudge, parseNudgeState } from '../nudge/nudge.js';
-import { loadSeeds, readSeedArtifact } from '../../scripts/seed/load-seeds.js';
+import { loadSeeds, readPackArtifact, readSeedArtifact } from '../../scripts/seed/load-seeds.js';
 
 /**
  * Where the nudge's state lives between processes (N2, closing SL-23).
@@ -251,10 +269,17 @@ export const provisionHandler: CommandHandler = (context) => {
 
 export const seedHandler: CommandHandler = (context) => {
   const { pool, relay } = wire(context);
+  // `--pack` is opt-in, not the default: the base seed is what `pass neartie` and the
+  // manifest cross-check are calibrated against, and a scripted beat that silently got 106
+  // extra reads would be measuring a different corpus than the one the gate checks.
+  const packRequested = context.argv.flags.has('pack');
+  const pack = packRequested ? readPackArtifact() : [];
   return runSeed({
     relay,
+    packRequested,
+    packReads: pack.length,
     loadSeeds: () =>
-      loadSeeds(readSeedArtifact(), {
+      loadSeeds([...readSeedArtifact(), ...pack], {
         pool,
         relay,
         logger: context.logger,

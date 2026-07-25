@@ -4,7 +4,7 @@ import type { PoolStore, Relay } from '../../src/contracts/modules.js';
 import type { Read, RelayEntry } from '../../src/contracts/types.js';
 import type { BatchHandle } from '../../src/contracts/modules.js';
 import { createLogger } from '../../src/config/logger.js';
-import { loadSeeds, readSeedArtifact } from './load-seeds.js';
+import { loadSeeds, readPackArtifact, readSeedArtifact } from './load-seeds.js';
 
 const NOW = new Date('2026-07-25T10:00:00.000Z');
 
@@ -131,5 +131,65 @@ describe('S3 seed loader', () => {
     const failure = f.log.find((l) => l.includes('pool feed failed')) ?? '';
     expect(failure).toMatch(/countable/);
     expect(failure).toMatch(/induction is degraded/);
+  });
+});
+
+/**
+ * DEMO.2 — the pack is a real artifact, and the claim it exists to satisfy is checkable.
+ *
+ * The pack was written to fix a measured problem: the base seed puts 190 of its 220 reads on
+ * drivers no `UsualProfile` can evidence, leaving the five matchable ones one or two reads
+ * over the `k>=5` floor. If the pack ever stops deepening those five, every downstream demo
+ * beat quietly reverts to citing "5 of them" — and nothing else in the suite would notice,
+ * because a generated file that parses looks healthy.
+ */
+describe('DEMO.2 demo pack', () => {
+  /** The five a diner can actually match (D-5); the other six are unreachable by construction. */
+  const MATCHABLE = [
+    'spice_tolerance_low',
+    'budget_ceiling',
+    'solo_comfort',
+    'portion_small',
+    'gi_constraint',
+  ] as const;
+
+  const count = (reads: readonly { driver: string }[], driver: string) =>
+    reads.filter((r) => r.driver === driver).length;
+
+  it('parses through the same reader as the base seed, with a non-colliding id space', () => {
+    const pack = readPackArtifact();
+    expect(pack.length).toBeGreaterThan(0);
+    // Distinct ids are what let `pass census` attribute a surprise to one set or the other,
+    // and what stops a pack load registering as a seed re-run.
+    const seedIds = new Set(seeds.map((r) => r.read_id));
+    expect(pack.filter((r) => seedIds.has(r.read_id))).toHaveLength(0);
+  });
+
+  it('deepens every matchable driver clear of the floor, which is its whole purpose', () => {
+    const pack = readPackArtifact();
+    for (const driver of MATCHABLE) {
+      const base = count(seeds, driver);
+      const combined = base + count(pack, driver);
+      expect(count(pack, driver)).toBeGreaterThan(0);
+      // Not merely "more": comfortably clear of KFLOOR, so a citation sounds like a crowd
+      // rather than a quorum. gi_constraint is deliberately the thinnest and still clears it.
+      expect(combined).toBeGreaterThan(5);
+      expect(combined).toBeGreaterThan(base);
+    }
+  });
+
+  it('spreads across the corpus rather than clustering on a few places', () => {
+    const pack = readPackArtifact();
+    // A cohort built from one restaurant's regulars says "42 people like you" about 42 people
+    // who like one place. The citation asserts something about the DRIVER, so the reads
+    // behind it have to be spread.
+    expect(new Set(pack.map((r) => r.place)).size).toBeGreaterThan(10);
+  });
+
+  it('is deterministic: regeneration is a no-op, so a rehearsal rehearses the demo', () => {
+    // Same bytes twice from the same reader — the artifact is committed, and the generator is
+    // seeded from a constant with no clock. A pack that differed per run would mean the demo
+    // rehearsed one corpus and performed another.
+    expect(readPackArtifact()).toEqual(readPackArtifact());
   });
 });
