@@ -44,15 +44,31 @@ function report(overrides: Partial<ForgetReport> = {}): ForgetReport {
 }
 
 describe('X5 confit forget', () => {
-  it('reports all three targets and exits 0 on success', async () => {
+  it('reports all three targets, but a skipped user target is not success (SL-19)', async () => {
+    // The default fixture has pool and relay deleted and user skipped — the exact
+    // shape SL-19 reproduced. A skipped target means M8 never even attempted the
+    // user-scope delete, so this is not "Deleted from Confit"; it is partial, and
+    // exits 1 (an expected failure) rather than 0.
     const handler = createForgetCommand(() => Promise.resolve(report()));
     const result = await handler(context('b7f1c4e2-3a9d-4c58-8e11-2f6d0a5c9b34'));
-    expect(result.exit ?? EXIT.ok).toBe(EXIT.ok);
-    expect(result.lines[0]).toContain('Deleted from Confit');
+    expect(result.exit).toBe(EXIT.expectedFailure);
+    expect(result.lines[0]).toContain('Partly deleted from Confit');
+    expect(result.lines[0]).not.toContain('Deleted from Confit:');
     expect(result.lines.some((l) => l.startsWith('  pool:') && l.includes('deleted (2 records)'))).toBe(true);
     expect(result.lines.some((l) => l.startsWith('  relay:') && l.includes('deleted'))).toBe(true);
     expect(result.lines.some((l) => l.startsWith('  user:') && l.includes('skipped'))).toBe(true);
     expect(result.data['read_id']).toBe('b7f1c4e2-3a9d-4c58-8e11-2f6d0a5c9b34');
+  });
+
+  it('exits 0 with "Deleted from Confit" only once every target is resolved', async () => {
+    const handler = createForgetCommand(() =>
+      Promise.resolve(
+        report({ user: { status: 'deleted', count: 1 } }),
+      ),
+    );
+    const result = await handler(context('b7f1c4e2-3a9d-4c58-8e11-2f6d0a5c9b34'));
+    expect(result.exit ?? EXIT.ok).toBe(EXIT.ok);
+    expect(result.lines[0]).toBe('Deleted from Confit: b7f1c4e2-3a9d-4c58-8e11-2f6d0a5c9b34');
   });
 
   it('a partial failure exits 1 and names the target that failed', async () => {
@@ -70,7 +86,24 @@ describe('X5 confit forget', () => {
     expect(result.lines.some((l) => l.startsWith('  relay:') && l.includes('FAILED'))).toBe(true);
   });
 
-  it('an unknown read_id exits 0 with the already-gone register', async () => {
+  it('an unknown read_id exits 0 with the already-gone register when every target resolved', async () => {
+    const handler = createForgetCommand(() =>
+      Promise.resolve(
+        report({
+          pool: { status: 'nothing_to_delete' },
+          relay: { status: 'nothing_to_delete' },
+          user: { status: 'nothing_to_delete' },
+        }),
+      ),
+    );
+    const result = await handler(context('never-existed'));
+    expect(result.exit ?? EXIT.ok).toBe(EXIT.ok);
+    expect(result.lines[0]).toContain('already gone from Confit');
+  });
+
+  it('an unknown read_id with a still-skipped user target reports partial, not "already gone"', async () => {
+    // Pool and relay found nothing, but the user target was never attempted — Confit
+    // cannot claim the confession side is "already gone" when it never checked.
     const handler = createForgetCommand(() =>
       Promise.resolve(
         report({
@@ -81,8 +114,8 @@ describe('X5 confit forget', () => {
       ),
     );
     const result = await handler(context('never-existed'));
-    expect(result.exit ?? EXIT.ok).toBe(EXIT.ok);
-    expect(result.lines[0]).toContain('already gone from Confit');
+    expect(result.exit).toBe(EXIT.expectedFailure);
+    expect(result.lines[0]).toContain('Partly deleted from Confit');
   });
 
   it('passes the positional read_id through to the backend', async () => {
