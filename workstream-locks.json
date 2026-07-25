@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T10:59:57.813Z",
+  "updated_at": "2026-07-25T11:16:02.750Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -900,13 +900,13 @@
         "X1"
       ],
       "mock_start_ok": false,
-      "note": "SL-26 (HIGH, mine). tests/guards/acceptance.test.ts is named 'the CLI acceptance run' and greps ZERO hits for src/cli: seven DAG-named steps, seven re-implementations against the layer beneath the commands. gate-cli.sh invokes no subcommand. So a CLI-first build has no gate over its CLI, which is why SL-13/15/19/20/30 all shipped. Fix: give run() a graph seam so fixtureGraph can back it, drive all seven steps through the real dispatcher. EXPECT THIS TO GO RED on SL-15 (card.usualLine undefined) and SL-30 (raw driver token on the card) — those are the defects the gate was supposed to catch, so they get fixed as part of this.",
-      "status": "claimed",
+      "note": "DONE. All seven DAG §7 G5 steps now run through run(argv,...). Seam: CommandContext.graph + RunDeps.makeGraph; wiring.test.ts fails the build if a handler reaches for a graph factory again. Red-verified against FIVE mutations (SL-30, SL-15, placeholder unwiring, sweeper-deletes/D-7, liveGraph in a handler) — the D-7 one initially did NOT fail because fixtureGraph pins its clock ahead of the test clock, making every sweep vacuous; fixed. Closed SL-15 and SL-30 on the way. Found SL-37 (HIGH: dist/ could not boot at all — tsc copies no assets) and SL-38 (EPIPE on a piped --help exits 1, which gate:cli reads as expected-failure).",
+      "status": "done",
       "owner": "claude-session-014n6NYRN6Rb",
       "branch": "claude/upload-code-artifact-zop9uz",
-      "pr": null,
+      "pr": "https://github.com/Gambappe/Foodictador/pull/59",
       "claimed_at": "2026-07-25T10:58:24.706Z",
-      "updated_at": "2026-07-25T10:58:24.706Z"
+      "updated_at": "2026-07-25T11:16:02.749Z"
     }
   }
 }
