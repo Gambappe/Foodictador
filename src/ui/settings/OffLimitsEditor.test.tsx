@@ -7,7 +7,7 @@ import type { MemoryRow, Read, UsualProfile } from '../../contracts/types.js';
 import { sampleUsual } from '../../contracts/fixtures/index.js';
 import { StubSettingsStore, StubProseBuffer } from '../../contracts/stubs/index.js';
 import { createLogger } from '../../config/logger.js';
-import { createPoolStore } from '../../memory/pool.js';
+import { createPoolStore, POOL_SCOPE } from '../../memory/pool.js';
 import { createUserStore } from '../../memory/user.js';
 import { writeRead } from '../../memory/writeRead.js';
 import { OffLimitsEditor } from './OffLimitsEditor.js';
@@ -158,7 +158,7 @@ describe('U4 acceptance: a topic added here blocks a later confess', () => {
 
     expect(result).toEqual({ blocked: true });
     expect(entries).toHaveLength(0);
-    expect(s.count('confit:pool')).toBe(0);
+    expect(s.count(POOL_SCOPE)).toBe(0);
   });
 
   it('control: an unrelated confession still writes, so the block is the topic', async () => {

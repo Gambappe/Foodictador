@@ -31,6 +31,7 @@
 import type { MemoryClient, Relay } from '../contracts/modules.js';
 import type { Logger } from '../config/logger.js';
 import { POOL_SCOPE } from './pool.js';
+import { personalScope } from './scopes.js';
 
 
 export type ForgetTargetStatus = 'deleted' | 'nothing_to_delete' | 'skipped' | 'failed';
@@ -119,7 +120,7 @@ async function forgetUser(
   }
   try {
     for (const { profile, memoryId } of userMemories) {
-      await deps.client.remove(profile, memoryId);
+      await deps.client.remove(personalScope(profile), memoryId);
     }
     return { status: 'deleted', count: userMemories.length };
   } catch (error) {

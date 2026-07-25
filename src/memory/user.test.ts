@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createUserStore } from './user.js';
 import { BATCH_SIZE, createProseBuffer } from './proseBuffer.js';
+import { personalScope } from './scopes.js';
 
 /** Fake XTrace: per-scope rows, per-job controllable status. Prose only, after M11. */
 function fakeSubstrate() {
@@ -125,7 +126,7 @@ describe('M3 writeProse — batched into XTrace, not one at a time (M20)', () =>
     for (let i = 0; i < BATCH_SIZE; i++) await h.store.writeProse('A', `a${String(i)}`);
     await h.store.writeProse('B', 'b0');
     expect(h.batches).toHaveLength(1);
-    expect(h.batches[0]?.scope).toBe('A');
+    expect(h.batches[0]?.scope).toBe(personalScope('A'));
     expect(h.buffer.pending('B')).toBe(1);
     expect(h.buffer.pending('A')).toBe(0);
   });
@@ -137,7 +138,9 @@ describe('M3 writeProse — batched into XTrace, not one at a time (M20)', () =>
     await h.store.writeProse('A', 'one');
     await h.store.writeProse('B', 'two');
     expect(await h.store.flushProse()).toBe(2);
-    expect(h.batches.map((b) => b.scope).sort()).toEqual(['A', 'B']);
+    expect(h.batches.map((b) => b.scope).sort()).toEqual(
+      [personalScope('A'), personalScope('B')].sort(),
+    );
     expect(await h.store.flushProse()).toBe(0); // nothing left
   });
 
@@ -372,7 +375,7 @@ describe('M3 personalClaim — D-8\'s second input (M16)', () => {
     // A fact is one sentence the extractor pulled from one confession. An episode is the
     // synthesis across several, which is the only thing worth putting on a card.
     const h = harness();
-    h.rowsByScope.set('A', [
+    h.rowsByScope.set(personalScope('A'), [
       { memoryId: 'f1', kind: 'fact', content: 'User regretted the pho.' },
       { memoryId: 'e1', kind: 'episode', content: 'You keep going back to places you complain about.' },
     ]);
@@ -383,7 +386,9 @@ describe('M3 personalClaim — D-8\'s second input (M16)', () => {
 
   it('no episode means no claim — \'\', never a fact standing in for one', async () => {
     const h = harness();
-    h.rowsByScope.set('A', [{ memoryId: 'f1', kind: 'fact', content: 'User ate pho once.' }]);
+    h.rowsByScope.set(personalScope('A'), [
+      { memoryId: 'f1', kind: 'fact', content: 'User ate pho once.' },
+    ]);
     expect(await h.store.personalClaim('A', 'anything')).toBe('');
   });
 
@@ -396,7 +401,7 @@ describe('M3 personalClaim — D-8\'s second input (M16)', () => {
     // What makes "let's see what happens" produce evidence rather than an absence. Without
     // this, a disappointing claim is indistinguishable from a broken query.
     const h = harness();
-    h.rowsByScope.set('A', [
+    h.rowsByScope.set(personalScope('A'), [
       { memoryId: 'f1', kind: 'fact', content: 'one' },
       { memoryId: 'f2', kind: 'fact', content: 'two' },
       { memoryId: 'e1', kind: 'episode', content: 'a pattern' },
@@ -453,6 +458,6 @@ describe('M3 personalClaim — D-8\'s second input (M16)', () => {
       logger: createLogger(() => undefined),
     });
     await store.personalClaim('profile-B', 'q');
-    expect(scopes).toEqual(['profile-B']);
+    expect(scopes).toEqual([personalScope('profile-B')]);
   });
 });

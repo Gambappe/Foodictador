@@ -118,8 +118,8 @@ describe('M2 writeReads — batched into conversations (M12)', () => {
     ]);
     expect(batches).toHaveLength(2);
     const byConv = new Map(batches.map((b) => [b.convId, b.payloads]));
-    expect(byConv.get('confit:pool:spice_tolerance_low:0')).toHaveLength(2);
-    expect(byConv.get('confit:pool:acclaim_skeptic:0')).toHaveLength(1);
+    expect(byConv.get(`${POOL_SCOPE}:spice_tolerance_low:0`)).toHaveLength(2);
+    expect(byConv.get(`${POOL_SCOPE}:acclaim_skeptic:0`)).toHaveLength(1);
   });
 
   it('uses ONE call per conversation, not one per read', async () => {
@@ -142,8 +142,8 @@ describe('M2 writeReads — batched into conversations (M12)', () => {
     );
     await pool.writeReads(many);
     expect(batches.map((b) => b.convId)).toEqual([
-      'confit:pool:spice_tolerance_low:0',
-      'confit:pool:spice_tolerance_low:1',
+      `${POOL_SCOPE}:spice_tolerance_low:0`,
+      `${POOL_SCOPE}:spice_tolerance_low:1`,
     ]);
     expect(batches[0]?.payloads).toHaveLength(20);
     expect(batches[1]?.payloads).toHaveLength(5);

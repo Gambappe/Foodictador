@@ -1,6 +1,10 @@
 /**
  * PoolStore (M2) — the XTrace side of the collective pool at
- * `user_id: "confit:pool"`. **Induction only, under DAG §4 D-7.**
+ * `user_id: POOL_SCOPE`. **Induction only, under DAG §4 D-7.**
+ *
+ * The scope is generation-marked (M15) rather than a bare name: pre-M12 per-read episodes
+ * were measured outranking the batched-prose episodes that replaced them, so the era had to
+ * be abandonable. See `src/memory/scopes.ts`.
  *
  * The counting query used to live here. It is gone, and its absence is the
  * point: gate zero ingested one read and got back five prose facts
@@ -18,8 +22,12 @@ import type { MemoryClient, PoolStore } from '../contracts/modules.js';
 import type { Driver, JobHandle, Read } from '../contracts/types.js';
 import type { Logger } from '../config/logger.js';
 import { readToProse, type PlaceName } from './readProse.js';
+import { POOL_SCOPE } from './scopes.js';
 
-export const POOL_SCOPE = 'confit:pool';
+// Re-exported because every importer of the pool scope already imports it from here, and
+// M15 moved the definition rather than the meaning. See src/memory/scopes.ts for why the
+// name carries a generation.
+export { POOL_SCOPE };
 
 /**
  * Reads per conversation.
@@ -78,7 +86,7 @@ function conversations(reads: readonly Read[]): Array<{ convId: string; reads: R
     for (let start = 0; start < bucket.length; start += READS_PER_CONVERSATION) {
       const chunk = bucket.slice(start, start + READS_PER_CONVERSATION);
       out.push({
-        convId: `confit:pool:${driver}:${String(start / READS_PER_CONVERSATION)}`,
+        convId: `${POOL_SCOPE}:${driver}:${String(start / READS_PER_CONVERSATION)}`,
         reads: chunk,
       });
     }

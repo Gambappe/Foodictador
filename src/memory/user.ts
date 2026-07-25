@@ -1,5 +1,9 @@
 /**
- * UserStore (M3) — the per-profile personal tier at `user_id: <profile>`.
+ * UserStore (M3) — the per-profile personal tier, at the scope `personalScope(profile)`.
+ *
+ * The profile id used to BE the scope. It is namespaced and generation-marked now (M15): a
+ * pre-M20 per-confession paraphrase was measured RANKING ABOVE the batched episode that
+ * replaced it, so the scope had to be escapable. See `src/memory/scopes.ts`.
  *
  * Confession prose is ingested RAW and unmodified ([E11]): design v0.8 §14
  * measured an LLM pass that stripped conversational texture to "just the
@@ -39,6 +43,7 @@
 
 import type { MemoryClient, ProseWrite, SettingsStore, UserStore } from '../contracts/modules.js';
 import { BATCH_SIZE, type ProseBuffer } from './proseBuffer.js';
+import { personalScope } from './scopes.js';
 import type { MealLogEntry, UsualProfile } from '../contracts/types.js';
 import type { Logger } from '../config/logger.js';
 
@@ -176,7 +181,11 @@ export function createUserStore(deps: UserStoreDeps): UserStoreHandle {
       // lost as a single write that did not happen (SL-41).
       const count = flush.texts.length;
       try {
-        const handle = await deps.client.ingestBatch(flush.profile, flush.texts, flush.convId);
+        const handle = await deps.client.ingestBatch(
+          personalScope(flush.profile),
+          flush.texts,
+          flush.convId,
+        );
         deps.logger.line(
           `user: sent ${String(count)} confession(s) for ${profile} as one conversation (${flush.convId})`,
         );
@@ -214,7 +223,7 @@ export function createUserStore(deps: UserStoreDeps): UserStoreHandle {
      * an episode is the synthesis across several, which is the thing worth putting on a card.
      */
     async personalClaim(profile: string, query: string): Promise<string> {
-      const rows = await deps.client.search(profile, query, {
+      const rows = await deps.client.search(personalScope(profile), query, {
         topK: PERSONAL_TOP_K,
         episodeSlots: PERSONAL_EPISODE_SLOTS,
       });
@@ -292,7 +301,7 @@ export function createUserStore(deps: UserStoreDeps): UserStoreHandle {
       let sent = 0;
       for (const flush of deps.buffer.drain()) {
         try {
-          await deps.client.ingestBatch(flush.profile, flush.texts, flush.convId);
+          await deps.client.ingestBatch(personalScope(flush.profile), flush.texts, flush.convId);
           sent += flush.texts.length;
           deps.logger.line(
             `user: sent ${String(flush.texts.length)} confession(s) for ${flush.profile} as one conversation (${flush.convId})`,

@@ -26,7 +26,7 @@ import type { MemoryRow, ProposedRead, Read } from '../../contracts/types.js';
 import { sampleUsual } from '../../contracts/fixtures/index.js';
 import { StubSettingsStore, StubProseBuffer } from '../../contracts/stubs/index.js';
 import { createLogger } from '../../config/logger.js';
-import { createPoolStore } from '../../memory/pool.js';
+import { createPoolStore, POOL_SCOPE } from '../../memory/pool.js';
 import { createUserStore } from '../../memory/user.js';
 import { writeRead } from '../../memory/writeRead.js';
 import { ConfessScreen } from './ConfessScreen.js';
@@ -103,7 +103,7 @@ function realHarness(offLimits: string[]) {
       }
     />,
   );
-  return { view, relayEntries: entries, poolCount: () => s.count('confit:pool'), userCount: () => s.count('A') };
+  return { view, relayEntries: entries, poolCount: () => s.count(POOL_SCOPE), userCount: () => s.count('A') };
 }
 
 async function reachChips() {

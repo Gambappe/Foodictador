@@ -5,6 +5,7 @@ import type { MemoryRow, RelayEntry } from '../contracts/types.js';
 import { createLogger } from '../config/logger.js';
 import { sampleRead } from '../contracts/fixtures/index.js';
 import { POOL_SCOPE } from './pool.js';
+import { personalScope } from './scopes.js';
 import { forget } from './forget.js';
 
 function fakes(init: {
@@ -134,7 +135,7 @@ describe('M8 forget — the XTrace targets are honest about what they cannot do'
     expect(report.user).toEqual({ status: 'deleted', count: 1 });
     expect(f.removed).toContainEqual({ scope: POOL_SCOPE, memoryId: 'm1' });
     expect(f.removed).toContainEqual({ scope: POOL_SCOPE, memoryId: 'm2' });
-    expect(f.removed).toContainEqual({ scope: 'profile-a', memoryId: 'u1' });
+    expect(f.removed).toContainEqual({ scope: personalScope('profile-a'), memoryId: 'u1' });
   });
 
   it('a substrate failure deleting a handle is failed, not a crash', async () => {
