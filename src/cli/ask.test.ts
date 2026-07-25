@@ -51,7 +51,14 @@ describe('X3 confit ask', () => {
     expect(card.poolCitation).toBeDefined();
     expect(card.poolCitation?.k).toBeGreaterThanOrEqual(5);
     expect(card.poolCitation?.driver).toBe('solo_comfort'); // k=6 beats k=5, deterministic
-    expect(result.lines.some((l) => l.includes('solo comfort × 6'))).toBe(true);
+    // The rendered chip carries the DRIVER_PHRASES wording and the count. This assertion
+    // used to require `solo comfort × 6` — the enum token with its underscore swapped for
+    // a space — which meant a test was actively LOCKING IN defect SL-30 rather than
+    // missing it. K5's banned lexicon applies to what reaches a card, and a test that
+    // demands the banned form is worse than no test.
+    expect(result.lines.some((l) => l.includes('a seat for one by choice'))).toBe(true);
+    expect(result.lines.some((l) => l.includes('6 of them'))).toBe(true);
+    for (const line of result.lines) expect(line).not.toMatch(/solo comfort|solo_comfort/);
   });
 
   it('a driver matching only a k=4 cohort produces the cohort-miss line, exit 0', async () => {

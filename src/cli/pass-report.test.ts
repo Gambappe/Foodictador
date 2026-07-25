@@ -6,6 +6,7 @@ import { createFlagStore, createLogger } from '../config/index.js';
 import type { AppConfig } from '../config/index.js';
 import { KFLOOR } from '../kernel/cohorts.js';
 import { loadProfiles } from '../../scripts/seed/validate-profiles.js';
+import { fixtureGraph } from '../config/wiring.js';
 import { parseArgv } from './args.js';
 import type { CommandContext } from './main.js';
 import {
@@ -31,6 +32,10 @@ function context(args: string[]): CommandContext {
     config: CONFIG,
     flags: createFlagStore({ ...DEFAULT_FLAGS }, logger),
     logger,
+    // These suites inject their own deps into the command factories, so the graph is
+    // only here to satisfy CommandContext. Fixture stores, not live ones: a test that
+    // constructed a live graph would build HTTP clients against invalid hosts.
+    graph: fixtureGraph({ logger }),
   };
 }
 

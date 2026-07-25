@@ -9,7 +9,6 @@
  * Registered in main.ts by the integrator, not here (X1 owns that file).
  */
 
-import { liveGraph } from '../config/wiring.js';
 import type { ForgetReport, ForgetTargetReport } from '../memory/forget.js';
 import { forget } from '../memory/forget.js';
 import type { CommandContext, CommandHandler } from './main.js';
@@ -71,7 +70,7 @@ export function createForgetCommand(runForget: RunForget): CommandHandler {
 
 /** The production handler: real XTrace client and relay from config. */
 export const forgetCommand: CommandHandler = (context) => {
-  const graph = liveGraph(context.config, context.logger, context.flags);
+  const graph = context.graph;
   const handler = createForgetCommand((readId) =>
     forget(readId, { client: graph.client, relay: graph.relay, logger: graph.logger }),
   );

@@ -12,6 +12,7 @@ import {
   type ConfessDeps,
 } from './confess.js';
 import type { CommandContext } from './main.js';
+import { fixtureGraph } from '../config/wiring.js';
 import { parseArgv } from './args.js';
 
 const chips: Omit<Read, 'read_id'> = {
@@ -288,6 +289,9 @@ describe('the CommandHandler adapter', () => {
         set: () => undefined,
       },
       logger: createLogger(() => undefined),
+      // Present only to satisfy CommandContext; this suite injects its own deps into
+      // createConfessHandler. Fixture stores, never a live graph.
+      graph: fixtureGraph({ logger: createLogger(() => undefined) }),
     };
   }
 

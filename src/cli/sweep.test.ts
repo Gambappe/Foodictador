@@ -4,6 +4,7 @@ import { DEFAULT_FLAGS } from '../contracts/flags.js';
 import type { SweepReport } from '../contracts/types.js';
 import { createFlagStore, createLogger } from '../config/index.js';
 import type { AppConfig } from '../config/index.js';
+import { fixtureGraph } from '../config/wiring.js';
 import { parseArgv } from './args.js';
 import type { CommandContext } from './main.js';
 import { EXIT } from './render.js';
@@ -25,6 +26,10 @@ function context(args: string[], logLines: string[] = []): CommandContext {
     config: CONFIG,
     flags: createFlagStore({ ...DEFAULT_FLAGS }, logger),
     logger,
+    // These suites inject their own deps into the command factories, so the graph is
+    // only here to satisfy CommandContext. Fixture stores, not live ones: a test that
+    // constructed a live graph would build HTTP clients against invalid hosts.
+    graph: fixtureGraph({ logger }),
   };
 }
 

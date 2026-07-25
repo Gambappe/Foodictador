@@ -25,7 +25,6 @@ import {
 } from '../../scripts/seed/gen-seeds.js';
 import { loadCorpus } from '../../scripts/seed/validate-corpus.js';
 import { loadProfiles, type DemoProfile } from '../../scripts/seed/validate-profiles.js';
-import { liveGraph } from '../config/wiring.js';
 import type { CommandContext, CommandHandler } from './main.js';
 import { EXIT, type CommandResult } from './render.js';
 
@@ -114,7 +113,7 @@ export function createCensusCommand(deps: CensusDeps): CommandHandler {
 
 /** Production census: the live counting path — pool ∪ relay via M6. */
 export const censusCommand: CommandHandler = (context: CommandContext) => {
-  const graph = liveGraph(context.config, context.logger, context.flags);
+  const graph = context.graph;
   return createCensusCommand({
     readsForDriver: (driver) => graph.poolView.readsForDriver(driver),
   })(context);

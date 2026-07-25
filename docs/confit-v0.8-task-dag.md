@@ -534,6 +534,12 @@ Format: **Owns** (files you may touch) · **Depends** · **Build** · **Acceptan
 - **Build:** iterate every template in L1's catalog and every canned narrator fixture through K5. One case per banned lexicon entry, so extending the lexicon without fixing the copy fails.
 - **Acceptance:** all catalog strings clean; a deliberately inserted "you're on a 3-day streak" fails.
 
+**G8 — The acceptance gate drives the CLI (SL-26)**
+- **Owns:** `tests/guards/acceptance.test.ts` (with G5), `scripts/copy-assets.mjs`
+- **Depends:** G5, X1
+- **Build:** the seam plus the rewrite. `CommandContext` carries the adapter graph; `RunDeps.makeGraph` overrides it; the six handlers that built their own stop. All seven §7 G5 steps go through `run()`, plus the k-floor crossing walked one real `confess` at a time, plus every registered command dispatched and asserted not to be a placeholder against `COMMANDS` itself.
+- **Acceptance:** red-verified against five mutations — reinstating SL-30, reinstating SL-15, unwiring a command to the placeholder, making the sweeper delete again (D-7), and a handler reaching for `liveGraph`. All five turn it red. The fourth is worth naming: it initially did **not**, because `fixtureGraph` pins its clock ahead of any real test clock, so every sweep computed a negative age and examined nothing. A step that passes while doing nothing is worse than a missing step.
+
 **G4 — Near-tie and cohort-count invariants**
 - **Owns:** `tests/guards/neartie.test.ts`, `tests/guards/cohortCount.test.ts`
 - **Depends:** K4, K6, S2, S4
@@ -541,10 +547,11 @@ Format: **Owns** (files you may touch) · **Depends** · **Build** · **Acceptan
 - **Acceptance:** both pass on the committed seed; lowering `COUNTING_K` below the largest cohort makes the cross-check fail.
 
 **G5 — CI wiring and the CLI acceptance gate**
-- **Owns:** `.github/workflows/ci.yml`, `scripts/gate-cli.sh`
+- **Owns:** `.github/workflows/ci.yml`, `scripts/gate-cli.sh`, `tests/guards/acceptance.test.ts`
 - **Depends:** G1, G2, G3, G4, X2, X3, X4, X5, X6, X7, P0.5
 - **Build:** `npm run gate:cli` — typecheck, full test suite, then a scripted end-to-end run against fixture stores: provision → seed → confess (A) → ask (B) asserting the cohort citation moved → sweep → forget → census. Fails if `docs/gate0-results.md` records no gate-zero pass (D-3). CI runs it on every push.
 - **Acceptance:** green on a clean checkout with **no network and no `ANTHROPIC_API_KEY`** (P0.3's optional-key rule is what makes this possible); removing the gate-zero record turns it red.
+- **"End-to-end" means through `src/cli/**`, and this is not negotiable (G8, defect SL-26).** The first delivery of this task re-implemented all seven steps against the layer beneath the commands: `grep -n "src/cli" tests/guards/acceptance.test.ts` returned nothing, and `gate-cli.sh` invoked no subcommand. It proved `planAsk`, `writeRead`, `sweepOnce`, `forget` and `census` compose — which eight other test files already assert — while the only layer §0's "CLI-first" is about went unexecuted. `SL-13`, `SL-15`, `SL-19`, `SL-20` and `SL-30` all shipped inside it, and `src/cli/ask.test.ts` was *requiring* SL-30's banned wording. Every step now runs through `run(argv, …)`; `CommandContext.graph` and `RunDeps.makeGraph` are the seam that makes fixture stores reachable from a real command, and `wiring.test.ts` fails the build if a handler reaches for `liveGraph` again. The gate script additionally boots `dist/src/cli/main.js`, because a suite that runs TypeScript sources cannot see a build artifact that will not start — and the first run of that step found one.
 
 ### Lane U — UI (only after G5 is green)
 
