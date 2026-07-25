@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T12:47:46.977Z",
+  "updated_at": "2026-07-25T12:47:48.401Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -1106,6 +1106,19 @@
       "pr": null,
       "claimed_at": null,
       "updated_at": "2026-07-25T12:47:46.977Z"
+    },
+    "X10": {
+      "title": "SL-20: confit pass neartie prints banned-lexicon terms weight/score to the operator",
+      "phase": "X",
+      "depends_on": [],
+      "mock_start_ok": false,
+      "note": "SL-20 in docs/defect-log.md (still open). src/cli/pass-report.ts's neartie output prints raw 'weight' and 'score' words, which are in K5's banned lexicon. No CLI line in the product is ever copy-linted; this is the reproduction case.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T12:47:48.400Z"
     }
   }
 }
