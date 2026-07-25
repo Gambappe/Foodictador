@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T08:20:02.700Z",
+  "updated_at": "2026-07-25T08:21:10.866Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -113,13 +113,13 @@
         "P0.2"
       ],
       "mock_start_ok": false,
-      "note": "Formula is plan v1.0 §3.5 verbatim — copy it, don't reinvent it. now is a parameter everywhere; no Date.now() in the module.",
-      "status": "claimed",
-      "owner": "claude-session-12uj0q",
-      "branch": "claude/app-design-task-impl-12uj0q",
+      "note": "released unstarted — scaling back to one task at a time",
+      "status": "available",
+      "owner": null,
+      "branch": null,
       "pr": null,
-      "claimed_at": "2026-07-25T08:19:18.929Z",
-      "updated_at": "2026-07-25T08:19:18.929Z"
+      "claimed_at": null,
+      "updated_at": "2026-07-25T08:21:10.865Z"
     },
     "K4": {
       "title": "Ask scoring: plan v1.0 §3.4 verbatim, calling Cohorts.matched for pool(p); constants.ts holds KFLOOR=5 and COUNTING_K=200; stable documented tie-break",
