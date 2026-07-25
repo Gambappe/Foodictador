@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T15:31:32.215Z",
+  "updated_at": "2026-07-25T15:31:33.930Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -1022,12 +1022,12 @@
       "depends_on": [],
       "mock_start_ok": false,
       "note": "SL-06 in docs/defect-log.md (still open as of third pass). src/contracts/stubs/cohorts.ts:32 hardcodes kFloor=5 instead of importing KFLOOR from src/kernel/cohorts.ts; src/contracts/stubs/narrator.ts renders a citation with no floor check, unlike TemplateNarrator's flooredCitation. src/contracts/** is integrator-only per DAG contract-freeze rule — do not edit without the integrator, or get sign-off first.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "claude-session-014n6NYRN6Rb",
+      "branch": "claude/upload-code-artifact-zop9uz",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T12:47:24.656Z"
+      "claimed_at": "2026-07-25T15:31:33.929Z",
+      "updated_at": "2026-07-25T15:31:33.929Z"
     },
     "P0.11": {
       "title": "SL-07: infra/relay/server.ts reimplements parseRead instead of importing it",
