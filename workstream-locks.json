@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T12:56:40.376Z",
+  "updated_at": "2026-07-25T12:56:46.600Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -1061,12 +1061,12 @@
       "depends_on": [],
       "mock_start_ok": false,
       "note": "SL-14 in docs/defect-log.md (still open). scripts/seed/load-seeds.ts:45 (and originally src/memory/poolView.ts:30, may already be fixed there — check) build a path via new URL(...).pathname, which URL-encodes spaces as %20 and is not a valid fs path. Use fileURLToPath(new URL(...)) from node:url instead.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "claude-routine-inspiring-carson",
+      "branch": "claude/inspiring-carson-7ryzny",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T12:47:42.098Z"
+      "claimed_at": "2026-07-25T12:56:46.599Z",
+      "updated_at": "2026-07-25T12:56:46.599Z"
     },
     "S5": {
       "title": "SL-17: induction-set.json is a byte-identical copy of reads.json, so the pass census cross-check reports clean with XTrace unreachable",
