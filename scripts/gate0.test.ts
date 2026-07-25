@@ -1,127 +1,207 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import type { MemoryClient } from '../src/contracts/modules.js';
-import type { MemoryRow } from '../src/contracts/types.js';
-import { GATE0_N, renderResults, runGateZero } from './gate0.js';
+import type { IngestJobStatus, MemoryRow } from '../src/contracts/types.js';
+import { parseRead } from '../src/kernel/read.js';
+import {
+  entriesMatch,
+  renderResults,
+  stepDeletionByHandle,
+  stepInductionClaim,
+  syntheticReads,
+  xtraceEnv,
+  type GateStepResult,
+  type WireEntry,
+} from './gate0.js';
 
-/**
- * Fake substrate with dialable behaviour:
- * - `settleAfterPolls`: how many search calls a record takes to become visible;
- * - `neverSettle`: content substrings that never become retrievable;
- * - `zombieDelete`: remove() succeeds but the record stays retrievable.
- */
-function fakeSubstrate(opts: {
-  settleAfterPolls?: number;
-  neverSettle?: (content: string) => boolean;
-  zombieDelete?: boolean;
+// `stepRestartSurvival` is deliberately not driven from vitest: it spawns two real
+// relay processes and SIGKILLs one, which belongs in `npm run gate0` (where its output
+// is the evidence), not in a suite that must stay fast and hermetic. The pure pieces it
+// is built from — the read builder and the byte-honest comparator — are covered here.
+
+function entry(id: string, overrides: Partial<WireEntry> = {}): WireEntry {
+  const read = syntheticReads(1)[0];
+  if (!read) throw new Error('syntheticReads(1) was empty');
+  return { read: { ...read, read_id: id }, received_at: '2026-07-25T19:00:00.000Z', ...overrides };
+}
+
+describe('G7 gate zero — synthetic reads', () => {
+  it('emits schema-valid reads with unique ids', () => {
+    const reads = syntheicReadsSafe(12);
+    for (const read of reads) expect(() => parseRead(read)).not.toThrow();
+    expect(new Set(reads.map((r) => r.read_id)).size).toBe(12);
+  });
+});
+
+function syntheicReadsSafe(n: number) {
+  return syntheticReads(n);
+}
+
+describe('G7 gate zero — the restart comparator is byte-honest', () => {
+  it('equal listings match', () => {
+    const a = [entry('r1'), entry('r2', { ingest_job_id: 'j', pool_memories: ['m'] })];
+    const b = [entry('r2', { ingest_job_id: 'j', pool_memories: ['m'] }), entry('r1')];
+    expect(entriesMatch(a, b).equal).toBe(true);
+  });
+
+  it('names a missing entry, a second-level timestamp drift, and a lost ledger', () => {
+    const before = [
+      entry('r1', { pool_memories: ['m1'] }),
+      entry('r2', { ingest_job_id: 'job' }),
+      entry('r3'),
+    ];
+    const after = [
+      entry('r1'), // ledger lost
+      entry('r2', { ingest_job_id: 'job', received_at: '2026-07-25T19:00:01.000Z' }), // drifted 1s
+      // r3 missing
+    ];
+    const verdict = entriesMatch(before, after);
+    expect(verdict.equal).toBe(false);
+    expect(verdict.diff.some((d) => d.includes('r1') && d.includes('pool_memories'))).toBe(true);
+    expect(verdict.diff.some((d) => d.includes('r2') && d.includes('received_at'))).toBe(true);
+    expect(verdict.diff.some((d) => d.includes('r3') && d.includes('missing'))).toBe(true);
+  });
+
+  it('an entry appearing from nowhere is as wrong as one disappearing', () => {
+    const verdict = entriesMatch([entry('r1')], [entry('r1'), entry('ghost')]);
+    expect(verdict.equal).toBe(false);
+    expect(verdict.diff.some((d) => d.includes('ghost'))).toBe(true);
+  });
+});
+
+/** A fake MemoryClient for the deletion step: one job, scripted statuses, a searchable scope. */
+function deletionFake(init: {
+  statuses: IngestJobStatus[];
+  created: MemoryRow[];
+  searchServes?: MemoryRow[];
 }) {
-  interface Stored {
-    row: MemoryRow;
-    scope: string;
-    visibleAfter: number;
-  }
-  const stored: Stored[] = [];
-  let searchCalls = 0;
-  let seq = 0;
-
+  const removed: string[] = [];
+  const statuses = [...init.statuses];
   const client: MemoryClient = {
-    ingest(scope, payload) {
-      seq += 1;
-      const never = opts.neverSettle?.(payload) ?? false;
-      stored.push({
-        scope,
-        visibleAfter: never ? Number.POSITIVE_INFINITY : searchCalls + (opts.settleAfterPolls ?? 0),
-        row: { memoryId: `mem-${seq}`, kind: 'fact', content: payload },
-      });
-      return Promise.resolve({ jobId: `job-${seq}` });
-    },
-    search(scope, query) {
-      searchCalls += 1;
-      return Promise.resolve(
-        stored
-          .filter(
-            (s) =>
-              s.scope === scope && s.visibleAfter <= searchCalls && s.row.content.includes(query),
-          )
-          .map((s) => s.row),
-      );
-    },
-    remove(scope, memoryId) {
-      if (!opts.zombieDelete) {
-        const i = stored.findIndex((s) => s.scope === scope && s.row.memoryId === memoryId);
-        if (i >= 0) stored.splice(i, 1);
-      }
+    ingest: () => Promise.resolve({ jobId: 'gate-job' }),
+    ingestBatch: () => Promise.reject(new Error('unused')),
+    search: () => Promise.resolve([...(init.searchServes ?? [])]),
+    remove: (_scope, memoryId) => {
+      removed.push(memoryId);
       return Promise.resolve();
     },
-    jobStatus: () => Promise.resolve('complete'),
-    // M10's ledger is not what this suite is about; no handles is a valid job result.
-    jobResult: () => Promise.resolve([]),
-    // gate zero ingests one record at a time by design — its protocol is per-read.
-    ingestBatch: () => Promise.reject(new Error('gate zero does not batch')),
+    jobStatus: () => Promise.resolve(statuses.length > 1 ? (statuses.shift() as IngestJobStatus) : (statuses[0] as IngestJobStatus)),
+    jobResult: () => Promise.resolve([...init.created]),
   };
-  return client;
+  return { client, removed };
 }
 
-function deps(client: MemoryClient) {
-  let clock = 0;
-  return {
-    client,
-    now: () => (clock += 500),
-    sleep: () => Promise.resolve(),
-    pollIntervalMs: 1,
-    settleWindowGuessSeconds: 10_000, // generous fake deadline; the fake clock never hits it
-    print: () => {},
-  };
-}
+const row = (memoryId: string): MemoryRow => ({ memoryId, kind: 'fact', content: 'x' });
 
-describe('P0.5 gate zero runner', () => {
-  it('passes when all reads settle, with the distribution and window recorded', async () => {
-    const result = await runGateZero(deps(fakeSubstrate({ settleAfterPolls: 2 })));
-    expect(result.pass).toBe(true);
-    expect(result.failures).toEqual([]);
-    expect(result.distribution[0]).toBe(GATE0_N);
-    expect(result.settleP50Seconds).not.toBeNull();
-    expect(result.settleMaxSeconds).not.toBeNull();
-    expect(result.deleteTrial.pass).toBe(true);
-    expect(result.deleteTrial.detail).toMatch(/deleted and verified gone/);
+describe('G7 gate zero — deletion by handle (against fakes)', () => {
+  const sleep = (): Promise<void> => Promise.resolve();
+  const print = (): void => {};
+
+  it('passes when every handle deletes and stays gone across samples', async () => {
+    const f = deletionFake({ statuses: ['pending', 'complete'], created: [row('m1'), row('m2')] });
+    const result = await stepDeletionByHandle({ client: f.client, sleep, print });
+    expect(result.status).toBe('PASS');
+    expect(f.removed).toEqual(['m1', 'm2']);
+    expect(result.lines.some((l) => l.includes('sampled absence'))).toBe(true);
   });
 
-  it('fails at round 3: a read still missing after two re-ingest rounds is a failure', async () => {
-    // The first ingested read never settles no matter how many times it is re-ingested.
-    let doomedMarker: string | null = null;
-    const client = fakeSubstrate({
-      neverSettle: (content) => {
-        doomedMarker ??= content;
-        return content === doomedMarker;
-      },
+  it('fails when a deleted id comes back in a sample — deletion must be deletion', async () => {
+    const f = deletionFake({
+      statuses: ['complete'],
+      created: [row('m1')],
+      searchServes: [row('m1')],
     });
-    const result = await runGateZero(deps(client));
-    expect(result.pass).toBe(false);
-    expect(result.failures).toHaveLength(1);
-    const settled = Object.values(result.distribution).reduce((a, b) => a + b, 0);
-    expect(settled).toBe(GATE0_N - 1);
+    const result = await stepDeletionByHandle({ client: f.client, sleep, print });
+    expect(result.status).toBe('FAIL');
+    expect(result.lines.some((l) => l.includes('came back'))).toBe(true);
   });
 
-  it('fails when a delete leaves the read retrievable — deletion must be deletion', async () => {
-    const result = await runGateZero(deps(fakeSubstrate({ zombieDelete: true })));
-    expect(result.failures).toEqual([]); // all settled fine…
-    expect(result.deleteTrial.pass).toBe(false); // …but the deletion trial failed
-    expect(result.pass).toBe(false);
-    expect(result.deleteTrial.detail).toMatch(/still retrievable after DELETE/);
+  it('fails when a complete job carries no handles — the ledger premise itself', async () => {
+    const f = deletionFake({ statuses: ['complete'], created: [] });
+    const result = await stepDeletionByHandle({ client: f.client, sleep, print });
+    expect(result.status).toBe('FAIL');
+    expect(result.lines.some((l) => l.includes('memories_created'))).toBe(true);
+  });
+});
+
+describe('G7 gate zero — the induction probe (against fakes)', () => {
+  const print = (): void => {};
+  const probe = { query: 'what people quietly regret near here', expectedPlaceNames: ['Noodle Shrine', 'Harbor Greens'] };
+  const pool = (claim: string) => ({
+    writeRead: () => Promise.reject(new Error('unused')),
+    writeReads: () => Promise.reject(new Error('unused')),
+    inducedClaim: () => Promise.resolve(claim),
   });
 
-  it('renderResults writes an honest FAIL with the escalation line', async () => {
-    const result = await runGateZero(deps(fakeSubstrate({ zombieDelete: true })));
-    const md = renderResults(result, '2026-07-25T20:00:00.000Z');
-    expect(md).toContain('Status: FAIL');
-    expect(md).toContain('[E9] reopens');
-    expect(md).toContain('SETTLE_WINDOW_SECONDS=');
+  it('passes only when the claim grounds in a seeded place name', async () => {
+    const grounded = await stepInductionClaim({
+      pool: pool('A quiet pattern: people who regret loud rooms end up at Noodle Shrine.'),
+      probe,
+      print,
+    });
+    expect(grounded.status).toBe('PASS');
+    expect(grounded.lines.some((l) => l.includes('Noodle Shrine'))).toBe(true);
   });
 
-  it('renderResults on a pass carries the measured window forward', async () => {
-    const result = await runGateZero(deps(fakeSubstrate({})));
-    const md = renderResults(result, '2026-07-25T20:00:00.000Z');
-    expect(md).toContain('Status: PASS');
-    expect(md).toMatch(/p50: \d/);
+  it('fails an empty claim with the seed-and-settle instruction', async () => {
+    const empty = await stepInductionClaim({ pool: pool(''), probe, print });
+    expect(empty.status).toBe('FAIL');
+    expect(empty.lines.some((l) => l.includes('settle'))).toBe(true);
+  });
+
+  it('fails an un-grounded claim — induced from something, but not our seed', async () => {
+    const stray = await stepInductionClaim({
+      pool: pool('People love the invented Wagyu Palace.'),
+      probe,
+      print,
+    });
+    expect(stray.status).toBe('FAIL');
+    expect(stray.lines.some((l) => l.includes('none of the seeded places'))).toBe(true);
+  });
+});
+
+describe('G7 gate zero — the record and the gate-cli contract', () => {
+  const pass = (name: string): GateStepResult => ({ name, status: 'PASS', lines: ['ok'] });
+  const RAN_AT = '2026-07-25T17:00:00.000Z';
+
+  it('all three passing produces the exact line gate-cli greps for', () => {
+    const doc = renderResults([pass('a'), pass('b'), pass('c')], RAN_AT);
+    expect(doc).toMatch(/^\*\*Status: PASS\*\*/m);
+  });
+
+  it('a blocked step can NEVER produce the PASS line', () => {
+    const doc = renderResults(
+      [pass('relay survives'), { name: 'deletion', status: 'BLOCKED', lines: ['needs creds'] }],
+      RAN_AT,
+    );
+    expect(doc).not.toMatch(/^\*\*Status: PASS\*\*/m);
+    expect(doc).toMatch(/awaiting credentials/);
+    expect(doc).toMatch(/"relay survives" PASS/); // partial progress is recorded, not hidden
+  });
+
+  it('a failed step records FAIL with the escalation line', () => {
+    const doc = renderResults([{ name: 'deletion', status: 'FAIL', lines: ['ghost'] }], RAN_AT);
+    expect(doc).toMatch(/^\*\*Status: FAIL\*\*/m);
+    expect(doc).toMatch(/Stop and escalate/);
+  });
+});
+
+describe('G7 gate zero — credential gating', () => {
+  const saved = { url: process.env['XTRACE_BASE_URL'], key: process.env['XTRACE_API_KEY'] };
+  afterEach(() => {
+    if (saved.url === undefined) delete process.env['XTRACE_BASE_URL'];
+    else process.env['XTRACE_BASE_URL'] = saved.url;
+    if (saved.key === undefined) delete process.env['XTRACE_API_KEY'];
+    else process.env['XTRACE_API_KEY'] = saved.key;
+  });
+
+  it('names exactly what is missing', () => {
+    delete process.env['XTRACE_BASE_URL'];
+    delete process.env['XTRACE_API_KEY'];
+    expect(xtraceEnv()).toEqual({ missing: ['XTRACE_BASE_URL', 'XTRACE_API_KEY'] });
+    process.env['XTRACE_BASE_URL'] = 'http://x';
+    expect(xtraceEnv()).toEqual({ missing: ['XTRACE_API_KEY'] });
+    process.env['XTRACE_API_KEY'] = 'k';
+    expect(xtraceEnv()).toEqual({ baseUrl: 'http://x', apiKey: 'k' });
   });
 });
