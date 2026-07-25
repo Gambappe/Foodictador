@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T08:48:33.537Z",
+  "updated_at": "2026-07-25T08:49:01.032Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -738,12 +738,12 @@
       ],
       "mock_start_ok": false,
       "note": "Added after the initial seed — see DAG §4 D-6. AskEngine was declared in contracts and stubbed at P0.2 but no task built it, while X3 was specced to assemble the card in the CLI lane, contradicting §1's 'no behaviour in a front end'. Pure, so it cannot produce reasonLine (L3's async job): return ranking, citation/miss, suppressions and NarratorFacts; the caller assembles. Owns src/kernel/askEngine.ts.",
-      "status": "claimed",
+      "status": "in_review",
       "owner": "claude-session-014n6NYRN6Rb",
       "branch": "claude/upload-code-artifact-zop9uz",
       "pr": null,
       "claimed_at": "2026-07-25T08:42:19.513Z",
-      "updated_at": "2026-07-25T08:42:19.513Z"
+      "updated_at": "2026-07-25T08:49:01.032Z"
     }
   }
 }
