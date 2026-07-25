@@ -51,6 +51,11 @@ const only = (() => {
   const i = argv.indexOf('--only');
   return i === -1 ? null : new Set(argv[i + 1].split(',').map((s) => Number(s.trim())));
 })();
+// `--list` was advertised in the head comment above and never implemented — caught by
+// checking the runbook's claims against the code rather than by anything failing. Same
+// defect class as the two this runner already documents: prose describing behaviour that
+// does not exist. Cheaper to build than to delete, and an operator picking `--only` needs it.
+const listOnly = argv.includes('--list');
 
 function confit(args) {
   try {
@@ -77,6 +82,12 @@ const cuisineOf = (id) => CORPUS.find((p) => p.id === id)?.cuisine ?? '?';
 const results = [];
 function showcase(n, title, claim, run) {
   if (only && !only.has(n)) return;
+  if (listOnly) {
+    // Names and claims, nothing driven: `--list` must not seed, confess, or sweep, or it
+    // would be a demo run wearing a listing's clothes.
+    process.stdout.write(`${String(n).padStart(2)}. ${title}\n    ${claim}\n`);
+    return;
+  }
   process.stdout.write(`\n${'─'.repeat(72)}\n${String(n).padStart(2)}. ${title}\n    claim: ${claim}\n`);
   try {
     const outcome = run();
@@ -268,6 +279,11 @@ showcase(10, 'The sweep converges and reports honestly', 'a substrate failure de
 // ---------------------------------------------------------------------------
 
 const width = 72;
+if (listOnly) {
+  // No summary and no "every showcase that can check itself, did" — nothing was checked,
+  // and a listing that signs off like a passing run is the receipt defect all over again.
+  process.exit(0);
+}
 process.stdout.write(`\n${'═'.repeat(width)}\n`);
 const failed = results.filter((r) => r.state === 'FAIL');
 for (const r of results) process.stdout.write(`  ${r.state.padEnd(5)} ${String(r.n).padStart(2)}. ${r.title}\n`);
