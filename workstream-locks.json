@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T08:37:50.712Z",
+  "updated_at": "2026-07-25T08:38:47.311Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -727,6 +727,23 @@
       "pr": null,
       "claimed_at": null,
       "updated_at": "2026-07-25T07:37:34.268Z"
+    },
+    "K7": {
+      "title": "AskEngine: compose K4's ranking, K6's cohorts and K3's suppressions into the card minus copy, plus the NarratorFacts L3 needs",
+      "phase": "K",
+      "depends_on": [
+        "K3",
+        "K4",
+        "K6"
+      ],
+      "mock_start_ok": false,
+      "note": "Added after the initial seed — see DAG §4 D-6. AskEngine was declared in contracts and stubbed at P0.2 but no task built it, while X3 was specced to assemble the card in the CLI lane, contradicting §1's 'no behaviour in a front end'. Pure, so it cannot produce reasonLine (L3's async job): return ranking, citation/miss, suppressions and NarratorFacts; the caller assembles. Owns src/kernel/askEngine.ts.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T08:38:47.310Z"
     }
   }
 }
