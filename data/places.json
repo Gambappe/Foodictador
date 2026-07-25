@@ -1,0 +1,883 @@
+{
+  "places": [
+    {
+      "id": "rosas_taqueria",
+      "name": "Rosa's Taqueria",
+      "cuisine": "mexican",
+      "priceBand": 1,
+      "tags": [
+        "late_night",
+        "counter_seating",
+        "solo_friendly"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "al_pastor",
+          "name": "Tacos al pastor",
+          "spiceLevel": 2
+        },
+        {
+          "dishId": "quesabirria",
+          "name": "Quesabirria",
+          "spiceLevel": 1
+        }
+      ]
+    },
+    {
+      "id": "noodle_shrine",
+      "name": "Noodle Shrine",
+      "cuisine": "japanese",
+      "priceBand": 2,
+      "tags": [
+        "counter_seating",
+        "solo_friendly",
+        "quiet"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "shoyu_ramen",
+          "name": "Shoyu ramen",
+          "spiceLevel": 0
+        },
+        {
+          "dishId": "tantanmen",
+          "name": "Tantanmen",
+          "spiceLevel": 3
+        }
+      ]
+    },
+    {
+      "id": "quiet_counter",
+      "name": "The Quiet Counter",
+      "cuisine": "korean",
+      "priceBand": 2,
+      "tags": [
+        "quiet",
+        "solo_friendly",
+        "counter_seating",
+        "small_plates"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "bibimbap",
+          "name": "Stone-pot bibimbap",
+          "spiceLevel": 1
+        },
+        {
+          "dishId": "kimchi_jjigae",
+          "name": "Kimchi jjigae",
+          "spiceLevel": 2
+        }
+      ]
+    },
+    {
+      "id": "phos_deep",
+      "name": "Pho's Deep",
+      "cuisine": "vietnamese",
+      "priceBand": 1,
+      "tags": [
+        "gi_safe_options",
+        "solo_friendly"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "pho_ga",
+          "name": "Pho ga",
+          "spiceLevel": 0
+        },
+        {
+          "dishId": "bun_bo_hue",
+          "name": "Bun bo hue",
+          "spiceLevel": 3
+        }
+      ]
+    },
+    {
+      "id": "ember_and_ash",
+      "name": "Ember & Ash",
+      "cuisine": "thai",
+      "priceBand": 3,
+      "tags": [
+        "late_night"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "pad_kra_pao",
+          "name": "Pad kra pao",
+          "spiceLevel": 3
+        },
+        {
+          "dishId": "khao_soi",
+          "name": "Khao soi",
+          "spiceLevel": 2
+        }
+      ]
+    },
+    {
+      "id": "harbor_greens",
+      "name": "Harbor Greens",
+      "cuisine": "mediterranean",
+      "priceBand": 2,
+      "tags": [
+        "gi_safe_options",
+        "quiet",
+        "small_plates"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "grain_bowl",
+          "name": "Charred grain bowl",
+          "spiceLevel": 0
+        },
+        {
+          "dishId": "grilled_octopus",
+          "name": "Grilled octopus",
+          "spiceLevel": 1
+        }
+      ]
+    },
+    {
+      "id": "mabels_diner",
+      "name": "Mabel's Diner",
+      "cuisine": "american",
+      "priceBand": 1,
+      "tags": [
+        "late_night",
+        "solo_friendly",
+        "counter_seating"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "patty_melt",
+          "name": "Patty melt",
+          "spiceLevel": 0
+        },
+        {
+          "dishId": "buttermilk_pancakes",
+          "name": "Buttermilk pancakes",
+          "spiceLevel": 0
+        }
+      ]
+    },
+    {
+      "id": "golden_bao",
+      "name": "Golden Bao House",
+      "cuisine": "chinese",
+      "priceBand": 1,
+      "tags": [
+        "small_plates",
+        "late_night"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "char_siu_bao",
+          "name": "Char siu bao",
+          "spiceLevel": 0
+        },
+        {
+          "dishId": "mapo_tofu",
+          "name": "Mapo tofu",
+          "spiceLevel": 3
+        }
+      ]
+    },
+    {
+      "id": "saffron_step",
+      "name": "Saffron Step",
+      "cuisine": "indian",
+      "priceBand": 2,
+      "tags": [
+        "gi_safe_options"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "butter_chicken",
+          "name": "Butter chicken",
+          "spiceLevel": 1
+        },
+        {
+          "dishId": "vindaloo",
+          "name": "Pork vindaloo",
+          "spiceLevel": 3
+        }
+      ]
+    },
+    {
+      "id": "cedar_meze",
+      "name": "Cedar Meze",
+      "cuisine": "lebanese",
+      "priceBand": 2,
+      "tags": [
+        "small_plates",
+        "quiet"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "hummus_royale",
+          "name": "Hummus royale",
+          "spiceLevel": 0
+        },
+        {
+          "dishId": "shish_taouk",
+          "name": "Shish taouk",
+          "spiceLevel": 1
+        }
+      ]
+    },
+    {
+      "id": "brine_and_shell",
+      "name": "Brine & Shell",
+      "cuisine": "seafood",
+      "priceBand": 4,
+      "tags": [
+        "quiet"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "oyster_dozen",
+          "name": "Dozen oysters",
+          "spiceLevel": 0
+        },
+        {
+          "dishId": "cioppino",
+          "name": "Cioppino",
+          "spiceLevel": 1
+        }
+      ]
+    },
+    {
+      "id": "terracotta",
+      "name": "Terracotta",
+      "cuisine": "italian",
+      "priceBand": 3,
+      "tags": [
+        "quiet"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "cacio_e_pepe",
+          "name": "Cacio e pepe",
+          "spiceLevel": 1
+        },
+        {
+          "dishId": "osso_buco",
+          "name": "Osso buco",
+          "spiceLevel": 0
+        }
+      ]
+    },
+    {
+      "id": "seoul_static",
+      "name": "Seoul Static",
+      "cuisine": "korean",
+      "priceBand": 2,
+      "tags": [
+        "late_night",
+        "counter_seating"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "korean_fried_chicken",
+          "name": "Korean fried chicken",
+          "spiceLevel": 2
+        },
+        {
+          "dishId": "tteokbokki",
+          "name": "Tteokbokki",
+          "spiceLevel": 3
+        }
+      ]
+    },
+    {
+      "id": "green_papaya",
+      "name": "Green Papaya",
+      "cuisine": "thai",
+      "priceBand": 1,
+      "tags": [
+        "solo_friendly",
+        "gi_safe_options"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "som_tam",
+          "name": "Som tam",
+          "spiceLevel": 3
+        },
+        {
+          "dishId": "khao_man_gai",
+          "name": "Khao man gai",
+          "spiceLevel": 0
+        }
+      ]
+    },
+    {
+      "id": "the_dumpling_line",
+      "name": "The Dumpling Line",
+      "cuisine": "chinese",
+      "priceBand": 1,
+      "tags": [
+        "counter_seating",
+        "solo_friendly"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "xlb_pork",
+          "name": "Xiao long bao",
+          "spiceLevel": 0
+        },
+        {
+          "dishId": "dan_dan_noodles",
+          "name": "Dan dan noodles",
+          "spiceLevel": 2
+        }
+      ]
+    },
+    {
+      "id": "copper_kettle",
+      "name": "Copper Kettle",
+      "cuisine": "british",
+      "priceBand": 2,
+      "tags": [
+        "quiet",
+        "gi_safe_options"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "fish_and_chips",
+          "name": "Fish and chips",
+          "spiceLevel": 0
+        },
+        {
+          "dishId": "shepherds_pie",
+          "name": "Shepherd's pie",
+          "spiceLevel": 0
+        }
+      ]
+    },
+    {
+      "id": "lupita_cocina",
+      "name": "Lupita's Cocina",
+      "cuisine": "mexican",
+      "priceBand": 2,
+      "tags": [
+        "small_plates"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "mole_negro",
+          "name": "Mole negro",
+          "spiceLevel": 2
+        },
+        {
+          "dishId": "elote_cup",
+          "name": "Elote cup",
+          "spiceLevel": 1
+        }
+      ]
+    },
+    {
+      "id": "banh_mi_signal",
+      "name": "Banh Mi Signal",
+      "cuisine": "vietnamese",
+      "priceBand": 1,
+      "tags": [
+        "solo_friendly",
+        "counter_seating"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "banh_mi_dac_biet",
+          "name": "Banh mi dac biet",
+          "spiceLevel": 1
+        },
+        {
+          "dishId": "goi_cuon",
+          "name": "Goi cuon",
+          "spiceLevel": 0
+        }
+      ]
+    },
+    {
+      "id": "olive_and_thorn",
+      "name": "Olive & Thorn",
+      "cuisine": "spanish",
+      "priceBand": 3,
+      "tags": [
+        "small_plates",
+        "quiet"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "gambas_al_ajillo",
+          "name": "Gambas al ajillo",
+          "spiceLevel": 2
+        },
+        {
+          "dishId": "tortilla_espanola",
+          "name": "Tortilla espanola",
+          "spiceLevel": 0
+        }
+      ]
+    },
+    {
+      "id": "miso_hollow",
+      "name": "Miso Hollow",
+      "cuisine": "japanese",
+      "priceBand": 3,
+      "tags": [
+        "quiet",
+        "gi_safe_options"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "saba_shioyaki",
+          "name": "Saba shioyaki",
+          "spiceLevel": 0
+        },
+        {
+          "dishId": "agedashi_tofu",
+          "name": "Agedashi tofu",
+          "spiceLevel": 0
+        }
+      ]
+    },
+    {
+      "id": "the_furnace",
+      "name": "The Furnace",
+      "cuisine": "sichuan",
+      "priceBand": 2,
+      "tags": [
+        "late_night"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "boiled_fish_chili",
+          "name": "Boiled fish in chili",
+          "spiceLevel": 3
+        },
+        {
+          "dishId": "cold_sesame_noodles",
+          "name": "Cold sesame noodles",
+          "spiceLevel": 1
+        }
+      ]
+    },
+    {
+      "id": "hen_and_honey",
+      "name": "Hen & Honey",
+      "cuisine": "southern",
+      "priceBand": 2,
+      "tags": [
+        "solo_friendly"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "hot_chicken",
+          "name": "Hot chicken",
+          "spiceLevel": 3
+        },
+        {
+          "dishId": "biscuit_stack",
+          "name": "Biscuit stack",
+          "spiceLevel": 0
+        }
+      ]
+    },
+    {
+      "id": "cardamom_court",
+      "name": "Cardamom Court",
+      "cuisine": "indian",
+      "priceBand": 3,
+      "tags": [
+        "quiet"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "lamb_biryani",
+          "name": "Lamb biryani",
+          "spiceLevel": 2
+        },
+        {
+          "dishId": "dal_makhani",
+          "name": "Dal makhani",
+          "spiceLevel": 1
+        }
+      ]
+    },
+    {
+      "id": "pita_parade",
+      "name": "Pita Parade",
+      "cuisine": "israeli",
+      "priceBand": 1,
+      "tags": [
+        "solo_friendly",
+        "gi_safe_options",
+        "counter_seating"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "sabich",
+          "name": "Sabich",
+          "spiceLevel": 1
+        },
+        {
+          "dishId": "falafel_plate",
+          "name": "Falafel plate",
+          "spiceLevel": 1
+        }
+      ]
+    },
+    {
+      "id": "umami_dive",
+      "name": "Umami Dive",
+      "cuisine": "japanese",
+      "priceBand": 1,
+      "tags": [
+        "late_night",
+        "counter_seating"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "okonomiyaki",
+          "name": "Okonomiyaki",
+          "spiceLevel": 1
+        },
+        {
+          "dishId": "karaage_basket",
+          "name": "Karaage basket",
+          "spiceLevel": 0
+        }
+      ]
+    },
+    {
+      "id": "the_blue_door",
+      "name": "The Blue Door",
+      "cuisine": "french",
+      "priceBand": 4,
+      "tags": [
+        "quiet"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "duck_confit",
+          "name": "Duck confit",
+          "spiceLevel": 0
+        },
+        {
+          "dishId": "steak_frites",
+          "name": "Steak frites",
+          "spiceLevel": 0
+        }
+      ]
+    },
+    {
+      "id": "chaat_corner",
+      "name": "Chaat Corner",
+      "cuisine": "indian",
+      "priceBand": 1,
+      "tags": [
+        "counter_seating",
+        "small_plates",
+        "late_night"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "pani_puri",
+          "name": "Pani puri",
+          "spiceLevel": 2
+        },
+        {
+          "dishId": "samosa_chaat",
+          "name": "Samosa chaat",
+          "spiceLevel": 2
+        }
+      ]
+    },
+    {
+      "id": "tortoise_tea",
+      "name": "Tortoise Teahouse",
+      "cuisine": "taiwanese",
+      "priceBand": 1,
+      "tags": [
+        "quiet",
+        "solo_friendly"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "beef_noodle_soup",
+          "name": "Beef noodle soup",
+          "spiceLevel": 2
+        },
+        {
+          "dishId": "scallion_pancake",
+          "name": "Scallion pancake",
+          "spiceLevel": 0
+        }
+      ]
+    },
+    {
+      "id": "ash_and_rye",
+      "name": "Ash & Rye",
+      "cuisine": "new_american",
+      "priceBand": 4,
+      "tags": [
+        "late_night"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "dry_aged_burger",
+          "name": "Dry-aged burger",
+          "spiceLevel": 0
+        },
+        {
+          "dishId": "smoked_beet_tartare",
+          "name": "Smoked beet tartare",
+          "spiceLevel": 0
+        }
+      ]
+    },
+    {
+      "id": "laksa_lane",
+      "name": "Laksa Lane",
+      "cuisine": "malaysian",
+      "priceBand": 2,
+      "tags": [
+        "counter_seating"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "curry_laksa",
+          "name": "Curry laksa",
+          "spiceLevel": 3
+        },
+        {
+          "dishId": "hainan_chicken_rice",
+          "name": "Hainanese chicken rice",
+          "spiceLevel": 0
+        }
+      ]
+    },
+    {
+      "id": "polenta_house",
+      "name": "Polenta House",
+      "cuisine": "italian",
+      "priceBand": 2,
+      "tags": [
+        "gi_safe_options",
+        "quiet"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "mushroom_polenta",
+          "name": "Mushroom polenta",
+          "spiceLevel": 0
+        },
+        {
+          "dishId": "chicken_saltimbocca",
+          "name": "Chicken saltimbocca",
+          "spiceLevel": 0
+        }
+      ]
+    },
+    {
+      "id": "ferment_station",
+      "name": "Ferment Station",
+      "cuisine": "korean",
+      "priceBand": 2,
+      "tags": [
+        "small_plates",
+        "gi_safe_options"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "kimchi_pancake",
+          "name": "Kimchi pancake",
+          "spiceLevel": 2
+        },
+        {
+          "dishId": "soy_egg_rice",
+          "name": "Soy egg rice",
+          "spiceLevel": 0
+        }
+      ]
+    },
+    {
+      "id": "addis_red",
+      "name": "Addis Red",
+      "cuisine": "ethiopian",
+      "priceBand": 2,
+      "tags": [
+        "small_plates"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "doro_wat",
+          "name": "Doro wat",
+          "spiceLevel": 2
+        },
+        {
+          "dishId": "veggie_combo",
+          "name": "Veggie combo",
+          "spiceLevel": 1
+        }
+      ]
+    },
+    {
+      "id": "griddle_west",
+      "name": "Griddle West",
+      "cuisine": "american",
+      "priceBand": 1,
+      "tags": [
+        "solo_friendly",
+        "late_night",
+        "counter_seating"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "smash_stack",
+          "name": "Smash stack",
+          "spiceLevel": 0
+        },
+        {
+          "dishId": "hash_supreme",
+          "name": "Hash supreme",
+          "spiceLevel": 1
+        }
+      ]
+    },
+    {
+      "id": "nopal_verde",
+      "name": "Nopal Verde",
+      "cuisine": "mexican",
+      "priceBand": 2,
+      "tags": [
+        "gi_safe_options",
+        "small_plates"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "nopales_salad",
+          "name": "Nopales salad",
+          "spiceLevel": 1
+        },
+        {
+          "dishId": "pollo_asado",
+          "name": "Pollo asado",
+          "spiceLevel": 1
+        }
+      ]
+    },
+    {
+      "id": "sardine_social",
+      "name": "Sardine Social",
+      "cuisine": "portuguese",
+      "priceBand": 3,
+      "tags": [
+        "small_plates",
+        "late_night"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "grilled_sardines",
+          "name": "Grilled sardines",
+          "spiceLevel": 0
+        },
+        {
+          "dishId": "piri_piri_chicken",
+          "name": "Piri piri chicken",
+          "spiceLevel": 3
+        }
+      ]
+    },
+    {
+      "id": "clay_oven_hearth",
+      "name": "Clay Oven Hearth",
+      "cuisine": "turkish",
+      "priceBand": 2,
+      "tags": [
+        "quiet"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "lamb_pide",
+          "name": "Lamb pide",
+          "spiceLevel": 1
+        },
+        {
+          "dishId": "lentil_soup",
+          "name": "Red lentil soup",
+          "spiceLevel": 0
+        }
+      ]
+    },
+    {
+      "id": "bao_bar_micro",
+      "name": "Bao Bar Micro",
+      "cuisine": "taiwanese",
+      "priceBand": 1,
+      "tags": [
+        "counter_seating",
+        "small_plates",
+        "late_night"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "gua_bao",
+          "name": "Gua bao",
+          "spiceLevel": 0
+        },
+        {
+          "dishId": "popcorn_chicken",
+          "name": "Popcorn chicken",
+          "spiceLevel": 2
+        }
+      ]
+    },
+    {
+      "id": "verdant",
+      "name": "Verdant",
+      "cuisine": "vegetarian",
+      "priceBand": 3,
+      "tags": [
+        "gi_safe_options",
+        "quiet"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "celeriac_steak",
+          "name": "Celeriac steak",
+          "spiceLevel": 0
+        },
+        {
+          "dishId": "garden_curry",
+          "name": "Garden curry",
+          "spiceLevel": 2
+        }
+      ]
+    },
+    {
+      "id": "night_market_44",
+      "name": "Night Market 44",
+      "cuisine": "street_food",
+      "priceBand": 1,
+      "tags": [
+        "late_night",
+        "counter_seating",
+        "solo_friendly",
+        "small_plates"
+      ],
+      "signatureDishes": [
+        {
+          "dishId": "skewer_mix",
+          "name": "Skewer mix",
+          "spiceLevel": 2
+        },
+        {
+          "dishId": "stinky_tofu",
+          "name": "Stinky tofu",
+          "spiceLevel": 1
+        }
+      ]
+    }
+  ]
+}
