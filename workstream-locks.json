@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T08:17:52.308Z",
+  "updated_at": "2026-07-25T08:18:12.415Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -84,12 +84,12 @@
       ],
       "mock_start_ok": false,
       "note": "Import READ_KEYS — do not re-declare the six field names here.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "fable-session-0dd9z8",
+      "branch": "claude/upload-artifact-docs-0dd9z8",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T07:37:34.268Z"
+      "claimed_at": "2026-07-25T08:18:12.415Z",
+      "updated_at": "2026-07-25T08:18:12.415Z"
     },
     "K2": {
       "title": "Off-limits matcher: isBlocked(text, topics), substring match, case- and accent-insensitive, deliberately over-blocking",
