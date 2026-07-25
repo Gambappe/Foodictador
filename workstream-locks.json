@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T10:54:28.339Z",
+  "updated_at": "2026-07-25T10:58:21.850Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -891,6 +891,22 @@
       "pr": null,
       "claimed_at": null,
       "updated_at": "2026-07-25T10:50:46.650Z"
+    },
+    "G8": {
+      "title": "SL-26 fix: the CLI acceptance gate must actually drive src/cli — all seven DAG G5 steps through the real dispatcher",
+      "phase": "G",
+      "depends_on": [
+        "G5",
+        "X1"
+      ],
+      "mock_start_ok": false,
+      "note": "SL-26 (HIGH, mine). tests/guards/acceptance.test.ts is named 'the CLI acceptance run' and greps ZERO hits for src/cli: seven DAG-named steps, seven re-implementations against the layer beneath the commands. gate-cli.sh invokes no subcommand. So a CLI-first build has no gate over its CLI, which is why SL-13/15/19/20/30 all shipped. Fix: give run() a graph seam so fixtureGraph can back it, drive all seven steps through the real dispatcher. EXPECT THIS TO GO RED on SL-15 (card.usualLine undefined) and SL-30 (raw driver token on the card) — those are the defects the gate was supposed to catch, so they get fixed as part of this.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T10:58:21.849Z"
     }
   }
 }
