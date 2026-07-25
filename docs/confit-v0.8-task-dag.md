@@ -167,6 +167,26 @@ Consequences, all of which are code changes rather than opinions:
 
 Rewriting the runner and the pass criteria is registered as **G7**. Until it lands, `npm run gate:cli` still exits 3, correctly: the architecture is still unverified, just for different reasons than the message used to give.
 
+**D-8 — Declared settings are durable; experiences live in XTrace; a recommendation reads three inputs.** Decided by the product owner, after D-7 and M11 had established that XTrace cannot round-trip either a read or a settings record.
+
+The split is by **who authored the fact and what it is for**, not by tier:
+
+| input | what it is | where it lives | why |
+| --- | --- | --- | --- |
+| **declared settings** | what the user states about themselves — allergies, intolerances, budget band, portion, solo comfort, off-limits topics | a **durable store** (the relay's settings namespace; P0.8 made it atomic) | the user asserted these and expects them honoured exactly. `~11/16` non-deterministic retention is not a quality question here: a dropped allergy is a blocked confession written to the pool, or a card recommending something unsafe |
+| **the user's experiences** | their confessions, in their own words | **XTrace**, personal scope | prose in, prose out — the one thing §14 measured XTrace as strong at (8/8 raw prose). The value is the *synthesis*, not verbatim recall, so extraction is the feature rather than a lossy detour |
+| **the group's experiences** | pooled reads, rendered as prose | **XTrace**, `confit:pool` | cross-record induction, the §8 differentiator. Landed in M12/M14 |
+
+**An Ask must consume all three.** Today it consumes one and a half: settings (broken — M11) and the group claim (working — M12/M14). **The personal scope is written and never read.** `grep` finds no query against a profile scope for synthesis anywhere; `writeProse` has no reader. So the middle column of the architecture above is not degraded, it is absent, and the confession prose has been pure cost since it was written.
+
+Consequences:
+
+- **`NarratorFacts.inducedClaim` is singular and now has two callers.** The personal claim ("what *you* keep doing") and the group claim ("what *people like you* keep doing") are different sentences making different promises, and collapsing them onto one field would let one silently replace the other. Contract change; registered as **M16**.
+- **`writeProse`'s durability story does not survive this decision.** If a confession is the *only* copy of an experience, then `~11/16` retention loses about three in ten, and it cannot even be detected: `verifyPendingProse` clears an item when `jobStatus` is `complete`, but `complete` means *the extraction job finished*, not *the memory is retrievable* — which is exactly the case retention drops. The guide's R5 prescribes polling until retrievable and re-ingesting, and that is **impossible in a CLI today** because the pending queue is an in-process array that "dies with the process" (M3's own docblock) and `confess` exits immediately. Needs a durable spool that drains on confirmed *retrievability*, not on job completion. Registered as **M17**. Note this is a spool, not a second permanent copy — it is deleted once XTrace demonstrably holds the text, which keeps the confession's home in XTrace as this decision requires.
+- **L4 gets more important, not less.** Two substrate-authored claims will reach the card instead of one, and nothing lints either.
+- **`[E11]` survives intact.** The confession still goes in raw and unmodified; this decision reinforces that, because the synthesis is the point.
+- **`[E9]` is now formally retired.** The sole-substrate architecture is replaced by a two-store split with an explicit rule for which store owns what. D-7 retired it by evidence; this retires it by design.
+
 **D-6 — `AskEngine` is declared, stubbed, and implemented by nobody.** Found while implementing K4. `src/contracts/modules.ts` declares `AskEngine.ask(input) → Card`, P0.2 ships a fixture stub for it, and no task in lane K builds it: K1 is the read validator, K2 off-limits, K3 rotation, K4 scoring, K5 the linter, K6 cohorts. Meanwhile X3's spec has the CLI doing exactly that job — "assemble the card — candidates from the corpus, reads from `PoolView`, cohort counts from K6, suppressions from K3, scores from K4, copy from L3."
 
 That directly contradicts §1's "no behaviour may live in a front end", and it would leave the UI lane (U3) with a choice between importing from `src/cli/**` and reimplementing the assembly. It also splits ownership of the card's shape across two lanes, which is how the two front ends drift apart.

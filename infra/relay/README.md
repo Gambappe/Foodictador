@@ -115,3 +115,37 @@ curl -sf -X DELETE http://HOST:8787/reads/11111111-1111-4111-8111-111111111111 \
 
 Round-trip pass = the read posted from machine 2 is listed by machine 1's relay and
 deletable with the token. This drill is part of hour zero on build day.
+
+## Settings (M11, DAG §4 D-8)
+
+The relay also holds **declared settings** — what the user stated about themselves. D-8 splits
+by who authored a fact: assertions (allergies, intolerances, budget band, portion, solo
+comfort, off-limits topics, the meal log) need exactness, so they live here; experiences go to
+XTrace, which extracts rather than stores.
+
+They are here because P0.8's guarantee is the one an allergy list needs: written atomically and
+fsynced **before** the mutation is acknowledged. XTrace offered no addressing, no upsert and no
+byte fidelity, and `~11/16` non-deterministic retention — a dropped off-limits topic is a
+confession that should have been blocked, written to the pool.
+
+| Route | Auth | Behaviour |
+| --- | --- | --- |
+| `GET /settings/{profile}/{key}` | **token, in `x-relay-token`** | `200` `{profile, key, value}`; `value: null` for absent |
+| `PUT /settings/{profile}/{key}` `{token, value}` | token | `204`; `400` without a `value` |
+
+**The token is required on the GET, unlike `/reads`.** A pool read carries no account linkage
+([E26]); settings are one named person's allergies. No schema check happens here on purpose —
+the boundary parser is M3's `parseUsualProfile`, so one implementation owns the rule rather
+than two that can drift.
+
+**`POST /reset` does not clear settings**, and must not: `pass reset` empties the pool between
+demos, and wiping a user's declared allergies along with it would be the worst possible reading
+of "reset". `infra/relay/durability.test.ts` pins that.
+
+> **KNOWN LIMITATION.** The relay has ONE token, so any client holding it can read ANY
+> profile's settings. That is acceptable for a two-profile demo run by one operator and is
+> **not** acceptable for real multi-user use, which needs per-profile credentials first.
+> Stated here rather than left to be discovered.
+
+Snapshot format grew a `settings` object alongside `entries`. A snapshot written before this
+existed has no such key and restores as "no settings" rather than failing the boot.

@@ -20,6 +20,7 @@ import { describe, expect, it } from 'vitest';
 import type { MemoryClient, Relay } from '../../src/contracts/modules.js';
 import type { MemoryRow, Read, UsualProfile } from '../../src/contracts/types.js';
 import { sampleUsual } from '../../src/contracts/fixtures/index.js';
+import { StubSettingsStore } from '../../src/contracts/stubs/index.js';
 import { createLogger } from '../../src/config/logger.js';
 import { createPoolStore, POOL_SCOPE } from '../../src/memory/pool.js';
 import { createUserStore } from '../../src/memory/user.js';
@@ -82,7 +83,7 @@ async function harness(offLimits: string[]) {
   const substrate = fakeSubstrate();
   const { relay, entries } = fakeRelay();
   const pool = createPoolStore({ client: substrate.client, logger, placeName: (id: string) => id.replaceAll('_', ' ') });
-  const user = createUserStore({ client: substrate.client, logger });
+  const user = createUserStore({ client: substrate.client, settings: new StubSettingsStore(), logger });
 
   // The topic list travels the real path: written through setUsual — the only
   // write path for off-limits topics — and read back through usual().
