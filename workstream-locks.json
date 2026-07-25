@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T12:53:51.424Z",
+  "updated_at": "2026-07-25T12:54:48.160Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -1132,6 +1132,21 @@
       "pr": null,
       "claimed_at": null,
       "updated_at": "2026-07-25T12:47:49.868Z"
+    },
+    "M19": {
+      "title": "Allergies have a durable home and no field to put them in: UsualProfile has no allergy, and offLimits does not filter recommendations",
+      "phase": "M",
+      "depends_on": [
+        "M11"
+      ],
+      "mock_start_ok": false,
+      "note": "D-8 names allergies as the reason declared settings must be durable, and M11 built that home — but there is nothing to store. UsualProfile (frozen at P0.2) has NO allergy field; src/kernel/score.ts's own docblock admits it ('allergy is not implemented, and cannot be'), and allergy_constraint is one of D-5's six unmatchable drivers. Meanwhile offLimits is a free-text TOPIC list that blocks writing a confession containing a word — grep finds it used NOWHERE in the ask path, so it does not filter recommendations at all. Consequence: a user who declared a shellfish allergy can be recommended a shellfish restaurant. Needs a CONTRACT CHANGE (an allergy field on UsualProfile, integrator-only) plus a hard filter in exclusionsFor alongside giConstraint, plus corpus tags to filter against — check data/places.json actually carries allergen tags before designing the filter, because gi_safe_options is the only safety tag today.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T12:54:48.159Z"
     }
   }
 }
