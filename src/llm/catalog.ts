@@ -62,7 +62,11 @@ export const USUAL_PHRASES: Record<UsualNoteKey, string> = {
 /** The usual line: the diner's own constraints, in their own register. */
 export function usualLineFor(notes: readonly string[]): string | undefined {
   const phrases = notes
-    .filter((note): note is UsualNoteKey => note in USUAL_PHRASES)
+    // Object.hasOwn, NOT `in`: `in` walks the prototype chain, so a note of 'toString'
+    // or 'constructor' passed the filter and then indexed a function out of Object's
+    // prototype — `usualLineFor(['toString'])` threw, and a mixed array put
+    // "function toString() { [native code] }" on a card.
+    .filter((note): note is UsualNoteKey => Object.hasOwn(USUAL_PHRASES, note))
     .map((note) => USUAL_PHRASES[note]);
   if (phrases.length === 0) return undefined;
   const [first, ...rest] = phrases;

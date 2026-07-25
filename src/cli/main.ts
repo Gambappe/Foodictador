@@ -29,6 +29,10 @@ import {
   type OptionName,
   type ParsedArgv,
 } from './args.js';
+import { confessCommand } from './confess.js';
+import { sweepCommand } from './sweep.js';
+import { forgetCommand } from './forget.js';
+import { censusCommand, neartieCommand } from './pass-report.js';
 import {
   EXIT,
   exitCodeOf,
@@ -86,6 +90,7 @@ export const COMMANDS: readonly CommandSpec[] = [
     options: ['profile', 'text', 'yes'],
     requires: ['profile', 'text'],
     task: 'X2',
+    handler: confessCommand,
   },
   {
     path: ['ask'],
@@ -101,22 +106,26 @@ export const COMMANDS: readonly CommandSpec[] = [
     options: ['once', 'watch'],
     exclusive: [['once', 'watch']],
     task: 'X4',
+    handler: sweepCommand,
   },
   {
     path: ['forget'],
     summary: 'delete a read from both scopes and the relay',
     positional: { name: 'read_id', required: true },
     task: 'X5',
+    handler: forgetCommand,
   },
   {
     path: ['pass', 'census'],
     summary: 'per-driver k, floor status, and the seed-manifest cross-check',
     task: 'X6',
+    handler: censusCommand,
   },
   {
     path: ['pass', 'neartie'],
     summary: 'score spread and the delta a judge read would apply',
     task: 'X6',
+    handler: neartieCommand,
   },
   {
     path: ['pass', 'provision'],

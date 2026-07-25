@@ -19,6 +19,7 @@
  */
 
 import { createInterface } from 'node:readline/promises';
+import { liveGraph } from '../config/wiring.js';
 import type { Extractor } from '../contracts/modules.js';
 import type { Read } from '../contracts/types.js';
 import { writeRead, type WriteReadDeps } from '../memory/writeRead.js';
@@ -206,3 +207,12 @@ export function createConfessHandler(
     );
   };
 }
+
+/** The production handler: real stores from P0.6's graph, stdin for the confirmation. */
+export const confessCommand: CommandHandler = (context: CommandContext) => {
+  const graph = liveGraph(context.config, context.logger, context.flags);
+  return createConfessHandler({
+    extractor: graph.extractor,
+    write: { relay: graph.relay, pool: graph.pool, user: graph.user, logger: graph.logger },
+  })(context);
+};
