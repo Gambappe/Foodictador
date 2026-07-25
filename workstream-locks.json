@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T13:42:48.331Z",
+  "updated_at": "2026-07-25T13:42:49.835Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -1171,13 +1171,13 @@
         "M17"
       ],
       "mock_start_ok": false,
-      "note": "MEASURED TWICE on the live API, and it answers a question flagged as unknown earlier. (1) Profile A's scope after 7 confessions: 18 rows, 8 episodes, 8 DISTINCT conv_ids, every episode in single-conversation register ('The conversation centered on a self-aware confession: the speaker keeps ordering the spicy option to look tough'). That is the M12 defect in the personal tier — writeProse uses client.ingest, which mints a fresh random conv_id per call. (2) The obvious fix does NOT work: 4 SEPARATE POSTs sharing ONE conv_id produced 3 episodes, each still a per-POST paraphrase, with 1 distinct conv_id coming back. So the grouping IS recorded but episodes are generated per ingest call, NOT per accumulated conversation. The operational guide's R4 ('batch by session/day, group several related messages into one conv_id') means ONE POST with several messages — which is exactly what M12 did for the pool. CONSEQUENCE: cross-confession synthesis is impossible at confess time, because confessions arrive in separate processes minutes or days apart. It needs a durable spool that holds them and periodically re-ingests as ONE grouped POST — which is M17's spool, so M17 stops being purely about durability and becomes the enabler for this too. Until then the personal claim is a paraphrase of the single most relevant confession, which the owner accepted in advance ('no floor, let's see what happens').",
+      "note": "THE WORK, per D-10. Buffer confession prose locally and ingest it as ONE grouped POST so the personal synthesis spans several confessions instead of paraphrasing one. MEASURED TWICE: (1) profile A after 7 confessions had 18 rows, 8 episodes, 8 DISTINCT conv_ids, every episode in single-conversation register, because writeProse calls client.ingest which mints a fresh conv_id per call; (2) the obvious fix fails — 4 SEPARATE POSTs sharing ONE conv_id gave per-POST paraphrases with 1 distinct conv_id coming back, so episodes are generated per INGEST CALL, not per accumulated conversation. R4's 'batch by session/day' means one POST with several messages, which is what M12 did for the pool. LOCAL buffer, not the relay: no cross-device requirement (only ever flushed by a process on the machine that wrote it), and the relay's single shared token must not hold raw confessions. Losing the buffer is acceptable (D-10), so NO atomic writes, NO verification, NO stuck-item escalation. Flush policy needs deciding in-task: size threshold and/or on , which already exists as the deferred-substrate-work command. MUST ALSO FIX: confess prints 'your memory ok (your words, your tier only)' — untrue for a buffered confession at the moment it is printed. Deferral is not loss, but the receipt has to say which.",
       "status": "available",
       "owner": null,
       "branch": null,
       "pr": null,
       "claimed_at": null,
-      "updated_at": "2026-07-25T13:30:51.454Z"
+      "updated_at": "2026-07-25T13:42:49.835Z"
     }
   }
 }
