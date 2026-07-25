@@ -392,6 +392,8 @@ Format: **Owns** (files you may touch) · **Depends** · **Build** · **Acceptan
 - **Build:** subcommand dispatch for §5's surface, `--profile`, `--json`, `--yes`, `--help`. Exit codes: `0` success, `1` expected failure (blocked topic, partial deletion — a cohort miss is **not** a failure), `2` usage error, `3` config or connectivity error. Rendering is separate from logic: every command returns a plain object that `render.ts` prints as text or JSON. **No business logic in this lane.**
 - **Acceptance:** **`npm run confit -- --help` exits 0** — P0.1 declares the script but cannot satisfy it, because `src/cli/main.ts` is yours. `--help` lists every command; unknown command exits 2; a missing required flag exits 2; `--json` output parses as JSON for every implemented command.
 
+**Wiring a command into the CLI is an integrator change.** `src/cli/main.ts` belongs to X1 (§2), and it holds the command registry. So `X2`–`X7` each build their own module under `src/cli/` — `confess.ts`, `ask.ts`, `sweep.ts`, `forget.ts`, `pass-report.ts`, `pass-ops.ts` — and do **not** edit `main.ts` to register themselves. The integrator sets the registry's `handler` when the task merges, the same way plan v1.0 wired stub→live at its gates. Until then each command is registered with a placeholder that names its owing task and exits 1: the command exists and was invoked correctly, and still cannot do the job.
+
 **X2 — `confit confess`**
 - **Owns:** `src/cli/confess.ts` + test · **mock-start OK**
 - **Depends:** X1, L2, M5
