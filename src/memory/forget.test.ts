@@ -18,6 +18,8 @@ function fakes(init: {
   relayEntries?: RelayEntry[];
   relayDropFails?: boolean;
   removeFails?: boolean;
+  /** Fail only these memory ids — SL-57's partial-failure shape. */
+  removeFailsFor?: string[];
 }) {
   const poolRows = [...(init.poolRows ?? [])];
   const relayEntries = [...(init.relayEntries ?? [])];
@@ -35,7 +37,9 @@ function fakes(init: {
       return Promise.resolve([...poolRows]);
     },
     remove(scope, memoryId) {
-      if (init.removeFails) return Promise.reject(new Error('substrate down'));
+      if (init.removeFails || init.removeFailsFor?.includes(memoryId)) {
+        return Promise.reject(new Error('substrate down'));
+      }
       removed.push({ scope, memoryId });
       if (scope === POOL_SCOPE) {
         const i = poolRows.findIndex((r) => r.memoryId === memoryId);
@@ -153,6 +157,36 @@ describe('M8 forget — the XTrace targets are honest about what they cannot do'
     const report = await forget(sampleRead.read_id, f.deps);
     expect(report.user.status).toBe('skipped');
     expect(report.user.detail).toMatch(/not keyed by read_id/);
+  });
+
+  it('a partial pool failure attempts EVERY handle and names the undeleted (SL-57)', async () => {
+    // The relay entry — the ledger's only durable copy — is deleted in this same forget.
+    // A handle not attempted now, or reported only as a bare error, is a pool record
+    // nothing can ever reach again: the old loop stopped at the first failure and threw
+    // the rest away with the entry.
+    const withLedger = { ...entry(), pool_memories: ['m1', 'm2', 'm3'] };
+    const f = fakes({ relayEntries: [withLedger], removeFailsFor: ['m2'] });
+    const report = await forget(sampleRead.read_id, f.deps);
+    expect(report.pool.status).toBe('failed');
+    expect(report.pool.detail).toMatch(/deleted 2 of 3/);
+    expect(report.pool.detail).toMatch(/m2/);
+    expect(report.pool.detail).toMatch(/by hand/);
+    // m1 and m3 were still attempted and removed — the failure did not strand them.
+    expect(f.removed).toContainEqual({ scope: POOL_SCOPE, memoryId: 'm1' });
+    expect(f.removed).toContainEqual({ scope: POOL_SCOPE, memoryId: 'm3' });
+    expect(report.ok).toBe(false);
+  });
+
+  it('forgetting a read with no relay entry says the ledger is unreachable, not "sweep again" (SL-57)', async () => {
+    // After a successful forget, the entry is gone — and with it the only place a sweep
+    // could ever record handles. The old advice ("run `confit sweep` and forget again")
+    // was an instruction that could not work, indistinguishable from the fresh-confession
+    // case where it is exactly right.
+    const f = fakes({ relayEntries: [] });
+    const report = await forget(sampleRead.read_id, f.deps);
+    expect(report.pool.status).toBe('skipped');
+    expect(report.pool.detail).toMatch(/no relay entry/);
+    expect(report.pool.detail).not.toMatch(/sweep` and forget again/);
   });
 
   it('never searches XTrace to decide what to delete', async () => {

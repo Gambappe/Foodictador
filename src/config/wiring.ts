@@ -29,6 +29,7 @@ import type {
   PoolStore,
   PoolView,
   Relay,
+  SettingsStore,
 } from '../contracts/modules.js';
 import type { UserStoreHandle } from '../memory/user.js';
 import {
@@ -71,6 +72,13 @@ export interface AdapterGraph {
    * the raw confession has a local copy that no XTrace or relay deletion can reach.
    */
   buffer: ProseBuffer;
+  /**
+   * Exposed for callers with durable state that is not the UserStore's (N2): the nudge
+   * persists here under the `_device` pseudo-profile. Live, this is the relay-backed
+   * settings client (P0.8 durability); in the fixture graph it is in-memory, so mock-mode
+   * nudge state lives exactly as long as the process — stated, not hidden.
+   */
+  settings: SettingsStore;
   poolView: PoolView;
   extractor: Extractor;
   narrator: Narrator;
@@ -131,6 +139,7 @@ export function liveGraph(config: AppConfig, logger: Logger, existing?: FlagStor
     user,
     relay,
     buffer,
+    settings,
     poolView,
     extractor,
     narrator,
@@ -192,7 +201,8 @@ export function fixtureGraph(options: FixtureGraphOptions): AdapterGraph {
     path: mkdtempSync(join(tmpdir(), 'confit-buffer-')),
     logger,
   });
-  const user = createUserStore({ client, settings: new StubSettingsStore(), buffer, logger });
+  const settings = new StubSettingsStore();
+  const user = createUserStore({ client, settings, buffer, logger });
   const poolView = createPoolView({ relay, flags, logger });
 
   return {
@@ -201,6 +211,7 @@ export function fixtureGraph(options: FixtureGraphOptions): AdapterGraph {
     user,
     relay,
     buffer,
+    settings,
     poolView,
     extractor: new StubExtractor(),
     // The real L1 narrator, not StubNarrator: template copy is the default production

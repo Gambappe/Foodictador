@@ -9,7 +9,21 @@ import { createNudge } from '../nudge/nudge.js';
 import { sampleRead } from '../contracts/fixtures/index.js';
 import { EXIT } from './render.js';
 import { runAsk } from './ask.js';
-import { runFlags, runNudgeArm, runProvision, runReset, runSeed } from './pass-ops.js';
+import {
+  NUDGE_SETTINGS_KEY,
+  NUDGE_SETTINGS_PROFILE,
+  nudgeHandler,
+  runFlags,
+  runNudgeArm,
+  runProvision,
+  runReset,
+  runSeed,
+} from './pass-ops.js';
+import { parseNudgeState } from '../nudge/nudge.js';
+import { fixtureGraph, type AdapterGraph } from '../config/wiring.js';
+import { parseArgv } from './args.js';
+import type { CommandContext } from './main.js';
+import type { AppConfig } from '../config/env.js';
 
 const silentLogger = createLogger(() => {});
 
@@ -196,5 +210,91 @@ describe('X7 pass nudge', () => {
     const nudge = createNudge();
     expect(runNudgeArm(nudge, true).lines[0]).toMatch(/Opt-in is off/);
     expect(runNudgeArm(nudge, false).exit).toBe(EXIT.usage);
+  });
+});
+
+describe('N2: nudge state survives the process', () => {
+  const config: AppConfig = {
+    xtraceBaseUrl: 'http://localhost:1',
+    xtraceApiKey: 'k',
+    relayUrl: 'http://localhost:2',
+    relayToken: 't',
+    anthropicApiKey: null,
+    settleWindowSeconds: 480,
+    proseBufferPath: '/tmp/confit-n2-test-buffer',
+  };
+
+  function ctx(graph: AdapterGraph, args: string[], sink?: string[]): CommandContext {
+    const logger = createLogger((line) => sink?.push(line));
+    return {
+      argv: parseArgv(args),
+      config,
+      flags: createFlagStore({ ...DEFAULT_FLAGS }, logger),
+      logger,
+      graph,
+    };
+  }
+
+  it('state loads from the store, not from a fresh default — opt-in survives', async () => {
+    const graph = fixtureGraph({ logger: silentLogger });
+    await graph.settings.put(NUDGE_SETTINGS_PROFILE, NUDGE_SETTINGS_KEY, {
+      optedIn: true,
+      silenced: false,
+      armed: false,
+      lastFiredDay: null,
+    });
+    // A fresh default would warn "Opt-in is off" — this invocation must not,
+    // because the store says this device opted in. That is the load, proven.
+    const result = await nudgeHandler(ctx(graph, ['pass', 'nudge', '--arm']));
+    expect(result.lines[0]).toBe('Nudge armed.');
+    expect(result.lines[0]).not.toMatch(/Opt-in is off/);
+  });
+
+  it('an arm in one invocation is stored for the next (SL-23 closed)', async () => {
+    const graph = fixtureGraph({ logger: silentLogger });
+    await nudgeHandler(ctx(graph, ['pass', 'nudge', '--arm']));
+    const stored = await graph.settings.get(NUDGE_SETTINGS_PROFILE, NUDGE_SETTINGS_KEY);
+    expect(parseNudgeState(stored)).toMatchObject({ armed: true });
+    // And a second invocation — a brand-new in-memory Nudge — sees it.
+    const again = await nudgeHandler(ctx(graph, ['pass', 'nudge', '--arm']));
+    expect((again.data['state'] as { armed: boolean }).armed).toBe(true);
+  });
+
+  it('malformed stored state starts fresh, and says so in the log', async () => {
+    const graph = fixtureGraph({ logger: silentLogger });
+    await graph.settings.put(NUDGE_SETTINGS_PROFILE, NUDGE_SETTINGS_KEY, { armed: 'yes' });
+    const log: string[] = [];
+    const result = await nudgeHandler(ctx(graph, ['pass', 'nudge', '--arm'], log));
+    expect(result.lines[0]).toMatch(/Opt-in is off/); // fresh default, not a half-parse
+    expect(log.some((line) => line.includes('malformed'))).toBe(true);
+    // And the store now holds a VALID state again — the command self-heals it.
+    const healed = await graph.settings.get(NUDGE_SETTINGS_PROFILE, NUDGE_SETTINGS_KEY);
+    expect(parseNudgeState(healed)).not.toBeNull();
+  });
+
+  it('a usage error mutates nothing and writes nothing', async () => {
+    const graph = fixtureGraph({ logger: silentLogger });
+    const before = { optedIn: true, silenced: true, armed: false, lastFiredDay: null };
+    await graph.settings.put(NUDGE_SETTINGS_PROFILE, NUDGE_SETTINGS_KEY, before);
+    const result = await nudgeHandler(ctx(graph, ['pass', 'nudge']));
+    expect(result.exit).not.toBeUndefined();
+    expect(await graph.settings.get(NUDGE_SETTINGS_PROFILE, NUDGE_SETTINGS_KEY)).toEqual(before);
+  });
+});
+
+describe('N2: parseNudgeState is strict at the boundary', () => {
+  it('accepts exactly the persisted shape', () => {
+    const state = { optedIn: true, silenced: false, armed: true, lastFiredDay: '2026-07-25' };
+    expect(parseNudgeState(state)).toEqual(state);
+    expect(parseNudgeState({ ...state, lastFiredDay: null })).toMatchObject({ lastFiredDay: null });
+  });
+
+  it('rejects every half-shape rather than guessing', () => {
+    expect(parseNudgeState(null)).toBeNull();
+    expect(parseNudgeState('armed')).toBeNull();
+    expect(parseNudgeState([])).toBeNull();
+    expect(parseNudgeState({ optedIn: true, silenced: false, armed: true })).toBeNull(); // no lastFiredDay
+    expect(parseNudgeState({ optedIn: 1, silenced: false, armed: true, lastFiredDay: null })).toBeNull();
+    expect(parseNudgeState({ optedIn: true, silenced: false, armed: true, lastFiredDay: 5 })).toBeNull();
   });
 });

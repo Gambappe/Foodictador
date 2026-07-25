@@ -73,6 +73,19 @@ async function safeClaim(
   }
   if (claim.trim() === '') return undefined;
 
+  // L5: length and selection, before the print-safety checks — the lint must judge
+  // what will actually print. Selection only, never paraphrase; an empty result
+  // means the first usable sentence alone could not be printed without a
+  // mid-sentence cut, and a cut inside substrate synthesis misquotes it.
+  const clamped = clampClaim(claim);
+  if (clamped === '') {
+    deps.logger.line(
+      `ask: ${which} claim dropped — too long to print without cutting mid-sentence (L5)`,
+    );
+    return undefined;
+  }
+  claim = clamped;
+
   // Defect L4. G3 lints the catalog, and the catalog INTERPOLATES this value — so the
   // sentence around it is checked and the sentence itself never was. Measured live on the
   // first working card: 'The key context was that the driver was "spice_tolerance_low"'.
@@ -93,6 +106,7 @@ async function safeClaim(
   return claim;
 }
 import { lint } from '../kernel/copylint.js';
+import { clampClaim } from '../llm/claimClamp.js';
 import { DRIVER_PHRASES } from '../llm/catalog.js';
 import type { UsualNoteKey } from '../kernel/askEngine.js';
 import { suppressions } from '../kernel/rotation.js';
