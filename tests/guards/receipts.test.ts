@@ -38,6 +38,11 @@ import { createLogger } from '../../src/config/logger.js';
 import { initialFlags } from '../../src/config/flagStore.js';
 import { MEMORY_RECEIPT } from '../../src/ui/confess/copy.js';
 import { run } from '../../src/cli/main.js';
+import { createForgetCommand } from '../../src/cli/forget.js';
+import { parseArgv } from '../../src/cli/args.js';
+import { createFlagStore } from '../../src/config/flagStore.js';
+import { DEFAULT_FLAGS } from '../../src/contracts/flags.js';
+import type { ForgetReport, ForgetTargetReport, ForgetTargetStatus } from '../../src/memory/forget.js';
 import { fixtureGraph } from '../../src/config/wiring.js';
 
 /** Every state a confession's prose can be in. Kept exhaustive by the compiler, below. */
@@ -133,6 +138,99 @@ describe('SL-61 (a): a state may not be described by a type narrower than itself
  * **Add a row when a command starts changing state.** That is the whole maintenance burden,
  * and it is the check that would have caught SL-23 and SL-60 on the day they were written.
  */
+/**
+ * SL-62 — the gap the first version of this guard left.
+ *
+ * `receipts.test.ts` covered the prose receipt and the flags round-trip, and `forget` sailed
+ * through both while telling a user "your own words are still in your memory" for a read id
+ * that had never existed. Wrong in the worst direction: a specific, false, privacy-relevant
+ * claim, from the one command whose entire job is to be believed about where their words are.
+ *
+ * The cause was the same as cause one — a state collapsed into a category that could not hold
+ * it. `skipped` means "there may be something here we cannot reach" for a read that existed,
+ * and simply "there was nothing" for an id that never did, and the headline asked only whether
+ * anything was skipped.
+ *
+ * These assert the headline against the REPORT, so they hold for any combination rather than
+ * the two that happened to be tried.
+ */
+describe('SL-62: forget only claims what the report supports', () => {
+  const target = (status: ForgetTargetStatus): ForgetTargetReport => ({ status });
+
+  function report(over: Partial<ForgetReport> = {}): ForgetReport {
+    return {
+      read_id: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      pool: target('skipped'),
+      relay: target('nothing_to_delete'),
+      user: target('skipped'),
+      buffer: target('nothing_to_delete'),
+      ok: true,
+      ...over,
+    };
+  }
+
+  async function headlineFor(r: ForgetReport): Promise<string> {
+    const out: string[] = [];
+    await createForgetCommand(() => Promise.resolve(r))({
+      argv: parseArgv(['forget', r.read_id]),
+      config: tempConfig(),
+      flags: createFlagStore({ ...DEFAULT_FLAGS }, createLogger(() => undefined)),
+      logger: createLogger(() => undefined),
+      graph: fixtureGraph({ logger: createLogger(() => undefined) }),
+    }).then((result) => out.push(...result.lines));
+    return out[0] ?? '';
+  }
+
+  it('an id the relay never held claims NEITHER deletion nor absence', async () => {
+    // Both overclaims are available and it must take neither. "Partly deleted … still in your
+    // memory" asserts presence for a read that never existed; "nothing is stored under it"
+    // asserts absence the personal tier was never checked for.
+    const line = await headlineFor(report());
+    expect(line).toMatch(/nothing was deleted/);
+    expect(line).toMatch(/not checked/);
+    expect(line).not.toMatch(/Partly deleted/);
+    expect(line).not.toMatch(/still in your memory/);
+    expect(line).not.toMatch(/already gone/);
+  });
+
+  it('all four targets resolved with nothing found IS reported as absence', async () => {
+    // The one case where absence is knowable, and it must stay sayable — a fix that made
+    // every empty result hedge would be its own dishonesty.
+    const line = await headlineFor(
+      report({ pool: target('nothing_to_delete'), user: target('nothing_to_delete') }),
+    );
+    expect(line).toMatch(/already gone/);
+  });
+
+  it('a read that WAS held and is partly unreachable still says so', async () => {
+    // The other half: the qualified claim must survive, or the fix would trade one overclaim
+    // for the opposite underclaim.
+    const line = await headlineFor(
+      report({ relay: target('deleted'), pool: target('deleted') }),
+    );
+    expect(line).toMatch(/Partly deleted/);
+    expect(line).toMatch(/still in your memory/);
+  });
+
+  it('every target resolved is reported as a plain deletion', async () => {
+    const line = await headlineFor(
+      report({
+        relay: target('deleted'),
+        pool: target('deleted'),
+        user: target('deleted'),
+        buffer: target('nothing_to_delete'),
+      }),
+    );
+    expect(line).toMatch(/^Deleted from Confit/);
+  });
+
+  it('a failure is never reported as any kind of deletion', async () => {
+    const line = await headlineFor(report({ relay: target('failed'), ok: false }));
+    expect(line).toMatch(/Not fully deleted/);
+    expect(line).not.toMatch(/^Deleted/);
+  });
+});
+
 describe('SL-61 (b): a command that reports a change must be re-readable', () => {
   it('pass flags --set survives into a fresh process', async () => {
     const config = tempConfig();

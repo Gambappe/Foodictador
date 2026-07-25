@@ -103,9 +103,12 @@ describe('X5 confit forget', () => {
     expect(result.lines[0]).toContain('already gone from Confit');
   });
 
-  it('an unknown read_id with a still-skipped user target reports partial, not "already gone"', async () => {
-    // Pool and relay found nothing, but the user target was never attempted — Confit
-    // cannot claim the confession side is "already gone" when it never checked.
+  it('an unknown read_id with a still-skipped user target claims NEITHER deletion nor absence', async () => {
+    // Two overclaims are available and it must take neither (SL-62). Confit cannot claim the
+    // confession side is "already gone" when it never checked — that was this test's original
+    // point and it still holds. But it also may not say "your own words are still in your
+    // memory" for an id that never existed, which asserts presence just as unearned, from the
+    // one command whose whole job is to be believed about where a user's words are.
     const handler = createForgetCommand(() =>
       Promise.resolve(
         report({
@@ -117,7 +120,10 @@ describe('X5 confit forget', () => {
     );
     const result = await handler(context('never-existed'));
     expect(result.exit).toBe(EXIT.expectedFailure);
-    expect(result.lines[0]).toContain('Partly deleted from Confit');
+    expect(result.lines[0]).toContain('nothing was deleted');
+    expect(result.lines[0]).toContain('not checked');
+    expect(result.lines[0]).not.toContain('already gone'); // no claim of absence
+    expect(result.lines[0]).not.toContain('still in your memory'); // no claim of presence
   });
 
   it('passes the positional read_id through to the backend', async () => {
