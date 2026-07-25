@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T08:19:18.929Z",
+  "updated_at": "2026-07-25T08:19:37.556Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -53,12 +53,12 @@
       ],
       "mock_start_ok": false,
       "note": "received_at and ingest_job_id are server-side metadata — a body carrying either must 400. The field is oldest_entry_age_seconds, not oldest_unverified_age: the relay tracks no verification state, and since M7 drops only verified entries, every entry still present is unverified by construction.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "fable-session-0dd9z8",
+      "branch": "claude/upload-artifact-docs-0dd9z8",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T07:37:34.268Z"
+      "claimed_at": "2026-07-25T08:19:37.556Z",
+      "updated_at": "2026-07-25T08:19:37.556Z"
     },
     "P0.5": {
       "title": "Gate zero runner (scripts/gate0.ts, npm run gate0): N=12, two re-ingest rounds, pass = all 12 retrievable, plus DELETE + verify-gone; also measures and records SETTLE_WINDOW_SECONDS",
