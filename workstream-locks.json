@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T09:07:36.138Z",
+  "updated_at": "2026-07-25T09:08:38.524Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -260,12 +260,12 @@
       ],
       "mock_start_ok": false,
       "note": "Depends on S2 because the relay-only induction set is an S2 artifact.",
-      "status": "claimed",
+      "status": "done",
       "owner": "fable-session-0dd9z8",
       "branch": "feat/m6-pool-view",
       "pr": null,
       "claimed_at": "2026-07-25T09:07:06.481Z",
-      "updated_at": "2026-07-25T09:07:06.481Z"
+      "updated_at": "2026-07-25T09:08:38.524Z"
     },
     "M7": {
       "title": "Settle-sweeper: verify each entry older than SETTLE_WINDOW_SECONDS, drop if retrievable, re-ingest from the entry's own six fields if not; verified-drop only, never TTL",
