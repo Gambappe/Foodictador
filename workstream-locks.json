@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T22:03:10.768Z",
+  "updated_at": "2026-07-25T22:15:16.412Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -1233,13 +1233,13 @@
         "D-14"
       ],
       "mock_start_ok": false,
-      "note": "Merged #87 and #88. SHIPPED: scripts/demo/gen-demo-pack.mjs -> data/demo/pack.json (106 deterministic reads, PACK_SEED 0xdec0de, all 26 cuisines, distinct dec0de* id space); pass seed --pack loads it; scripts/demo/showcase.mjs (npm run demo, ten beats, each asserts its own claim, seeds itself when the pool is empty); npm scripts demo:pack + demo. WHY: the base seed put 190 of 220 reads on drivers no UsualProfile can evidence, leaving the matchable five at 7/6/5/7/5. With the pack they are 41/32/21/29/13, landing as 'over' in the census cross-check, which the report already discloses as live reads joined. data/seeds/reads.json is NOT regenerated: it is PRNG-tuned so pass neartie provably holds. THREE FALSE-RECEIPT DEFECTS FOUND AND FIXED, all in code written to prevent exactly that: (1) #87 generated the pack and nothing loaded it — the 106 reads had only ever reached a pool via an uncommitted scratchpad loader, so a fresh checkout got the thin corpus; (2) the runner's head comment claimed it seeded and no showcase called pass seed, and showcase 1 would have PASSED on an empty pool because 'k= 0' satisfies its k=\\s*\\d+ probe; (3) showcase 9 first checked two ABSENCES and so passed with the relay down. Also: showcase 4 cannot fire at all — profiles A and B commit offLimits: [] (pinned by S4's test, another lane's file) and no CLI command sets one; left as SHOW naming that, since [E24] has unit coverage. Live from an empty pool: 8 PASS, 1 SHOW, 1 SKIP, 0 FAIL; with a model key showcase 7 passes at 0.530 spread across 40. Gate: eslint clean, tsc clean, 1073 tests.",
+      "note": "Merged #87, #88, #89. SHIPPED: gen-demo-pack.mjs -> data/demo/pack.json (106 deterministic reads, PACK_SEED 0xdec0de, 26 cuisines); pass seed --pack loads it; showcase.mjs (npm run demo, ten beats each asserting its own claim, seeds itself when the pool is empty, --list and --only); npm scripts demo:pack + demo; docs/demo-runbook.md single-machine section. WHY: base seed put 190 of 220 reads on drivers no UsualProfile can evidence, leaving the matchable five at 7/6/5/7/5; with the pack they are 41/32/21/29/13 and land as 'over' in the census cross-check (disclosed as live reads joined, not a MISMATCH). pass neartie stays clean with the pack loaded; data/seeds/reads.json is NOT regenerated because it is PRNG-tuned so that invariant provably holds. FOUR FALSE-RECEIPT DEFECTS FOUND AND FIXED, every one of them in code or prose written to prevent exactly that: (1) the pack was generated and nothing loaded it — the 106 reads had only ever reached a pool through an uncommitted scratchpad loader; (2) the runner's head comment claimed it seeded and no showcase called pass seed, and showcase 1 would have PASSED on an empty pool because 'k= 0' satisfies its k=\\s*\\d+ probe; (3) showcase 9 checked two ABSENCES and so passed with the relay down; (4) --list was advertised in the runner's own head comment and never implemented, found by checking the runbook's claims against the code. KNOWN LIMITS: showcase 4 cannot fire at all because profiles A and B commit offLimits: [] (pinned by S4's test, another lane's file) and no CLI command sets one, left as SHOW naming that; XTRACE_API_KEY is required even for a purely local run (DEPLOY.1's env change is the fix); --pack is opt-in and npm run demo only auto-seeds an EMPTY pool, so a pool already seeded without it silently rehearses the thin corpus. Live from empty: 9 PASS 1 SHOW 0 FAIL with a model key, 8 PASS 1 SHOW 1 SKIP without. Gate: eslint clean, tsc clean, 1073 tests.",
       "status": "done",
       "owner": "claude-session-014n6NYRN6Rb",
       "branch": "claude/upload-code-artifact-zop9uz",
       "pr": "https://github.com/Gambappe/Foodictador/pull/87",
       "claimed_at": "2026-07-25T21:51:13.814Z",
-      "updated_at": "2026-07-25T22:03:10.768Z"
+      "updated_at": "2026-07-25T22:15:16.412Z"
     }
   }
 }
