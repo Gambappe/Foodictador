@@ -1,0 +1,24 @@
+{
+  "comment": "Demo account B — the stranger whose ranking must sit near-tied (S2 tunes the seed against this profile; G4 asserts the invariant). Traits deliberately map onto pooled drivers: spiceTolerance 1 → spice_tolerance_low, budgetBand 2 → budget_ceiling, soloComfort → solo_comfort. shoyu_ramen is eaten twice inside the demo week so Rotation has a live suppression beat, and three dishes carry ≥3 observations so K3 fits real half-lives.",
+  "usual": {
+    "spiceTolerance": 1,
+    "budgetBand": 2,
+    "portionPref": "standard",
+    "soloComfort": true,
+    "giConstraint": false,
+    "offLimits": [],
+    "defaultOrder": { "placeId": "quiet_counter", "dishId": "bibimbap" }
+  },
+  "mealLog": [
+    { "dishId": "shoyu_ramen", "placeId": "noodle_shrine", "at": "2026-07-12", "felt": "glad" },
+    { "dishId": "shoyu_ramen", "placeId": "noodle_shrine", "at": "2026-07-19", "felt": "glad" },
+    { "dishId": "shoyu_ramen", "placeId": "noodle_shrine", "at": "2026-07-23", "felt": "fine" },
+    { "dishId": "bibimbap", "placeId": "quiet_counter", "at": "2026-06-28", "felt": "glad" },
+    { "dishId": "bibimbap", "placeId": "quiet_counter", "at": "2026-07-08", "felt": "fine" },
+    { "dishId": "bibimbap", "placeId": "quiet_counter", "at": "2026-07-16", "felt": "glad" },
+    { "dishId": "pho_ga", "placeId": "phos_deep", "at": "2026-06-30", "felt": "glad" },
+    { "dishId": "pho_ga", "placeId": "phos_deep", "at": "2026-07-09", "felt": "glad" },
+    { "dishId": "pho_ga", "placeId": "phos_deep", "at": "2026-07-17", "felt": "glad" },
+    { "dishId": "banh_mi_dac_biet", "placeId": "banh_mi_signal", "at": "2026-07-21", "felt": "glad" }
+  ]
+}

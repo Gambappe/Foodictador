@@ -31,3 +31,13 @@ Non-negotiables the client enforces regardless of path spelling (design v0.8 §1
 ## D-1: relay job annotation (owner: M5/M7)
 
 M5 records the observed `setJob` outcome here once the write path lands.
+
+## User-scope deletion (M8): the missing ingest ledger
+
+`forget(read_id)` deletes pool records (their content embeds the `read_id`) and
+purges the relay — but user-scope prose memories carry **no** `read_id` linkage,
+so that target deletes only when the caller supplies memory handles and reports
+`skipped` otherwise. Closing the gap needs an **ingest ledger**: capture the
+prose ingest handle at write time (M5's report already carries it) and resolve
+job → memory ids once D-2 confirms whether the API exposes that mapping.
+Integrator decision, tracked on the M8 registry entry.

@@ -1,0 +1,21 @@
+{
+  "comment": "Demo account A — the confessor on stage. Moderate tolerances so A's own card stays unremarkable; the demo's engineered near-tie lives on B.",
+  "usual": {
+    "spiceTolerance": 2,
+    "budgetBand": 3,
+    "portionPref": "standard",
+    "soloComfort": false,
+    "giConstraint": false,
+    "offLimits": [],
+    "defaultOrder": { "placeId": "rosas_taqueria", "dishId": "al_pastor" }
+  },
+  "mealLog": [
+    { "dishId": "al_pastor", "placeId": "rosas_taqueria", "at": "2026-07-04", "felt": "glad" },
+    { "dishId": "al_pastor", "placeId": "rosas_taqueria", "at": "2026-07-12", "felt": "glad" },
+    { "dishId": "al_pastor", "placeId": "rosas_taqueria", "at": "2026-07-20", "felt": "fine" },
+    { "dishId": "korean_fried_chicken", "placeId": "seoul_static", "at": "2026-07-06", "felt": "glad" },
+    { "dishId": "korean_fried_chicken", "placeId": "seoul_static", "at": "2026-07-14", "felt": "glad" },
+    { "dishId": "korean_fried_chicken", "placeId": "seoul_static", "at": "2026-07-22", "felt": "regret" },
+    { "dishId": "cacio_e_pepe", "placeId": "terracotta", "at": "2026-07-18", "felt": "glad" }
+  ]
+}
