@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T08:24:25.095Z",
+  "updated_at": "2026-07-25T08:24:41.762Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -53,12 +53,12 @@
       ],
       "mock_start_ok": false,
       "note": "received_at and ingest_job_id are server-side metadata — a body carrying either must 400. The field is oldest_entry_age_seconds, not oldest_unverified_age: the relay tracks no verification state, and since M7 drops only verified entries, every entry still present is unverified by construction.",
-      "status": "in_review",
+      "status": "done",
       "owner": "fable-session-0dd9z8",
       "branch": "feat/p0.4-relay-service",
       "pr": "https://github.com/Gambappe/Foodictador/pull/8",
       "claimed_at": "2026-07-25T08:19:37.556Z",
-      "updated_at": "2026-07-25T08:24:25.095Z"
+      "updated_at": "2026-07-25T08:24:41.762Z"
     },
     "P0.5": {
       "title": "Gate zero runner (scripts/gate0.ts, npm run gate0): N=12, two re-ingest rounds, pass = all 12 retrievable, plus DELETE + verify-gone; also measures and records SETTLE_WINDOW_SECONDS",
