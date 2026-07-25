@@ -6,8 +6,8 @@ import tseslint from 'typescript-eslint';
  * no `any`, no non-null assertions, no silent catch, and a pure kernel that cannot
  * import I/O. A rule in this file is worth more than a sentence in a document.
  *
- * Type-aware rules are scoped to `**\/*.ts` because they need a tsconfig project, and
- * this config file itself is plain JavaScript outside that project.
+ * Type-aware rules are scoped to TypeScript files because they need a tsconfig project,
+ * and this config file itself is plain JavaScript outside that project.
  */
 export default tseslint.config(
   { ignores: ['dist/**', 'node_modules/**', 'coverage/**', 'scripts/*.mjs'] },

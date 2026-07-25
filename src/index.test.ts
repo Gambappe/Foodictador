@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { readConfigFile, sys } from 'typescript';
 import { describe, expect, it } from 'vitest';
+import { TEST_ROOTS } from '../vitest.config.js';
 
 /**
  * Toolchain invariants.
@@ -59,7 +60,18 @@ describe('tsconfig strictness', () => {
 
   it('covers every lane directory that holds TypeScript', () => {
     // A lane missing from `include` is a lane that is never typechecked.
-    expect(tsconfig.include).toEqual(expect.arrayContaining(['src', 'scripts', 'infra', 'tests']));
+    expect(tsconfig.include).toEqual(expect.arrayContaining([...TEST_ROOTS]));
+  });
+});
+
+describe('vitest collection', () => {
+  it('can collect tests from every directory the tsconfig typechecks', () => {
+    // Caught for real: `scripts/**` was missing from vitest's include, so the tests for
+    // S1-S3 and P0.5 — all of which live under scripts/ — would have been silently
+    // skipped while the suite reported green.
+    for (const root of TEST_ROOTS) {
+      expect(tsconfig.include).toContain(root);
+    }
   });
 });
 
@@ -79,7 +91,7 @@ describe('package scripts', () => {
 });
 
 describe('typescript version pin', () => {
-  it('stays below 6.1 so typescript-eslint keeps working', () => {
+  it('stays on a major below 6 so typescript-eslint keeps working', () => {
     // typescript-eslint 8.x declares peer typescript ">=4.8.4 <6.1.0". TypeScript 7 is
     // available and faster, but adopting it silently drops the linter — and the linter is
     // what enforces no-`any`, no-`!`, and the pure-kernel import ban. If you are here to
