@@ -142,15 +142,21 @@ export function createSweepCommand(deps: SweepCommandDeps): CommandHandler {
       stored: 0,
       oldestStoredAgeSeconds: 0,
     };
-    const totals = { pooled: 0, reingested: 0 };
+    const totals = { pooled: 0, reingested: 0, confessions: 0 };
 
     while (!interrupted) {
+      // Flushed on EVERY pass, not just in --once. A watch is the long-running form of this
+      // command, so a `--watch` that never drained the buffer would leave a profile's last
+      // few confessions unsent for exactly as long as the operator kept the sweeper up —
+      // which is the opposite of what watching it is for (SL-43).
+      const prose = await flushProse(deps, context);
       last = await deps.sweep(now());
       passes += 1;
       totals.pooled += last.pooled;
       totals.reingested += last.reingested;
+      totals.confessions += prose;
       context.logger.line(
-        `sweep pass ${passes}: pooled=${last.pooled} reingested=${last.reingested} pending=${last.pending} stored=${last.stored}`,
+        `sweep pass ${passes}: pooled=${last.pooled} reingested=${last.reingested} pending=${last.pending} stored=${last.stored} confessions=${prose}`,
       );
       await Promise.race([sleep(intervalMs), interruptedPromise]);
     }
@@ -160,6 +166,7 @@ export function createSweepCommand(deps: SweepCommandDeps): CommandHandler {
         `Watch ended after ${passes} pass(es).`,
         `  pooled (total):        ${totals.pooled}`,
         `  re-ingested (total):   ${totals.reingested}`,
+        `  confessions sent:      ${totals.confessions}`,
         `  PENDING (last):        ${last.pending}`,
         `  reads stored (last):   ${last.stored}`,
       ],

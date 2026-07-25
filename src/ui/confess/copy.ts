@@ -58,3 +58,18 @@ export const CHIP_LABELS = {
   cadence: 'cadence',
   weight: 'strength',
 } as const;
+
+/**
+ * The `your memory` receipt, which has THREE states rather than two (M20).
+ *
+ * A confession is buffered locally until several can share one ingest call, so at the moment
+ * this renders it may be on this device and not in XTrace. Rendering that as "written" is the
+ * same defect as `forget` printing "Deleted from Confit" over two skipped targets — the
+ * product describing an outcome it did not have. D-10 named this consequence explicitly:
+ * deferral is not loss, but the receipt has to say which it is.
+ */
+export const MEMORY_RECEIPT = {
+  sent: 'written',
+  held: 'held on this device until a few of yours can be sent together',
+  failed: 'not written',
+} as const;

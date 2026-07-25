@@ -30,7 +30,7 @@ import { createPoolStore } from '../../memory/pool.js';
 import { createUserStore } from '../../memory/user.js';
 import { writeRead } from '../../memory/writeRead.js';
 import { ConfessScreen } from './ConfessScreen.js';
-import { CHIP_LABELS, CONSENT, REFUSAL } from './copy.js';
+import { CHIP_LABELS, CONSENT, MEMORY_RECEIPT, REFUSAL } from './copy.js';
 
 afterEach(cleanup);
 
@@ -235,6 +235,67 @@ describe('U2: nothing is pooled without the press', () => {
     expect(report).toContain('pot: written');
     expect(report).toContain('relay: written');
     expect(screen.getByTestId('read-id').textContent).toMatch(/[0-9a-f-]{36}/);
+  });
+
+  it('a BUFFERED confession is not reported as written (SL-42)', async () => {
+    // D-10's one named consequence, and it was fixed in the CLI receipt only. `wrote.prose`
+    // is `true` for a buffered confession as much as a sent one, so rendering it as "written"
+    // told the diner their words were in XTrace while they sat on local disk. The same defect
+    // as `forget` printing "Deleted from Confit" over two skipped targets.
+    realHarness([]);
+    await reachChips();
+    await userEvent.click(screen.getByRole('button', { name: 'Add to the pot' }));
+    await waitFor(() => expect(screen.getByTestId('write-report')).toBeTruthy());
+
+    const report = screen.getByTestId('write-report').textContent ?? '';
+    expect(report).toContain(`your memory: ${MEMORY_RECEIPT.held}`);
+    expect(report).not.toContain(`your memory: ${MEMORY_RECEIPT.sent}`);
+    // And the held wording says where the words actually are, not merely that they are late.
+    expect(MEMORY_RECEIPT.held).toMatch(/this device/);
+  });
+
+  it('a SENT confession is reported as written — the buffered case is not blanket wording', async () => {
+    render(
+      <ConfessScreen
+        offLimits={[]}
+        propose={() => Promise.resolve(PROPOSAL)}
+        submit={() =>
+          Promise.resolve({
+            read_id: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+            wrote: { relay: true, pool: true, job: true, prose: true },
+            proseBuffered: 0,
+          })
+        }
+      />,
+    );
+    await reachChips();
+    await userEvent.click(screen.getByRole('button', { name: 'Add to the pot' }));
+    await waitFor(() => expect(screen.getByTestId('write-report')).toBeTruthy());
+    expect(screen.getByTestId('write-report').textContent ?? '').toContain(
+      `your memory: ${MEMORY_RECEIPT.sent}`,
+    );
+  });
+
+  it('a FAILED prose write is reported as not written', async () => {
+    render(
+      <ConfessScreen
+        offLimits={[]}
+        propose={() => Promise.resolve(PROPOSAL)}
+        submit={() =>
+          Promise.resolve({
+            read_id: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+            wrote: { relay: true, pool: true, job: true, prose: false },
+            proseBuffered: 0,
+          })
+        }
+      />,
+    );
+    await reachChips();
+    await userEvent.click(screen.getByRole('button', { name: 'Add to the pot' }));
+    await waitFor(() => expect(screen.getByTestId('write-report')).toBeTruthy());
+    expect(screen.getByTestId('write-report').textContent ?? '').toContain(
+      `your memory: ${MEMORY_RECEIPT.failed}`,
+    );
   });
 
   it('an edited chip is what gets pooled — the author is the last word', async () => {

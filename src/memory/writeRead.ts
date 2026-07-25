@@ -12,8 +12,9 @@
  * relay write costs at worst a duplicate re-ingest, which K6 dedups on
  * read_id; a pool write that nothing tracks is silent loss. For the same
  * reason a FAILED relay write means the pool is not written either — the read
- * is reported not pooled. The prose is the personal tier with its own
- * durability story (M3's verify-and-retry), so it is still written.
+ * is reported not pooled. The prose is the personal tier, which has no
+ * durability story at all by D-10 — it is buffered and may be lost — so it is
+ * still written, and its failure never unwinds the pooled read.
  */
 
 import type { PoolStore, Relay, UserStore } from '../contracts/modules.js';

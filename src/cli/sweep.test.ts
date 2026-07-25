@@ -116,7 +116,7 @@ describe('X4 confit sweep --watch', () => {
     expect(result.exit).toBe(EXIT.ok); // SIGINT is the intended ending
     expect(calls).toBe(3);
     expect(result.data['passes']).toBe(3);
-    expect(result.data['totals']).toEqual({ pooled: 3, reingested: 0 });
+    expect(result.data['totals']).toEqual({ pooled: 3, reingested: 0, confessions: 0 });
     // One stderr line per pass, so the operator sees progress while it runs.
     expect(logLines.filter((l) => l.startsWith('sweep pass'))).toHaveLength(3);
     expect(logLines[0]).toContain('pending=4');
@@ -143,6 +143,82 @@ describe('X4 confit sweep --watch', () => {
     expect(sleptForever).toBe(true);
     expect(result.exit).toBe(EXIT.ok);
     expect(result.data['passes']).toBe(1);
+  });
+});
+
+/**
+ * SL-43 — the confession flush was written into `--once` only and tested nowhere.
+ *
+ * Deleting the flush from BOTH branches left the whole suite green, so half of what M20 added
+ * to this command had no guard at all. `--watch` mattered most: it is the long-running form,
+ * so a watch that never drained the buffer would hold a profile's last few confessions for
+ * exactly as long as the operator kept the sweeper up.
+ *
+ * Red-verified: with the `flushProse` call removed from the `--once` branch the first two go
+ * red; with it removed from the `--watch` loop the third and fourth do.
+ */
+describe('X4 sweep drains the confession buffer', () => {
+  function withFlush(counts: number[], mode: 'once' | 'watch') {
+    let interrupt: () => void = () => {};
+    let pass = 0;
+    const flushed: number[] = [];
+    const handler = createSweepCommand({
+      sweep: () => {
+        pass += 1;
+        if (pass === counts.length) queueMicrotask(() => interrupt());
+        return Promise.resolve(report());
+      },
+      flushProse: () => {
+        const next = counts[flushed.length] ?? 0;
+        flushed.push(next);
+        return Promise.resolve(next);
+      },
+      now: () => '2026-07-25T12:00:00.000Z',
+      sleep: () => Promise.resolve(),
+      onInterrupt: (callback) => {
+        interrupt = callback;
+      },
+    });
+    return { handler, flushed, argv: ['sweep', `--${mode}`] };
+  }
+
+  it('--once flushes, and reports how many confessions went', async () => {
+    const h = withFlush([3], 'once');
+    const result = await h.handler(context(h.argv));
+    expect(h.flushed).toEqual([3]);
+    expect(result.lines.join('\n')).toContain('confessions sent:     3');
+    expect(result.data['confessions_sent']).toBe(3);
+  });
+
+  it('--once still sweeps when the flush throws — a buffer problem is not a sweep problem', async () => {
+    const logLines: string[] = [];
+    let swept = 0;
+    const handler = createSweepCommand({
+      sweep: () => {
+        swept += 1;
+        return Promise.resolve(report());
+      },
+      flushProse: () => Promise.reject(new Error('XTrace 503')),
+      now: () => '2026-07-25T12:00:00.000Z',
+    });
+    const result = await handler(context(['sweep', '--once'], logLines));
+    expect(swept).toBe(1);
+    expect(result.exit ?? EXIT.ok).toBe(EXIT.ok);
+    expect(logLines.some((l) => l.includes('confession flush failed'))).toBe(true);
+  });
+
+  it('--watch flushes on EVERY pass, not just the first', async () => {
+    const h = withFlush([2, 1, 4], 'watch');
+    const result = await h.handler(context(h.argv));
+    expect(h.flushed).toEqual([2, 1, 4]);
+    expect(result.data['passes']).toBe(3);
+    expect(result.data['totals']).toEqual({ pooled: 6, reingested: 3, confessions: 7 });
+  });
+
+  it('--watch totals the confessions sent and prints them at the end', async () => {
+    const h = withFlush([2, 1, 4], 'watch');
+    const result = await h.handler(context(h.argv));
+    expect(result.lines.join('\n')).toContain('confessions sent:      7');
   });
 });
 

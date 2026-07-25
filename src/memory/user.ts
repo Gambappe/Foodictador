@@ -6,10 +6,11 @@
  * signal" as the worst configuration of every one tested (2/10 vs 8/8 for raw
  * prose) — no pre-cleaning, no pre-structuring, the payload is the text.
  *
- * The prose has no relay copy by design (§6): its verify-and-retry holds the
- * text in memory until the substrate confirms it and dies with the process.
- * Acceptable for the personal tier — a lost confession is one user's data,
- * recoverable by re-confessing — and each unconfirmed drop logs a warning.
+ * The prose has no relay copy by design (§6), and no delivery guarantee of any kind (D-10):
+ * it is buffered locally until several confessions can share one ingest call, and a batch
+ * that fails to send is lost. Acceptable for the personal tier — a lost confession is one
+ * user's data, recoverable by re-confessing — and every loss logs its COUNT, because a lost
+ * batch is not a lost confession.
  *
  * **The Usual and the meal log are NOT here any more** (M11, DAG §4 D-8). They are declared
  * settings, not experiences, so they live in a durable keyed store and this module only
@@ -169,11 +170,25 @@ export function createUserStore(deps: UserStoreDeps): UserStoreHandle {
         );
         return { buffered: held };
       }
-      const handle = await deps.client.ingestBatch(flush.profile, flush.texts, flush.convId);
-      deps.logger.line(
-        `user: sent ${String(flush.texts.length)} confession(s) for ${profile} as one conversation (${flush.convId})`,
-      );
-      return { buffered: 0, jobId: handle.jobId };
+      // The batch is already out of the buffer, so a failure here loses ALL of it — not the
+      // one confession the caller just made. The count has to reach the operator, because
+      // `writeRead`'s warning is about "this confession" and would report a batch of four
+      // lost as a single write that did not happen (SL-41).
+      const count = flush.texts.length;
+      try {
+        const handle = await deps.client.ingestBatch(flush.profile, flush.texts, flush.convId);
+        deps.logger.line(
+          `user: sent ${String(count)} confession(s) for ${profile} as one conversation (${flush.convId})`,
+        );
+        return { buffered: 0, jobId: handle.jobId };
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        deps.logger.line(
+          `user: LOST ${String(count)} buffered confession(s) for ${profile} — the batch left the ` +
+            `buffer before the ingest and is not recoverable (D-10): ${reason}`,
+        );
+        throw new Error(`batch of ${String(count)} confession(s) lost: ${reason}`, { cause: error });
+      }
     },
 
     /**

@@ -8,6 +8,11 @@ coverage/
 .env.*
 !.env.example
 
+# The confession buffer's default location (M20). Holds raw confession text — the most
+# sensitive data in the product — and the default path is relative to wherever `confess` is
+# run, which is the repo root. It was committable before this line existed (SL-45).
+.confit/
+
 *.log
 npm-debug.log*
 .DS_Store

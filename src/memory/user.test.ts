@@ -78,7 +78,7 @@ function harness(settings: SettingsStore = new StubSettingsStore()) {
   const substrate = fakeSubstrate();
   // A real buffer over a temp file: batching is the behaviour under test, and a fake buffer
   // would let a broken threshold pass.
-  const path = join(mkdtempSync(join(tmpdir(), 'confit-prose-')), 'buffer.json');
+  const path = mkdtempSync(join(tmpdir(), 'confit-prose-'));
   const buffer = createProseBuffer({ path });
   const store = createUserStore({ client: substrate.client, settings, buffer, logger });
   return { store, lines, logger, settings, buffer, ...substrate };
@@ -163,12 +163,30 @@ describe('M3 writeProse — batched into XTrace, not one at a time (M20)', () =>
     expect(h.buffer.pending('A')).toBe(0); // gone, not silently retried forever
   });
 
+  it('a failed BATCH send says how many were lost, not "a confession" (SL-41)', async () => {
+    // The batch is out of the buffer before the ingest, so a 503 on the flushing confession
+    // destroys all four — while `writeRead`'s warning is about "this confession" and would
+    // report four lost as one write that did not happen. `writeProse` had no `try` at all
+    // here, so the count reached neither stream.
+    const h = harness();
+    h.failBatches();
+    for (let i = 0; i < BATCH_SIZE - 1; i++) await h.store.writeProse('A', `held ${String(i)}`);
+    await expect(h.store.writeProse('A', 'the one that triggers the send')).rejects.toThrow(
+      new RegExp(`batch of ${String(BATCH_SIZE)} confession`),
+    );
+    const logged = h.lines.join('\n');
+    expect(logged).toMatch(new RegExp(`LOST ${String(BATCH_SIZE)} buffered confession`));
+    expect(logged).toMatch(/not recoverable \(D-10\)/);
+    expect(logged).toContain('ingest 503');
+    // And they really are gone rather than silently retried for ever.
+    expect(h.buffer.pending('A')).toBe(0);
+  });
+
   it('survives the process: a new store sees what an earlier one buffered', async () => {
     // The reason it is a file at all. Every confession arrives in its own CLI process, so
     // batching is impossible without holding the text across them. Two stores over one
     // buffer file stand in for two `confit confess` invocations.
-    const path = join(mkdtempSync(join(tmpdir(), 'confit-prose-')), 'buffer.json');
-    const buffer = createProseBuffer({ path });
+    const buffer = createProseBuffer({ path: mkdtempSync(join(tmpdir(), 'confit-prose-')) });
     const substrate = fakeSubstrate();
     const store = () =>
       createUserStore({
