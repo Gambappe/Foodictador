@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T12:23:31.067Z",
+  "updated_at": "2026-07-25T12:47:24.665Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -1015,6 +1015,19 @@
       "pr": null,
       "claimed_at": null,
       "updated_at": "2026-07-25T12:23:31.067Z"
+    },
+    "P0.10": {
+      "title": "SL-06: import KFLOOR into frozen contracts stub instead of a second copy, and floor StubNarrator's citation",
+      "phase": "P0",
+      "depends_on": [],
+      "mock_start_ok": false,
+      "note": "SL-06 in docs/defect-log.md (still open as of third pass). src/contracts/stubs/cohorts.ts:32 hardcodes kFloor=5 instead of importing KFLOOR from src/kernel/cohorts.ts; src/contracts/stubs/narrator.ts renders a citation with no floor check, unlike TemplateNarrator's flooredCitation. src/contracts/** is integrator-only per DAG contract-freeze rule — do not edit without the integrator, or get sign-off first.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T12:47:24.656Z"
     }
   }
 }
