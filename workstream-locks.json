@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T09:11:34.125Z",
+  "updated_at": "2026-07-25T09:12:21.087Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -614,12 +614,12 @@
       ],
       "mock_start_ok": false,
       "note": "The demo's climax is CI-protected (plan v1.0 §3.4). Lowering COUNTING_K below the largest cohort must make the cross-check fail.",
-      "status": "claimed",
+      "status": "done",
       "owner": "fable-session-0dd9z8",
       "branch": "feat/g4-invariant-guards",
       "pr": null,
       "claimed_at": "2026-07-25T09:11:02.685Z",
-      "updated_at": "2026-07-25T09:11:02.685Z"
+      "updated_at": "2026-07-25T09:12:21.087Z"
     },
     "G5": {
       "title": "CI wiring + npm run gate:cli: typecheck, full suite, then scripted provision -> seed -> confess -> ask -> sweep -> forget -> census end-to-end with no network",
