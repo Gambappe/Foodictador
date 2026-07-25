@@ -151,8 +151,9 @@ export const COMMANDS: readonly CommandSpec[] = [
   },
   {
     path: ['pass', 'seed'],
-    summary: 'load the seed corpus into the pool and relay',
+    summary: 'load the seed corpus into the pool and relay (--pack adds the demo pack)',
     task: 'X7',
+    options: ['pack'],
     handler: seedHandler,
   },
   {
@@ -203,6 +204,7 @@ export function helpText(): string[] {
     '  --yes             skip the confirmation prompt',
     '  --once, --watch   sweep once (default) or on an interval',
     '  --arm             arm the nudge',
+    '  --pack            also load data/demo/pack.json (pass seed)',
     '  --json            print the machine payload instead of prose',
     '  --help            show this help',
     '',

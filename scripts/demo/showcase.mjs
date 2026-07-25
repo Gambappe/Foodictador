@@ -1,7 +1,8 @@
 /**
  * The demo showcase runner (DEMO.2) — every beat, driven end to end, checked.
  *
- * `npm run demo` seeds, then runs each showcase and asserts the thing it is meant to show.
+ * `npm run demo` seeds the pool if it is empty (`pass seed --pack`, showcase 1), then runs
+ * each showcase and asserts the thing it is meant to show.
  * The point is not the output; the point is that a beat which has QUIETLY STOPPED WORKING
  * fails here rather than in front of an audience. Every failure this session was invisible
  * until something drove it: `sweep` exited 3 on a 429, `pass flags --set` did nothing,
@@ -93,13 +94,44 @@ function showcase(n, title, claim, run) {
 
 const hasModelKey = (process.env.ANTHROPIC_API_KEY ?? '') !== '';
 
+/**
+ * Seeding, which this runner used to CLAIM it did and did not.
+ *
+ * The head comment said "seeds, then runs each showcase" while no showcase ever called
+ * `pass seed`, so a fresh pool produced ten showcases reporting on an empty corpus — and
+ * showcase 1 would have called that a pass, because `k= 0` matches its `k=\s*\d+` probe.
+ * Documentation that describes a step the code does not take is the same defect class as a
+ * receipt for a write that did not happen; it just fails in a rehearsal instead of a run.
+ *
+ * `--pack` because the whole point of DEMO.2 is cohort depth: seeding the base corpus alone
+ * puts 190 of 220 reads on drivers no diner can match, which is the flat landscape the pack
+ * exists to fix. Idempotent by read_id — a re-run creates pool duplicates that K6's dedup
+ * collapses, which `pass seed` discloses itself.
+ */
+function ensureSeeded() {
+  const before = confit(['pass', 'census']);
+  const counted = [...before.stdout.matchAll(/k=\s*(\d+)/g)].reduce((a, m) => a + Number(m[1]), 0);
+  if (counted > 0) return { seeded: false, counted };
+  process.stdout.write('    (empty pool — seeding with the demo pack first)\n');
+  const out = confit(['pass', 'seed', '--pack']);
+  if (out.exit !== 0) throw new Error(`pass seed --pack exited ${out.exit}: ${out.stderr ?? ''}`);
+  return { seeded: true, line: out.stdout.split('\n').find((l) => /Seeded:/.test(l)) ?? '' };
+}
+
 showcase(1, 'The pool is loaded and countable', 'reads are countable the moment they land (D-7)', () => {
+  const seed = ensureSeeded();
   const census = confit(['pass', 'census']);
-  const stored = /reads stored|k=\s*\d+/.test(census.stdout);
+  // The TOTAL, not the presence of the string `k=`: an empty pool prints `k= 0` for every
+  // driver and satisfies any regex that only asks whether a count was printed. The claim is
+  // that reads are countable, so the check has to be that some were counted.
+  const counted = [...census.stdout.matchAll(/k=\s*(\d+)/g)].reduce((a, m) => a + Number(m[1]), 0);
   return {
-    pass: census.exit === 0 && stored,
-    lines: census.stdout.split('\n').filter((l) => /citable/.test(l)).slice(0, 3),
-    why: 'census exits 0 and every driver reports a count',
+    pass: census.exit === 0 && counted > 0,
+    lines: [
+      seed.seeded ? seed.line : `pool already holds ${seed.counted} counted read(s)`,
+      ...census.stdout.split('\n').filter((l) => /citable/.test(l)).slice(0, 3),
+    ],
+    why: `census exits 0 and counts ${counted} read(s) across the drivers`,
   };
 });
 
@@ -128,12 +160,22 @@ showcase(4, 'Off-limits blocks all four targets', 'a flagged topic is written NO
   const out = confit(['confess', '--profile', 'A', '--text', 'the fasting thing again', '--yes']);
   const blocked = /off-limits/i.test(out.stdout);
   const after = confit(['pass', 'census']).stdout;
+  // Both committed profiles ship with `offLimits: []` — pinned by S4's own test — and the CLI
+  // has no command to set a topic. So this beat CANNOT fire in the scripted demo, and the
+  // honest report says that rather than "no matching topic", which reads as though the text
+  // merely missed and invites an operator to keep guessing phrasings that will never block.
+  // Left as a SHOW rather than deleted: [E24] is a real guarantee with real unit coverage
+  // (see the K2/M5 tests), and a demo that silently dropped the beat would be the weaker lie.
   return {
-    // Only meaningful if the profile actually has the topic flagged; if not, it is a SHOW.
     checked: blocked,
     pass: blocked ? before === after : true,
-    lines: [out.stdout.split('\n').find((l) => l.trim() !== '') ?? ''],
-    why: blocked ? 'refused, and the census is byte-identical after' : 'profile has no matching off-limits topic',
+    lines: [
+      out.stdout.split('\n').find((l) => l.trim() !== '') ?? '',
+      blocked ? '' : 'not demonstrable here: profiles A and B commit offLimits: [], and no CLI command sets one',
+    ].filter((l) => l !== ''),
+    why: blocked
+      ? 'refused, and the census is byte-identical after'
+      : 'the guarantee holds in unit tests; the DEMO cannot show it until a profile carries a topic',
   };
 });
 

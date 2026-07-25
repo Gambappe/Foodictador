@@ -11,7 +11,7 @@ export const VALUE_OPTIONS = ['profile', 'text', 'set'] as const;
 export type ValueOption = (typeof VALUE_OPTIONS)[number];
 
 /** Options that are present or absent: `--json`. */
-export const BOOLEAN_OPTIONS = ['json', 'yes', 'help', 'once', 'watch', 'arm'] as const;
+export const BOOLEAN_OPTIONS = ['json', 'yes', 'help', 'once', 'watch', 'arm', 'pack'] as const;
 export type BooleanOption = (typeof BOOLEAN_OPTIONS)[number];
 
 export type OptionName = ValueOption | BooleanOption;
