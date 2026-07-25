@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T09:02:36.428Z",
+  "updated_at": "2026-07-25T09:02:38.242Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -579,12 +579,12 @@
       ],
       "mock_start_ok": false,
       "note": "v0.7's version checked only the pool, which is exactly how the §9 violation survived a review cycle. Verify the suite goes red when either block is removed, and record in the docblock that you did.",
-      "status": "in_review",
+      "status": "done",
       "owner": "claude-session-12uj0q",
       "branch": "claude/app-design-task-impl-12uj0q",
       "pr": "https://github.com/Gambappe/Foodictador/pull/31",
       "claimed_at": "2026-07-25T09:00:16.935Z",
-      "updated_at": "2026-07-25T09:02:29.283Z"
+      "updated_at": "2026-07-25T09:02:38.241Z"
     },
     "G3": {
       "title": "Copy-linter regression: every template in the catalog and every narrator fixture through the linter, one case per banned lexicon entry",
