@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T14:51:53.217Z",
+  "updated_at": "2026-07-25T14:52:00.977Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -946,13 +946,13 @@
         "M2"
       ],
       "mock_start_ok": false,
-      "note": "Released unstarted: the correct fix depends on characterizing XTrace's real search-truncation behavior (whether episode_slots is honored, whether top_k truncates before or after any kind bias), which the original note says was MEASURED against a live substrate. This session has no live XTrace access to re-measure or verify a fix against, and guessing at server behavior is exactly the failure mode this defect log exists to catch. Needs a session with live API access.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "note": "Unblocked: this session HAS live XTrace access, which the previous release note said was the missing prerequisite.",
+      "status": "claimed",
+      "owner": "claude-session-014n6NYRN6Rb",
+      "branch": "claude/upload-code-artifact-zop9uz",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T13:01:47.416Z"
+      "claimed_at": "2026-07-25T14:52:00.976Z",
+      "updated_at": "2026-07-25T14:52:00.976Z"
     },
     "M14": {
       "title": "Pool ingests as prose, not JSON (guide R4) — ships WITH M12's conv_id batching; neither half works alone",
