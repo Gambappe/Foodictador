@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T08:43:28.943Z",
+  "updated_at": "2026-07-25T08:43:39.296Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -224,12 +224,12 @@
       ],
       "mock_start_ok": false,
       "note": null,
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "fable-session-0dd9z8",
+      "branch": "feat/m4-relay-client",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T07:37:34.268Z"
+      "claimed_at": "2026-07-25T08:43:39.296Z",
+      "updated_at": "2026-07-25T08:43:39.296Z"
     },
     "M5": {
       "title": "Approval write path + write guard: isBlocked -> mint -> parseRead -> relay, pool, setJob (best-effort), prose; blocked writes nothing anywhere",
