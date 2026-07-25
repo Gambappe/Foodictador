@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T12:52:08.910Z",
+  "updated_at": "2026-07-25T12:52:14.784Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -1087,12 +1087,12 @@
       "depends_on": [],
       "mock_start_ok": false,
       "note": "SL-16 in docs/defect-log.md (still open). src/cli/pass-report.ts's citable check is k >= KFLOOR only; it does not exclude UNMATCHABLE_DRIVERS (the drivers D-5 proved can never reach a card). Six of eleven census rows are wrong.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "claude-routine-inspiring-carson",
+      "branch": "claude/inspiring-carson-7ryzny",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T12:47:45.308Z"
+      "claimed_at": "2026-07-25T12:52:14.784Z",
+      "updated_at": "2026-07-25T12:52:14.784Z"
     },
     "X9": {
       "title": "SL-19: confit forget prints \"Deleted from Confit\" when a target was only skipped",
