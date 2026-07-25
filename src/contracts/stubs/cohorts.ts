@@ -1,5 +1,7 @@
 import type { Cohorts } from '../modules.js';
 import type { CohortStat, Driver, Read, UsualProfile } from '../types.js';
+// The privacy floor has ONE owner (SL-06). See the note on `matched`.
+import { KFLOOR } from '../../kernel/cohorts.js';
 
 /** Usual trait → driver mapping, carried from plan v1.0 §7 Lane B. */
 export function driversForUsual(usual: UsualProfile): Driver[] {
@@ -29,7 +31,15 @@ export class StubCohorts implements Cohorts {
     }));
   }
 
-  matched(usual: UsualProfile, reads: Read[], kFloor = 5): CohortStat[] {
+  /**
+   * The floor is IMPORTED, not a literal (SL-06).
+   *
+   * A second copy of `5` here is a privacy threshold with two owners: lower `KFLOOR` in the
+   * kernel and this stub goes on citing cohorts of four, in whatever suite trusts it. The
+   * number is the product's promise that no citation identifies anybody, and a promise with
+   * two sources is one that can be half-kept.
+   */
+  matched(usual: UsualProfile, reads: Read[], kFloor: number = KFLOOR): CohortStat[] {
     const wanted = new Set(driversForUsual(usual));
     return this.census(reads).filter((stat) => wanted.has(stat.driver) && stat.k >= kFloor);
   }

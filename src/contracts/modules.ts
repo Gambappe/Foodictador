@@ -15,7 +15,6 @@
 
 import type {
   AskContext,
-  Card,
   CardCopy,
   CohortStat,
   Driver,
@@ -266,9 +265,22 @@ export interface AskInput {
   degradedPool?: boolean;
 }
 
-export interface AskEngine {
-  ask(input: AskInput): Card;
-}
+/*
+ * `AskEngine.ask(input) → Card` was declared here, stubbed in P0.2, and implemented by nobody
+ * (§4 D-6). It is DELETED rather than re-specced, because the shape was not merely unbuilt —
+ * it was impossible. A `Card` carries narrated copy, and copy comes from a model call, so no
+ * synchronous pure function can return one. K7 proved that by building the thing; the
+ * interface survived anyway because a fixture stub satisfied it and a contract test asserted
+ * the stub, which is a closed loop that can agree with itself for ever.
+ *
+ * The real seam is two pure functions in `src/kernel/askEngine.ts`:
+ *
+ *   planAsk(input)            → AskPlan       — every decision, no copy, no I/O
+ *   assembleCard(plan, copy)  → Card          — the plan plus copy the caller fetched
+ *
+ * The split is the point: the impossible part was returning copy, so copy is the caller's to
+ * obtain and the kernel stays pure. `AskInput` below is still the input shape both take.
+ */
 
 // ---- lane N — nudge ----
 
