@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T14:31:35.426Z",
+  "updated_at": "2026-07-25T14:44:59.468Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -976,13 +976,13 @@
         "M12"
       ],
       "mock_start_ok": false,
-      "note": "MEASURED on the live substrate, and it is an OPERATIONAL step, not a code change. NOW TWO SCOPES, not one. (1) confit:pool holds episodes from both eras after M12/M14 land: the old per-read JSON ingests produced episodes like 'The session contains a single structured event rather than a back-and-forth conversation: a regret-after-order signal at Bao Bar Micro... moderate weight' and those RANK ABOVE the new batched-prose episodes for the exact query confit ask issues. Same query against a CLEAN scope returned the real thing: a claim spanning 17 named places, no raw ids, no single-read framing. (2) THE PERSONAL SCOPE HAS THE SAME PROBLEM after M20, measured 2026-07-25: profile A returned '4 episode(s) over 7 fact(s)' and personalClaim picked a PRE-M20 per-confession paraphrase ('a self-aware confession: the speaker keeps ordering the spicy option to look tough... No further action or conclusion was developed') over the new episode synthesising four confessions. So the query was never the problem and does not need changing; the scopes do. Decide with the integrator: purge (DELETE per memory id -- there is no bulk delete, see pass reset copy) or move to new scope constants and abandon the old ones. A new scope is cheaper and auditable; old records keep costing storage quota (GET /v1/usage). Note the personal scope is keyed by profile id, so 'a new scope' there means a new profile-key convention, which touches D-8 settings keys too.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "note": "OWNER DECIDED: move to a clean scope, do not purge. Applies to BOTH scopes (pool and personal).",
+      "status": "claimed",
+      "owner": "claude-session-014n6NYRN6Rb",
+      "branch": "claude/upload-code-artifact-zop9uz",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T14:31:35.426Z"
+      "claimed_at": "2026-07-25T14:44:59.468Z",
+      "updated_at": "2026-07-25T14:44:59.468Z"
     },
     "M16": {
       "title": "The Ask reads all three D-8 inputs: add the PERSONAL synthesis, which is written today and never read",
