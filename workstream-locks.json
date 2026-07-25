@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T18:06:05.784Z",
+  "updated_at": "2026-07-25T18:06:07.330Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -854,12 +854,12 @@
       ],
       "mock_start_ok": false,
       "note": "The old protocol is VOID, not merely unrun. scripts/gate0.ts asks whether a dropped read can be recovered by re-ingesting it; nothing drops under D-7, and its findRow locates a read by searching its read_id, which is the exact round-trip gate zero disproved. It cannot pass and passing would mean nothing. Blocked on P0.8 because claim 1 is durability that does not exist yet. See docs/gate0-results.md and DAG §4 D-3 (amended).",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "fable-session-0dd9z8",
+      "branch": "feat/g7-gate-zero-d7",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T10:33:38.935Z"
+      "claimed_at": "2026-07-25T18:06:07.329Z",
+      "updated_at": "2026-07-25T18:06:07.329Z"
     },
     "M11": {
       "title": "UserStore round-trip (D-7 extended): the Usual and meal log cannot be read back from XTrace either; ask() is unreachable live",
