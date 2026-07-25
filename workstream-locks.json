@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T10:50:46.650Z",
+  "updated_at": "2026-07-25T10:54:06.354Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -806,13 +806,13 @@
         "M7"
       ],
       "mock_start_ok": false,
-      "note": "D-7: the relay is now the store of record. URGENT half first — M7's verified-drop is DATA LOSS against a durable relay and must stop deleting before anything else changes. Then PoolView stops unioning (relay is canonical), and PoolStore's readsForDriver goes: XTrace cannot return a read, only prose about one. See docs/gate0-results.md for the evidence and DAG §4 D-7 for the consequences.",
-      "status": "claimed",
+      "note": "DONE. Sweeper never drops (guarded), PoolView reads the relay, PoolStore.readsForDriver deleted, forget reports skipped at both XTrace targets, COUNTING_K gone. Verified live: 220/220 seeded to the relay with 108 XTrace 429s and census still clean 11/11 — pre-D-7 that was 108 reads lost. Follow-ups registered: P0.8 (durability), M10 (ingest ledger), M11 (UserStore has the SAME round-trip defect — ask() is unreachable live), G7 (gate zero's protocol is void).",
+      "status": "done",
       "owner": "claude-session-014n6NYRN6Rb",
       "branch": "claude/upload-code-artifact-zop9uz",
-      "pr": null,
+      "pr": "https://github.com/Gambappe/Foodictador/pull/56",
       "claimed_at": "2026-07-25T10:13:44.707Z",
-      "updated_at": "2026-07-25T10:13:44.707Z"
+      "updated_at": "2026-07-25T10:54:06.354Z"
     },
     "P0.8": {
       "title": "Relay durability (D-7): file-backed store with atomic writes; a restart must lose nothing",
