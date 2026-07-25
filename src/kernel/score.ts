@@ -20,7 +20,7 @@
  * (plan v1.0 §2b). That is what makes the choose-from-corpus contract structural.
  */
 
-import { matched } from './cohorts.js';
+import { KFLOOR, matched } from './cohorts.js';
 import {
   BUDGET_TOLERANCE_BANDS,
   NEUTRAL_FIT,
@@ -73,28 +73,56 @@ export interface Exclusion {
 }
 
 /**
- * §3.4's hard constraints, as far as the contract allows.
+ * §3.4's hard constraints, as far as the contract allows — amended by task DAG §4 D-11.
  *
  * `gi` and `budget` are implemented. **`allergy` is not, and cannot be:** §3.4 lists it,
  * but `UsualProfile` (frozen at P0.2) has no allergy field — the same missing-fields gap
  * recorded as task DAG §4 D-5, which also makes `allergy_constraint` an unmatchable
  * driver. Adding an allergy hard-constraint needs a contract change, not a code change,
  * so this returns only what it can actually check rather than pretending.
+ *
+ * `budget` is a wall until strangers' evidence says otherwise (D-11, resolving K8): an
+ * over-budget place is NOT excluded when a citable cohort — `k >= KFLOOR`, on a driver
+ * this Usual evidences — includes it, because a declared ceiling that hides evidence
+ * contradicts D-8's "soft preferences on similar footing to evidence". The gate reuses
+ * `matched()` and the k-floor, so the wall moves only once five strangers have signalled
+ * about that place. Polarity is deliberately not consulted here: the lift stops the wall
+ * from hiding evidence, and `poolScore` still weighs its sign, so a place lifted on five
+ * regrets ranks like a place five people regret. `gi` stays hard regardless — it is the
+ * medical constraint D-9 treats as non-negotiable, not a preference.
  */
-export function exclusionsFor(place: Place, usual: UsualProfile): Exclusion[] {
+export function exclusionsFor(place: Place, usual: UsualProfile, reads: Read[]): Exclusion[] {
+  return exclusionsForWith(place, usual, citablePlaceIds(usual, reads));
+}
+
+/**
+ * Place ids a citable matched cohort has signalled about — where D-11 lifts the budget
+ * wall. `matched` dedups on `read_id` ([E20]), so five copies of one read lift nothing.
+ */
+function citablePlaceIds(usual: UsualProfile, reads: Read[]): Set<string> {
+  const ids = new Set<string>();
+  for (const stat of matched(usual, reads, KFLOOR)) {
+    for (const id of stat.placeIds) ids.add(id);
+  }
+  return ids;
+}
+
+/** The check against a pre-computed lift set, so ranking runs `matched` once, not per place. */
+function exclusionsForWith(place: Place, usual: UsualProfile, lifted: Set<string>): Exclusion[] {
   const found: Exclusion[] = [];
   if (usual.giConstraint && !place.tags.includes('gi_safe_options')) {
     found.push({ placeId: place.id, reason: 'gi_unsafe' });
   }
-  if (place.priceBand > usual.budgetBand + BUDGET_TOLERANCE_BANDS) {
+  if (place.priceBand > usual.budgetBand + BUDGET_TOLERANCE_BANDS && !lifted.has(place.id)) {
     found.push({ placeId: place.id, reason: 'over_budget' });
   }
   return found;
 }
 
-/** The corpus minus hard-constraint violations. */
-export function candidates(corpus: Place[], usual: UsualProfile): Place[] {
-  return corpus.filter((place) => exclusionsFor(place, usual).length === 0);
+/** The corpus minus hard-constraint violations, under the same D-11 lift. */
+export function candidates(corpus: Place[], usual: UsualProfile, reads: Read[]): Place[] {
+  const lifted = citablePlaceIds(usual, reads);
+  return corpus.filter((place) => exclusionsForWith(place, usual, lifted).length === 0);
 }
 
 /**
@@ -242,7 +270,7 @@ export function scorePlaces(input: ScoreInput): RankedPlace[] {
   const kByDriver = citableCohortSizes(input.usual, input.reads);
   const suppressed = suppressedDishes(input.log, input.now);
 
-  const ranked = candidates(input.corpus, input.usual).map((place) => {
+  const ranked = candidates(input.corpus, input.usual, input.reads).map((place) => {
     const parts = {
       pool: poolScoreWith(place, input.reads, kByDriver),
       usual: usualScore(place, input.usual),

@@ -88,6 +88,28 @@ describe('no_candidates', () => {
   });
 });
 
+describe('the D-11 budget lift, seen from the plan', () => {
+  // Exclusion report and ranking are computed by two call sites; this pins that they
+  // agree about who was lifted — the property the D-11 comment in planAsk claims.
+  const pricey = place({ id: 'pricey', priceBand: 4 });
+
+  it('with no evidence, the over-budget place is excluded and unscored', () => {
+    const result = planAsk({ ...baseInput(), corpus: [...corpus, pricey] });
+    expect(result.exclusions).toEqual([{ placeId: 'pricey', reason: 'over_budget' }]);
+    expect(Object.keys(result.scores)).not.toContain('pricey');
+  });
+
+  it('with a citable cohort at the place, it leaves the exclusion list AND enters the scores', () => {
+    const result = planAsk({
+      ...baseInput(),
+      corpus: [...corpus, pricey],
+      reads: cohort(KFLOOR, 'pricey'),
+    });
+    expect(result.exclusions).toEqual([]);
+    expect(Object.keys(result.scores)).toContain('pricey');
+  });
+});
+
 describe('context handling', () => {
   it('pins DEMO_CONTEXT under demoMode, ignoring any context passed', () => {
     const midnight: AskContext = { hour: 2, solo: false, weather: 'clear' };
