@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T18:04:11.512Z",
+  "updated_at": "2026-07-25T18:04:13.276Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -946,13 +946,13 @@
         "M2"
       ],
       "mock_start_ok": false,
-      "note": "MEASURED and fixed. NO search parameter is honored: top_k=1 returns 13 rows; episode_slots=0 and 99 are indistinguishable; limit/size/max_results/n/per_page and every type filter are inert too, all with 200. The prior reasoning in pool.ts and user.ts ('top-k headroom is what actually protects the claim') was FALSE, not merely unproven, and the constants carrying it are deleted. Second measurement is the useful one: the IDENTICAL request returns 13/3E 13/3E 11/2E 13/3E 13/3E 11/2E, so the search is non-deterministic and an empty answer is not an empty scope. Reservation is now client-side in src/memory/episodes.ts: bounded retry (3) for an episode, never for facts, logged so a thin claim is attributable. Parameters still sent - inert but forward-compatible. Caution for the next probe: k=3 returned 7 rows once and looked like the real parameter name; repeating six times showed it was non-determinism.",
-      "status": "in_review",
+      "note": "Merged to trunk via #71 (0293a0f), which landed the #65 branch intact after the announced takeover deadline; review record on #65. Ownership preserved.",
+      "status": "done",
       "owner": "claude-session-014n6NYRN6Rb",
       "branch": "claude/upload-code-artifact-zop9uz",
       "pr": "65",
       "claimed_at": "2026-07-25T14:52:00.976Z",
-      "updated_at": "2026-07-25T15:12:29.465Z"
+      "updated_at": "2026-07-25T18:04:13.275Z"
     },
     "M14": {
       "title": "Pool ingests as prose, not JSON (guide R4) — ships WITH M12's conv_id batching; neither half works alone",
