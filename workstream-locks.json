@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T12:08:57.546Z",
+  "updated_at": "2026-07-25T12:13:36.397Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -915,13 +915,13 @@
         "M2"
       ],
       "mock_start_ok": false,
-      "note": "MEASURED, not inferred. src/memory/client.ts:121 sets conv_id: confit-${scope}-${randomUUID()} — a FRESH conversation per ingest. XTrace episodes summarise a conversation; a conversation is one read; so inducedClaim returns a paraphrase of ONE read presented on the card as a pool-level insight. Probed 8 reads through the real API: the induced claim came back 'The session centers on a weekly visit to noodle_shrine that ended in regret...' — one read, not a crowd. Design v0.8 §8's differentiator is cross-record synthesis over many people's confessions, and it has never actually been exercised. Fix is small (group pool ingests under a shared or rotating conv_id) but it is a substrate-behaviour question: measure facts+episodes for grouped vs ungrouped before committing. This is the ONLY remaining XTrace role after D-7 and M11, so it decides whether the integration carries anything.",
-      "status": "claimed",
+      "note": "DONE with M14 in PR #60. MemoryClient.ingestBatch + PoolStore.writeReads (group by driver, chunk at 20). VERIFIED LIVE end to end: 220 reads through the real CLI into a clean scope produced a claim spanning 17 named places, cross-person, zero raw ids, zero single-read framing — design v0.8 §8's differentiator running for the first time. Also 17 API calls instead of 220 and the 429s are gone. Follow-ups: M15 (a clean pool scope is REQUIRED — pre-M12 episodes outrank the new ones for the same query), M13 (episode_slots unverifiable; the API accepts made-up params with 200), L4 (inducedClaim still reaches the card unlinted).",
+      "status": "done",
       "owner": "claude-session-014n6NYRN6Rb",
       "branch": "claude/upload-code-artifact-zop9uz",
-      "pr": null,
+      "pr": "https://github.com/Gambappe/Foodictador/pull/60",
       "claimed_at": "2026-07-25T11:51:14.686Z",
-      "updated_at": "2026-07-25T11:51:14.686Z"
+      "updated_at": "2026-07-25T12:13:36.396Z"
     },
     "L4": {
       "title": "inducedClaim reaches the card unlinted: substrate prose can put a raw place id in front of a user",
