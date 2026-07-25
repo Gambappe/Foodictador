@@ -3,7 +3,7 @@
  *
  * Operator plumbing, no business logic: provisioning writes S4's committed
  * profiles through UserStore (the only write path for off-limits topics),
- * seeding drives S3's loader, reset clears the relay, flags toggle through
+ * seeding drives S3's loader, reset DELETES every read (see runReset), flags toggle through
  * P0.3's store (one logged transition per change), and the nudge arms through
  * N1's rules. Every mutation prints exactly what it changed.
  */
@@ -14,9 +14,13 @@ import type { FlagStore, Logger } from '../config/index.js';
 import type { LoadReport } from '../../scripts/seed/load-seeds.js';
 import { loadProfiles } from '../../scripts/seed/validate-profiles.js';
 import { EXIT, type CommandResult } from './render.js';
+import { stdinConfirm } from './confess.js';
 
 const PROFILES = ['A', 'B'] as const;
 type ProfileName = (typeof PROFILES)[number];
+
+/** Names the consequence, not the action — "reset" sounds recoverable and is not. */
+const RESET_PROMPT = 'DELETE every read in the pool? This cannot be undone. [y/N] ';
 
 // ---- provision ----
 
@@ -84,14 +88,51 @@ export async function runSeed(deps: SeedOpsDeps): Promise<CommandResult> {
   };
 }
 
-export async function runReset(deps: { relay: Relay }): Promise<CommandResult> {
+/**
+ * `pass reset` — **destructive.** Under DAG §4 D-7 the relay is the durable store
+ * of reads, so clearing it deletes every read in the pool, permanently. There is
+ * no second copy: XTrace holds prose derived from those reads and cannot hand one
+ * back.
+ *
+ * This command used to be safe. While the relay was a settle-window buffer,
+ * resetting it discarded a few minutes of in-flight writes and the pool was
+ * untouched — which is why it printed "Pool records remain … the census stays
+ * honest via read_id dedup" and asked nothing before doing it. That sentence is
+ * now the opposite of what happens, and reassuring copy on a command that empties
+ * the pool is worse than no copy at all.
+ *
+ * So it confirms first. `--yes` skips the prompt for scripted use; `confirm` is
+ * injectable for tests. Declining is `expectedFailure`, not an error — the
+ * operator did the right thing.
+ */
+export async function runReset(deps: {
+  relay: Relay;
+  yes?: boolean;
+  confirm?: () => Promise<boolean>;
+}): Promise<CommandResult> {
+  const count = (await deps.relay.stats()).count;
+
+  if (deps.yes !== true) {
+    const confirm = deps.confirm ?? (() => stdinConfirm(RESET_PROMPT));
+    if (!(await confirm())) {
+      return {
+        lines: ['Reset cancelled. Nothing was deleted.'],
+        data: { relay: 'untouched', deleted: 0 },
+        exit: EXIT.expectedFailure,
+      };
+    }
+  }
+
   await deps.relay.reset();
   return {
     lines: [
-      'Relay cleared.',
-      'Pool records remain — the substrate has no bulk delete; the census stays honest via read_id dedup.',
+      `Relay cleared — ${count} read(s) DELETED.`,
+      'The relay is the durable store (D-7), so those reads are gone from the pool',
+      'for good. XTrace still holds prose derived from them, which cannot be read',
+      'back as reads and does not restore any cohort count.',
+      'Re-seed with `pass seed` before the next demo.',
     ],
-    data: { relay: 'cleared', pool: 'retained' },
+    data: { relay: 'cleared', deleted: count },
   };
 }
 
@@ -210,7 +251,7 @@ export const seedHandler: CommandHandler = (context) => {
 
 export const resetHandler: CommandHandler = (context) => {
   const { relay } = wire(context);
-  return runReset({ relay });
+  return runReset({ relay, yes: context.argv.flags.has('yes') });
 };
 
 export const flagsHandler: CommandHandler = (context) => {

@@ -140,7 +140,7 @@ export const COMMANDS: readonly CommandSpec[] = [
     task: 'X7',
     handler: seedHandler,
   },
-  { path: ['pass', 'reset'], summary: 'clear the pool and relay', task: 'X7', handler: resetHandler },
+  { path: ['pass', 'reset'], summary: 'DELETE every read in the pool (confirms; --yes to skip)', task: 'X7', handler: resetHandler },
   {
     path: ['pass', 'flags'],
     summary: 'show degrade flags, or set one with --set key=value',

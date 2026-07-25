@@ -81,14 +81,64 @@ describe('X7 pass seed / reset', () => {
     expect(partial.lines.join('\n')).toMatch(/Re-run detected/);
   });
 
-  it('reset empties the relay and says what it did NOT clear', async () => {
+  it('reset deletes every read and says so, with the count', async () => {
     const relay = new StubRelay();
     await relay.put(sampleRead);
-    expect((await relay.stats()).count).toBe(1);
-    const result = await runReset({ relay });
+    const result = await runReset({ relay, confirm: () => Promise.resolve(true) });
     expect((await relay.stats()).count).toBe(0);
-    expect(result.lines.join('\n')).toMatch(/Relay cleared/);
-    expect(result.lines.join('\n')).toMatch(/Pool records remain/);
+    const printed = result.lines.join('\n');
+    expect(printed).toMatch(/1 read\(s\) DELETED/);
+    expect(printed).toMatch(/durable store/);
+    expect(result.data).toMatchObject({ relay: 'cleared', deleted: 1 });
+  });
+
+  it('reset does NOT claim the pool survives — that copy was true and is now inverted', async () => {
+    // The regression this locks. While the relay was a settle-window buffer,
+    // reset discarded a few minutes of in-flight writes and printed "Pool records
+    // remain … the census stays honest via read_id dedup". Under D-7 the relay IS
+    // the pool, so that sentence reassures an operator about the one command that
+    // empties it.
+    const relay = new StubRelay();
+    await relay.put(sampleRead);
+    const printed = (
+      await runReset({ relay, confirm: () => Promise.resolve(true) })
+    ).lines.join('\n');
+    expect(printed).not.toMatch(/Pool records remain/);
+    expect(printed).not.toMatch(/stays honest/);
+  });
+
+  it('reset asks before deleting, and declining deletes nothing', async () => {
+    const relay = new StubRelay();
+    await relay.put(sampleRead);
+    let asked = 0;
+    const result = await runReset({
+      relay,
+      confirm: () => {
+        asked += 1;
+        return Promise.resolve(false);
+      },
+    });
+    expect(asked).toBe(1);
+    expect((await relay.stats()).count).toBe(1); // still there
+    expect(result.exit).toBe(EXIT.expectedFailure);
+    expect(result.data).toMatchObject({ relay: 'untouched', deleted: 0 });
+  });
+
+  it('--yes skips the prompt for scripted use', async () => {
+    const relay = new StubRelay();
+    await relay.put(sampleRead);
+    let asked = 0;
+    const result = await runReset({
+      relay,
+      yes: true,
+      confirm: () => {
+        asked += 1;
+        return Promise.resolve(false); // would refuse, and is never consulted
+      },
+    });
+    expect(asked).toBe(0);
+    expect((await relay.stats()).count).toBe(0);
+    expect(result.data).toMatchObject({ deleted: 1 });
   });
 });
 
