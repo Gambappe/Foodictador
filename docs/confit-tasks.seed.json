@@ -1,5 +1,5 @@
 {
-  "comment": "Seed for scripts/workstream-lock.mjs — the task DAG from docs/confit-implementation-plan.md §4. `phase` is P0 for the all-hands Phase-0 tasks, otherwise the owning lane (A–F, §3.6). depends_on mirrors the task table's 'Depends on' column; prose-only dependencies are recorded as notes.",
+  "comment": "RETIRED — DO NOT REGISTER. This is the v0.3-era task DAG. It was wiped from the registry when design v0.8 was scoped; the live DAG is docs/confit-v0.8-tasks.seed.json, specified in docs/confit-v0.8-task-dag.md. Lane A (encryption), T0.3 (x-vec) and C3 (embedder) no longer exist as work — design v0.8 [E9]/[E1] retired them. Kept only so the implementation plan's §4 references resolve. Original comment follows. || Seed for scripts/workstream-lock.mjs — the task DAG from docs/confit-implementation-plan.md §4. `phase` is P0 for the all-hands Phase-0 tasks, otherwise the owning lane (A–F, §3.6). depends_on mirrors the task table's 'Depends on' column; prose-only dependencies are recorded as notes.",
   "tasks": {
     "T0.1": {
       "title": "Repo bootstrap: Vite + React 18 + TS strict + Tailwind + zustand + vitest + Playwright; gate script stubs; deploy target wired",

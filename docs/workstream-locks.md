@@ -1,7 +1,8 @@
 # Workstream locks — coordinating parallel agents on the Confit DAG
 
-Multiple Claude agents (or humans) can work on different tasks from the implementation
-plan's work breakdown (`docs/confit-implementation-plan.md` §4) at the same time. This
+Multiple Claude agents (or humans) can work on different tasks from the registered task
+DAG (`docs/confit-v0.8-task-dag.md`, seeded from `docs/confit-v0.8-tasks.seed.json`) at the
+same time. This
 document is the usage guide for the tool that stops two agents from claiming — or
 shipping — the same task at once.
 
@@ -15,34 +16,35 @@ before picking a task.**
 node scripts/workstream-lock.mjs list-ready
 
 # 2. Claim the one you're taking (fails loudly if someone beat you to it)
-node scripts/workstream-lock.mjs claim A2 --owner "<your session/agent id>" --branch "feat/a2-vault-store"
+node scripts/workstream-lock.mjs claim K1 --owner "<your session/agent id>" --branch "feat/k1-read-validator"
 
-# 3. Do the work on that branch, inside your lane's file-ownership globs (plan §3.6)
+# 3. Do the work on that branch, inside your lane's file-ownership globs (DAG doc §2)
 
 # 4. When you open a PR (if your flow uses PRs — the plan itself is trunk-based, §5.4)
-node scripts/workstream-lock.mjs update A2 --status in_review --pr "<pr url>"
+node scripts/workstream-lock.mjs update K1 --status in_review --pr "<pr url>"
 
 # 5. When it merges
-node scripts/workstream-lock.mjs update A2 --status done
+node scripts/workstream-lock.mjs update K1 --status done
 
 # If you have to stop before finishing (blocked, out of scope, whatever)
-node scripts/workstream-lock.mjs release A2 --note "blocked on x-vec spike verdict, see channel"
+node scripts/workstream-lock.mjs release K1 --note "blocked on a contract change, see channel"
 ```
 
 Run `node scripts/workstream-lock.mjs help` any time for the full command list.
 
 ## Why this exists
 
-§4 of the implementation plan lays out ~30 tasks across six lanes with an explicit
-dependency DAG, precisely so multiple agents can build the product in parallel. The one
+The registered DAG lays out 44 tasks across nine lanes with an explicit dependency DAG,
+precisely so multiple agents can build the product in parallel. The one
 thing the plan can't do on paper is stop two agents from independently grabbing the same
 task, or one agent starting a task whose dependency hasn't actually merged yet. That's
 what this tool is for — a shared, git-backed registry of "who's doing what," with the
 actual claim/release operations made safe under concurrency.
 
 This tool coordinates **who is doing which task**. It does not replace anything in the
-plan — exclusive file ownership (§3.6), the contract freeze (§3), trunk-based small
-merges and the parallel-safety rules (§5), gates and cut order (§6) all still apply.
+task DAG — exclusive file ownership (DAG §2, which is exclusive task-to-task as well as
+lane-to-lane), the contract freeze at `P0.2`, and the engineering rules (DAG §1) all still
+apply.
 Claiming a task here is the first step, not a substitute for the rest of the workflow.
 
 ## Where the data lives
@@ -99,11 +101,14 @@ same tool serves whatever plan gets registered next.
 
 ## Mock-start tasks
 
-Some tasks are marked `mock_start_ok: true` — in this repo those are the stub-first UI
-tasks the plan explicitly schedules before their backend dependencies merge (`E2`, `E3`;
-§5.2: "the stub is the spec", integrator wires stub→live at the gates). For these,
-`claim` **skips** the dependency-readiness check, because the whole point is you can
-start coding against the frozen contracts and stubs before the upstream task merges.
+Some tasks are marked `mock_start_ok: true` — in this repo those are the stub-first CLI
+tasks `X2` and `X3`, built against the `P0.2` fixture stubs before their backends merge.
+For these, `claim` **skips** the dependency-readiness check, because the whole point is you
+can start coding against the frozen contracts and stubs before the upstream task merges.
+
+**Caveat the tool cannot express:** skipping the check means `list-ready` shows `X2` and
+`X3` in wave 1, before `P0.2` has produced the stubs they are meant to be built against.
+Don't claim them until `P0.2` has merged. Their notes say so.
 
 The tool still enforces the other half of that rule: `update <task> --status done` is
 **always** gated on real dependency-readiness, mock-start or not. You can start early;
@@ -112,11 +117,11 @@ is still outstanding.
 
 ## Reading the `note` field
 
-A handful of tasks have dependencies the plan states as prose rather than a clean task
-list — e.g. `F5`'s dependency is literally "all" (recorded as `[F3, F4]` per the DAG
-figure), `B2` lists `T0.3/4` where either backend suffices in practice, and `A5`/`C3`
-are stretch/non-spine work with an explicit cut order (§6). These caveats are recorded
-in the task's `note`. `status` and `list-ready` both surface the note — read it before
+Many tasks carry a caveat the `depends_on` list cannot express — an ordering that is a
+correctness requirement rather than a preference (`M5`), a decision needing integrator
+sign-off before the task is claimable (`M7`, see DAG §4 D-1), a task that blocks build day
+(`P0.5`), or a mock-start task that is not really claimable in wave 1 (`X2`, `X3`). These
+are recorded in the task's `note`. `status` and `list-ready` both surface the note — read it before
 claiming anything that has one. A short `depends_on` does not always mean "claimable in
 wave 1."
 
@@ -126,7 +131,7 @@ wave 1."
 init [--seed <file>] [--force]
 ```
 Bootstraps the `workstream-locks` branch. Already done for this repo (seeded from
-`docs/confit-tasks.seed.json`) — you should not need this unless you're intentionally
+`docs/confit-v0.8-tasks.seed.json`) — you should not need this unless you're intentionally
 resetting the whole registry (`--force`, destroys current state) or spinning up the same
 pattern in a different repo. Seed files use the same shape and normalization as
 `add-tasks` — entries are validated and born `available`/unowned either way.
@@ -142,8 +147,8 @@ list-ready [--phase P0] [--json]
 ```
 The actual "what can I start right now" list: `status: available` and either
 `mock_start_ok` or all dependencies `done`. Filter to a phase if you're only working one
-lane — in this repo `phase` is `P0` for the Phase-0 tasks and the lane letter (`A`–`F`)
-otherwise.
+lane — in this repo `phase` is `P0` for foundation tasks and the lane letter (`K`, `M`, `L`, `X`,
+`S`, `N`, `G`, `U`) otherwise.
 
 ```
 claim <taskId> --owner <id> [--branch <name>]
@@ -180,12 +185,15 @@ refuses if the task isn't `available` or if another task still lists it in `depe
 ```
 add-tasks --seed <file.json>
 ```
-Batch form of `add-task` for registering a whole plan at once. This is how the Confit
-DAG (`docs/confit-implementation-plan.md` §4) was registered:
+Batch form of `add-task` for registering a whole plan at once. The live DAG
+(`docs/confit-v0.8-task-dag.md`) was registered with `init --force` after the v0.3-era
+tasks were wiped; use `add-tasks` to append later additions:
 
 ```bash
-node scripts/workstream-lock.mjs add-tasks --seed docs/confit-tasks.seed.json
+node scripts/workstream-lock.mjs add-tasks --seed docs/confit-v0.8-tasks.seed.json
 ```
+
+`docs/confit-tasks.seed.json` is the retired v0.3 seed and must not be re-registered.
 
 Existing IDs are never overwritten (reported as skipped) and re-running the command is a
 no-op, so it's safe after partial failures or racing agents. Seed entries always enter
@@ -200,7 +208,7 @@ There's no automatic expiry. If a task has been `claimed` for a long time with n
 corresponding branch activity or PR, and you (or a human) conclude it's abandoned:
 
 ```bash
-node scripts/workstream-lock.mjs release D3 --note "no activity since <date>, releasing — see <link> if reviving"
+node scripts/workstream-lock.mjs release M5 --note "no activity since <date>, releasing — see <link> if reviving"
 ```
 Then it's claimable again. Prefer investigating (check the recorded `branch`/`pr` field
 first) over reflexively releasing — someone might just be mid-task.
