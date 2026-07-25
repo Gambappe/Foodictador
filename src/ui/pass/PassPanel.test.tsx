@@ -163,18 +163,44 @@ describe('U5: the near-tie inspector', () => {
   });
 });
 
+/**
+ * `sweep --json`'s payload keys.
+ *
+ * Still a literal, because this file runs under the jsdom project and importing the CLI
+ * here would break the `.test.ts` / `.test.tsx` split U5 set up on purpose. What keeps it
+ * honest is `actions.test.ts`, which compares SWEEPER_FIELDS against X4's real
+ * `sweepPayload` in the node project — so a rename fails there rather than quietly
+ * agreeing with a stale fixture here, which is exactly how the old keys survived D-7.
+ */
+const SWEEP_DATA = {
+  pooled: 5,
+  reingested: 1,
+  pending: 3,
+  stored: 220,
+  oldest_stored_age_seconds: 914,
+};
+
 describe('U5: sweeper status', () => {
-  it('shows oldest_entry_age_seconds, which is the number [E21] turns on', async () => {
-    const h = harness({
-      sweeper: {
-        lines: ['swept'],
-        data: { verified: 4, reingested: 1, retained: 2, oldest_entry_age_seconds: 914 },
-      },
-    });
+  it('leads with pending, the number an operator acts on under D-7', async () => {
+    const h = harness({ sweeper: { lines: ['swept'], data: SWEEP_DATA } });
     await press('Sweeper status');
     await waitFor(() => expect(screen.getByTestId('sweeper-status')).toBeTruthy());
     expect(h.calls).toEqual([{ path: 'sweep', values: { once: 'true' } }]);
-    expect(screen.getByTestId('oldest-entry-age').textContent).toBe('914');
+    expect(screen.getByTestId('sweeper-pending').textContent).toBe('3');
+    expect(screen.getByTestId('sweeper-stored').textContent).toBe('220');
+  });
+
+  it('renders no undefined cell — every key it reads is one the CLI emits', async () => {
+    // The reason this test exists. The panel used to read `verified`, `retained` and
+    // `oldest_entry_age_seconds`; D-7 renamed all three, so three of its four rows
+    // rendered the string "undefined" in a live demo — and the suite stayed green
+    // because the harness above staged the old key names. A fixture that invents its
+    // own payload shape tests the fixture.
+    const h = harness({ sweeper: { lines: ['swept'], data: SWEEP_DATA } });
+    await press('Sweeper status');
+    await waitFor(() => expect(screen.getByTestId('sweeper-status')).toBeTruthy());
+    expect(h.calls).toHaveLength(1);
+    expect(screen.getByTestId('sweeper-status').textContent).not.toContain('undefined');
   });
 });
 
@@ -215,21 +241,34 @@ describe('U5: mutations are confirmed, reads are not', () => {
     await waitFor(() => expect(h.calls).toHaveLength(1));
   });
 
-  it('clearing the relay takes two presses', async () => {
+  it('deleting every read takes two presses, and sends --yes', async () => {
+    // `yes` is not laxity: the panel's own confirm step is the gate, and without it
+    // the CLI blocks on a stdin prompt no browser can answer (D-7 made `pass reset`
+    // destructive enough to warrant one).
     const h = harness();
-    await userEvent.click(screen.getByRole('button', { name: 'Clear relay' }));
+    await userEvent.click(screen.getByRole('button', { name: 'DELETE all reads' }));
     expect(h.calls).toHaveLength(0); // armed, not fired
-    await userEvent.click(screen.getByRole('button', { name: 'Confirm: Clear relay' }));
-    await waitFor(() => expect(h.calls).toEqual([{ path: 'pass reset', values: {} }]));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm: DELETE all reads' }));
+    await waitFor(() => expect(h.calls).toEqual([{ path: 'pass reset', values: { yes: 'true' } }]));
   });
 
   it('cancelling an armed mutation runs nothing', async () => {
     const h = harness();
-    await userEvent.click(screen.getByRole('button', { name: 'Clear relay' }));
+    await userEvent.click(screen.getByRole('button', { name: 'DELETE all reads' }));
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(h.calls).toHaveLength(0);
     // And the button is back to its unarmed label, not stuck mid-confirm.
-    expect(screen.getByRole('button', { name: 'Clear relay' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'DELETE all reads' })).toBeTruthy();
+  });
+
+  it('does not tell the operator the pool survives a reset', () => {
+    // The blurb is the last thing read before a destructive press. It used to say
+    // "Pool records remain — the substrate has no bulk delete", which was true of a
+    // settle-window buffer and is the opposite of what D-7's relay does.
+    harness();
+    const blurb = screen.getByTestId('section-operations').textContent ?? '';
+    expect(blurb).not.toMatch(/Pool records remain/);
+    expect(blurb).toMatch(/permanently/);
   });
 
   it('provision sends the chosen profile', async () => {

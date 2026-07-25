@@ -120,7 +120,11 @@ describe('X6 confit pass census', () => {
     expect(rows.find((r) => r.driver === 'spice_tolerance_low')?.crosscheck).toBe('over');
   });
 
-  it('surfaces a degraded pool in line one and in the data', async () => {
+  it('discloses degradation without telling the operator to distrust the counts', async () => {
+    // Under D-7 counts come from the relay whatever the flag says, so they are
+    // exact even here. `degraded` means there is no induced claim. Copy that
+    // implied the numbers on this screen were approximate would send an operator
+    // hunting a seeding problem that does not exist.
     const handler = createCensusCommand({
       readsForDriver: (driver) =>
         Promise.resolve({ reads: readsFor(driver, COUNTS[driver] ?? 0), degraded: true }),
@@ -128,7 +132,10 @@ describe('X6 confit pass census', () => {
     });
     const result = await handler(context(['pass', 'census']));
     expect(result.data['degraded']).toBe(true);
-    expect(result.lines[0]).toContain('POOL DEGRADED');
+    expect(result.lines[0]).toContain('induction unavailable');
+    expect(result.lines[0]).toContain('counts still exact');
+    // And the cross-check still passes, because nothing was actually missing.
+    expect(result.exit ?? EXIT.ok).toBe(EXIT.ok);
   });
 });
 

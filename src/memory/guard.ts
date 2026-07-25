@@ -26,7 +26,6 @@ export function assertWriteBody(value: unknown): Read {
 export function guardPoolStore(store: PoolStore): PoolStore {
   return {
     writeRead: async (read) => store.writeRead(assertWriteBody(read)),
-    readsForDriver: (driver, opts) => store.readsForDriver(driver, opts),
     inducedClaim: (query) => store.inducedClaim(query),
   };
 }

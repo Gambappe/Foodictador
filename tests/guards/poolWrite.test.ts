@@ -26,7 +26,6 @@ function recordingPool() {
       writes.push(read);
       return Promise.resolve({ jobId: 'job-1' });
     },
-    readsForDriver: () => Promise.resolve([]),
     inducedClaim: () => Promise.resolve(''),
   };
   return { pool, writes };

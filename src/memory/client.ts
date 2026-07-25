@@ -67,25 +67,35 @@ function requireString(record: Record<string, unknown>, key: string, context: st
   return value;
 }
 
+/**
+ * Search rows. The wire shape is `{data: [{id, type, text, ...}]}` — confirmed against
+ * the live API, see README. It is NOT `{rows: [{memory_id, kind, content}]}`, which is
+ * what this file assumed before anyone had credentials.
+ */
 function parseRows(value: unknown): MemoryRow[] {
   const record = asRecord(value, 'search');
-  const rows = record['rows'];
-  if (!Array.isArray(rows)) throw new Error('xtrace: search response missing "rows"');
+  const rows = record['data'];
+  if (!Array.isArray(rows)) throw new Error('xtrace: search response missing "data"');
   const parsed: MemoryRow[] = [];
   for (const raw of rows) {
     const row = asRecord(raw, 'search row');
-    const kind = row['kind'];
+    const kind = row['type'];
     if (kind !== 'fact' && kind !== 'episode') continue; // unknown kinds are skipped, not fatal
     parsed.push({
-      memoryId: requireString(row, 'memory_id', 'search row'),
+      memoryId: requireString(row, 'id', 'search row'),
       kind,
-      content: typeof row['content'] === 'string' ? row['content'] : '',
+      content: typeof row['text'] === 'string' ? row['text'] : '',
     });
   }
   return parsed;
 }
 
-const JOB_STATUSES: readonly IngestJobStatus[] = ['pending', 'complete', 'failed', 'unknown'];
+/**
+ * Live job vocabulary, confirmed: `pending` → `running` → `succeeded`, or `failed`.
+ * `succeeded` is the terminal success value; the earlier guess was `complete`, which
+ * never appears, so every poll fell through to `unknown` and no verification could pass.
+ */
+const TERMINAL_SUCCESS = 'succeeded';
 
 export function createMemoryClient(transport: HttpTransport): MemoryClient {
   async function call(req: HttpRequest, context: string): Promise<unknown> {
@@ -98,11 +108,24 @@ export function createMemoryClient(transport: HttpTransport): MemoryClient {
 
   return {
     async ingest(scope: string, payload: string): Promise<JobHandle> {
+      // The API is conversation-shaped: `messages` plus a `conv_id`, not a bare
+      // `content` string. A body without all three is rejected 422 naming the fields.
+      // `conv_id` groups an ingest; one prose confession is one conversation of one
+      // message, which is also what keeps the payload byte-identical to the input ([E11]).
       const json = await call(
-        { method: 'POST', path: '/v1/memories', body: { user_id: scope, content: payload } },
+        {
+          method: 'POST',
+          path: '/v1/memories',
+          body: {
+            user_id: scope,
+            conv_id: `confit-${scope}-${crypto.randomUUID()}`,
+            messages: [{ role: 'user', content: payload }],
+          },
+        },
         'ingest',
       );
-      return { jobId: requireString(asRecord(json, 'ingest'), 'job_id', 'ingest') };
+      // The handle is `id`, not `job_id`.
+      return { jobId: requireString(asRecord(json, 'ingest'), 'id', 'ingest') };
     },
 
     async search(scope: string, query: string, opts: SearchOpts): Promise<MemoryRow[]> {
@@ -136,14 +159,18 @@ export function createMemoryClient(transport: HttpTransport): MemoryClient {
     },
 
     async jobStatus(jobId: string): Promise<IngestJobStatus> {
+      // `/v1/memories/jobs/{id}`, not `/v1/ingest-jobs/{id}` — the latter 404s.
       const json = await call(
-        { method: 'GET', path: `/v1/ingest-jobs/${encodeURIComponent(jobId)}` },
+        { method: 'GET', path: `/v1/memories/jobs/${encodeURIComponent(jobId)}` },
         'jobStatus',
       );
       const status = asRecord(json, 'jobStatus')['status'];
-      return JOB_STATUSES.includes(status as IngestJobStatus)
-        ? (status as IngestJobStatus)
-        : 'unknown';
+      // Map the live vocabulary onto the contract's: `running` is still in flight, and
+      // `succeeded` is the success the sweeper waits for.
+      if (status === TERMINAL_SUCCESS) return 'complete';
+      if (status === 'failed') return 'failed';
+      if (status === 'pending' || status === 'running') return 'pending';
+      return 'unknown';
     },
   };
 }

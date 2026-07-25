@@ -30,8 +30,9 @@ import { DEFAULT_FLAGS } from '../../contracts/flags.js';
 import { createFlagStore } from '../../config/flagStore.js';
 import { createLogger } from '../../config/logger.js';
 import { runFlags } from '../../cli/pass-ops.js';
+import { sweepPayload } from '../../cli/sweep.js';
 import { EXIT } from '../../cli/render.js';
-import { FLAG_CHOICES, PASS_ACTIONS, passAction, type FlagName } from './actions.js';
+import { FLAG_CHOICES, PASS_ACTIONS, SWEEPER_FIELDS, passAction, type FlagName } from './actions.js';
 
 const specFor = (path: readonly string[]) =>
   COMMANDS.find((spec) => spec.path.join(' ') === path.join(' '));
@@ -159,5 +160,46 @@ describe('U5: the flag choices the panel offers are the ones X7 accepts', () => 
     const store = createFlagStore(DEFAULT_FLAGS, createLogger(() => {}));
     expect(runFlags('pool=banana', store).exit).toBe(EXIT.usage);
     expect(runFlags('nonsense=live', store).exit).toBe(EXIT.usage);
+  });
+});
+
+describe('U5: the sweeper panel reads keys the sweep command actually emits', () => {
+  /**
+   * The defect this exists for. D-7 renamed every field on `SweepReport`
+   * (verified→pooled, retained→stored, +pending, oldestEntryAgeSeconds→
+   * oldestStoredAgeSeconds). The panel went on reading the old names and rendered the
+   * string "undefined" in three of four rows — and the suite stayed green, because
+   * PassPanel.test.tsx staged a fixture with the old keys. A fixture that invents its
+   * own payload shape tests the fixture.
+   *
+   * So this compares against `sweepPayload`, the function X4 actually renders with.
+   */
+  const payload = sweepPayload({
+    pooled: 5,
+    reingested: 1,
+    pending: 3,
+    stored: 220,
+    oldestStoredAgeSeconds: 914,
+  });
+
+  it.each(SWEEPER_FIELDS.map((field) => [field.key, field] as const))(
+    'renders %s, which the payload provides',
+    (key) => {
+      expect(
+        Object.keys(payload),
+        `sweep --json emits: ${Object.keys(payload).join(', ')}`,
+      ).toContain(key);
+      expect(payload[key]).not.toBeUndefined();
+    },
+  );
+
+  it('leads with pending — nothing is deleted under D-7, so it is the only alarm', () => {
+    expect(SWEEPER_FIELDS[0]?.key).toBe('pending');
+  });
+
+  it('does not render oldest_stored_age_seconds as a health number', () => {
+    // It is store age now, not stuck age. Showing it beside `pending` invites the old
+    // reading, where a large number meant something was wrong.
+    expect(SWEEPER_FIELDS.map((f) => f.key)).not.toContain('oldest_stored_age_seconds');
   });
 });

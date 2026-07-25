@@ -5,6 +5,11 @@ import type { Read, RelayEntry, RelayStats } from '../types.js';
  * In-memory relay. `drop` on an unknown read_id is a no-op here — the M8 contract
  * treats forget-of-unknown as success, and the stub follows the caller-facing rule
  * (the real service's 404 is M4's concern, not the interface's).
+ *
+ * `put` upserts on read_id, matching `infra/relay/store.ts`: a retried write
+ * updates the body but preserves `received_at` and `ingest_job_id`. It matters
+ * more under D-7 than it did as transport — the relay is the durable store now,
+ * so a stub that appended would model a canonical store that duplicates reads.
  */
 export class StubRelay implements Relay {
   private entries: RelayEntry[] = [];
@@ -12,6 +17,11 @@ export class StubRelay implements Relay {
   constructor(private readonly nowFn: () => Date = () => new Date()) {}
 
   put(read: Read): Promise<void> {
+    const existing = this.entries.find((e) => e.read.read_id === read.read_id);
+    if (existing) {
+      existing.read = read;
+      return Promise.resolve();
+    }
     this.entries.push({ read, received_at: this.nowFn().toISOString() });
     return Promise.resolve();
   }

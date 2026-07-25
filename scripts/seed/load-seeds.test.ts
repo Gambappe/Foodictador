@@ -23,7 +23,6 @@ function fakes(init?: { failPoolFor?: Set<string> }) {
       jobSeq += 1;
       return Promise.resolve({ jobId: `job-${jobSeq}` });
     },
-    readsForDriver: (driver) => Promise.resolve(poolReads.filter((r) => r.driver === driver)),
     inducedClaim: () => Promise.reject(new Error('unused')),
   };
   const relay: Relay = {

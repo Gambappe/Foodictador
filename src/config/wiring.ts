@@ -77,7 +77,7 @@ export function liveGraph(config: AppConfig, logger: Logger, existing?: FlagStor
   const pool = createPoolStore({ client, logger });
   const user = createUserStore({ client, logger });
   const relay = createRelayClient({ url: config.relayUrl, token: config.relayToken, logger });
-  const poolView = createPoolView({ pool, relay, flags, logger });
+  const poolView = createPoolView({ relay, flags, logger });
 
   // No key means no live model. Asking for one anyway would fail at the first call, deep
   // inside a command, instead of here where the reason is obvious.
@@ -143,7 +143,7 @@ export function fixtureGraph(options: FixtureGraphOptions): AdapterGraph {
   const relay = new StubRelay(now);
   const pool = createPoolStore({ client, logger });
   const user = createUserStore({ client, logger });
-  const poolView = createPoolView({ pool, relay, flags, logger });
+  const poolView = createPoolView({ relay, flags, logger });
 
   return {
     client,

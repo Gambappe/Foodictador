@@ -13,21 +13,38 @@ function recordingTransport(respond: (req: HttpRequest) => { status: number; jso
   return { requests, transport };
 }
 
+/**
+ * Responses in the shapes the LIVE API actually returns, confirmed against
+ * api.production.xtrace.ai — see README's D-2 table.
+ *
+ * The previous version of this fixture returned the shapes this file had *guessed*:
+ * `{job_id}`, `{rows: [{memory_id, kind, content}]}`, `/v1/memories/jobs/{id}`, and a
+ * terminal status of `complete`. Every one of those is wrong, so all six tests below
+ * passed against a client that could not talk to the substrate at all. A mock is a claim
+ * about someone else's API, and an unverified mock makes a test suite an echo.
+ */
 const okResponses = (req: HttpRequest): { status: number; json: unknown } => {
-  if (req.path === '/v1/memories') return { status: 200, json: { job_id: 'job-1' } };
+  if (req.path === '/v1/memories') {
+    return { status: 202, json: { object: 'ingest_job', id: 'job-1', status: 'pending' } };
+  }
   if (req.path === '/v1/memories/search') {
     return {
       status: 200,
       json: {
-        rows: [
-          { memory_id: 'm1', kind: 'fact', content: 'prefers the counter seat' },
-          { memory_id: 'm2', kind: 'episode', content: 'the birthday dinner arc' },
-          { memory_id: 'm3', kind: 'mystery', content: 'skipped, not fatal' },
+        object: 'search',
+        mode: 'compose',
+        data: [
+          { id: 'm1', object: 'memory', type: 'fact', text: 'prefers the counter seat' },
+          { id: 'm2', object: 'memory', type: 'episode', text: 'the birthday dinner arc' },
+          { id: 'm3', object: 'memory', type: 'mystery', text: 'skipped, not fatal' },
         ],
+        context: '',
       },
     };
   }
-  if (req.path.startsWith('/v1/ingest-jobs/')) return { status: 200, json: { status: 'complete' } };
+  if (req.path.startsWith('/v1/memories/jobs/')) {
+    return { status: 200, json: { object: 'ingest_job', id: 'job-1', status: 'succeeded' } };
+  }
   return { status: 204, json: null };
 };
 
@@ -95,7 +112,7 @@ describe('M1 MemoryClient', () => {
     await client.remove('p', 'mem/with slash');
     await client.jobStatus('job with space');
     expect(requests[0]?.path).toBe('/v1/memories/mem%2Fwith%20slash');
-    expect(requests[1]?.path).toBe('/v1/ingest-jobs/job%20with%20space');
+    expect(requests[1]?.path).toBe('/v1/memories/jobs/job%20with%20space');
   });
 
   it('non-2xx and malformed responses throw with context, never silently', async () => {
@@ -105,11 +122,11 @@ describe('M1 MemoryClient', () => {
     );
     const malformed = recordingTransport(() => ({ status: 200, json: { nope: true } }));
     await expect(createMemoryClient(malformed.transport).ingest('p', 'x')).rejects.toThrow(
-      /missing "job_id"/,
+      /missing "id"/,
     );
     const badRows = recordingTransport(() => ({ status: 200, json: { rows: 'not-an-array' } }));
     await expect(
       createMemoryClient(badRows.transport).search('p', 'q', { topK: 1, episodeSlots: 1 }),
-    ).rejects.toThrow(/missing "rows"/);
+    ).rejects.toThrow(/missing "data"/);
   });
 });

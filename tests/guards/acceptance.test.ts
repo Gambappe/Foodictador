@@ -73,9 +73,13 @@ describe('the CLI acceptance run', () => {
     // ---- seed: one short of the floor, on purpose --------------------------------
     // KFLOOR - 1 reads means the cohort is NOT citable yet. If the seed already cleared
     // the floor, the assertion below would pass without the confession doing anything.
+    //
+    // Seeded into the RELAY, which is the durable store of reads under DAG §4 D-7.
+    // Seeding the XTrace pool instead — as this test used to — put the reads into a
+    // substrate that cannot hand them back, and the run only passed because the
+    // fixture's stub could do what production cannot.
     const seeds = Array.from({ length: KFLOOR - 1 }, (_, i) => seedRead(i));
-    for (const read of seeds) await g.pool.writeRead(read);
-    await g.relay.seed([]);
+    expect(await g.relay.seed(seeds)).toBe(KFLOOR - 1);
 
     const before = await g.poolView.readsForDriver(DRIVER);
     expect(before.reads).toHaveLength(KFLOOR - 1);
@@ -136,7 +140,7 @@ describe('the CLI acceptance run', () => {
       expect(line).not.toMatch(/[a-z]_[a-z]/);
     }
 
-    // ---- sweep: the relay entry verifies and is dropped --------------------------
+    // ---- sweep: it backfills induction and DESTROYS NOTHING -----------------------
     const sweeper = createSweeper({
       relay: g.relay,
       pool: g.pool,
@@ -144,21 +148,29 @@ describe('the CLI acceptance run', () => {
       logger: g.logger,
       settleWindowSeconds: g.settleWindowSeconds,
     });
-    expect(await g.relay.list()).toHaveLength(1);
+    const beforeSweep = await g.relay.list();
+    expect(beforeSweep).toHaveLength(KFLOOR);
 
-    // Swept at NOW the entry is not yet past the window, so it is retained — verified-drop
-    // never touches an entry it has not confirmed ([E21]). Assert that first, because a
-    // sweep that "did something" is not the same as a sweep that did the right thing.
+    // Swept at NOW nothing is past the window yet, so no entry is even examined.
     const early = await sweeper.sweepOnce(NOW);
-    expect(early).toMatchObject({ verified: 0, reingested: 0, retained: 1 });
-    expect(await g.relay.list()).toHaveLength(1);
+    expect(early).toMatchObject({ pooled: 0, reingested: 0, pending: 0, stored: KFLOOR });
 
-    // Swept a minute later it verifies against the pool and the entry goes.
+    // Swept a minute later every entry is examined: the confession's ingest job is
+    // complete, and the seeds were never ingested at all, so they get backfilled.
     const report = await sweeper.sweepOnce(LATER);
-    expect(report).toMatchObject({ verified: 1, reingested: 0, retained: 0 });
-    expect(await g.relay.list()).toEqual([]);
+    expect(report).toMatchObject({ pooled: 1, reingested: KFLOOR - 1, pending: 0 });
 
-    // ---- forget: gone from every target -----------------------------------------
+    // THE ASSERTION THIS RUN EXISTS FOR, after the citation moved. The relay is the
+    // only place these reads exist (D-7), so a sweep that shrank it would be the
+    // whole cohort destroyed — and the demo would still look fine right up until
+    // the next Ask found nothing to cite.
+    expect(report.stored).toBe(KFLOOR);
+    expect((await g.relay.list()).map((e) => e.read.read_id).sort()).toEqual(
+      beforeSweep.map((e) => e.read.read_id).sort(),
+    );
+    expect((await askB())?.poolCitation).toEqual({ driver: DRIVER, k: KFLOOR });
+
+    // ---- forget: gone from the store, honest about the rest -----------------------
     const forgotten = await forget(written.read_id, {
       client: g.client,
       relay: g.relay,
@@ -166,7 +178,12 @@ describe('the CLI acceptance run', () => {
     });
     expect(forgotten.ok).toBe(true);
     expect(forgotten.read_id).toBe(written.read_id);
-    expect(forgotten.pool.status).toBe('deleted');
+    // The relay delete is the authoritative one: it removes the read itself.
+    expect(forgotten.relay).toEqual({ status: 'deleted', count: 1 });
+    // XTrace holds prose derived from the read, not the read, and no handle was
+    // captured — so it reports `skipped` with the reason rather than claiming a
+    // purge it did not perform.
+    expect(forgotten.pool.status).toBe('skipped');
 
     const afterForget = await g.poolView.readsForDriver(DRIVER);
     expect(afterForget.reads.map((r) => r.read_id)).not.toContain(written.read_id);

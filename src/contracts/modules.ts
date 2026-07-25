@@ -51,12 +51,20 @@ export interface MemoryClient {
   jobStatus(jobId: string): Promise<IngestJobStatus>;
 }
 
+/**
+ * The XTrace side of the pool. **Induction only, under DAG §4 D-7.**
+ *
+ * There is deliberately no `readsForDriver` here. Gate zero established that
+ * XTrace does not store payloads, it extracts them: one ingested read becomes
+ * five unjoinable prose facts, and no query returns the object that went in.
+ * Counting therefore reads the relay (see `PoolView`), and this interface keeps
+ * only the job XTrace is measurably good at (design v0.8 §8) — cross-record
+ * synthesis over the prose it derived.
+ */
 export interface PoolStore {
-  /** Embeds `read_id` in the record content so M7's fallback verification can find it. */
+  /** Feeds the induction index. The returned job is what the sweeper confirms against. */
   writeRead(read: Read): Promise<JobHandle>;
-  /** The COUNTING query (design v0.8 §8): one driver, k = COUNTING_K. */
-  readsForDriver(driver: Driver, opts?: { k?: number }): Promise<Read[]>;
-  /** The INDUCTION query — separate from counting on purpose; may stay top-k. */
+  /** The INDUCTION query. The only read path XTrace can actually serve. */
   inducedClaim(query: string): Promise<string>;
 }
 
@@ -81,7 +89,15 @@ export interface Relay {
   reset(): Promise<void>;
 }
 
-/** Pool ∪ relay, deduplicated on `read_id` ([E20]). */
+/**
+ * The read set every Ask counts, deduplicated on `read_id` ([E20]).
+ *
+ * Under D-7 this is the relay and nothing else — it holds the exact six-field
+ * objects, so cohort counts are exact and are never degraded. `degraded` reports
+ * the OTHER half: XTrace's induction index is unavailable, so there is no induced
+ * claim to put on the card. Counts stay live either way, which is what the
+ * disclosure copy in `src/cli/ask.ts` has always said.
+ */
 export interface PoolView {
   readsForDriver(driver: Driver): Promise<{ reads: Read[]; degraded: boolean }>;
 }

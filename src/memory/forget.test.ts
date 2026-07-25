@@ -7,31 +7,28 @@ import { sampleRead } from '../contracts/fixtures/index.js';
 import { POOL_SCOPE } from './pool.js';
 import { forget } from './forget.js';
 
-const OTHER_READ = { ...sampleRead, read_id: '00000000-0000-4000-8000-0000000000cc' };
-
 function fakes(init: {
   poolRows?: MemoryRow[];
   relayEntries?: RelayEntry[];
-  userRows?: Record<string, MemoryRow[]>;
   relayDropFails?: boolean;
-  searchFails?: boolean;
+  removeFails?: boolean;
 }) {
   const poolRows = [...(init.poolRows ?? [])];
   const relayEntries = [...(init.relayEntries ?? [])];
-  const userRows = Object.fromEntries(
-    Object.entries(init.userRows ?? {}).map(([profile, rows]) => [profile, [...rows]]),
-  );
   const removed: Array<{ scope: string; memoryId: string }> = [];
+  const searches: string[] = [];
   const log: string[] = [];
 
   const client: MemoryClient = {
     ingest: () => Promise.reject(new Error('unused')),
     search(scope, _query, _opts) {
-      if (init.searchFails) return Promise.reject(new Error('substrate down'));
-      if (scope === POOL_SCOPE) return Promise.resolve([...poolRows]);
-      return Promise.resolve([...(userRows[scope] ?? [])]);
+      // Recorded, not rejected: the assertion that forget performs NO search is
+      // more useful than a fake that crashes when it does.
+      searches.push(scope);
+      return Promise.resolve([...poolRows]);
     },
     remove(scope, memoryId) {
+      if (init.removeFails) return Promise.reject(new Error('substrate down'));
       removed.push({ scope, memoryId });
       if (scope === POOL_SCOPE) {
         const i = poolRows.findIndex((r) => r.memoryId === memoryId);
@@ -58,81 +55,94 @@ function fakes(init: {
   };
 
   const deps = { client, relay, logger: createLogger((l) => log.push(l)) };
-  return { deps, removed, log, poolRows, relayEntries };
+  return { deps, removed, searches, log, poolRows, relayEntries };
 }
 
-function poolRow(id: string, read = sampleRead): MemoryRow {
-  return { memoryId: id, kind: 'fact', content: JSON.stringify(read) };
+function entry(): RelayEntry {
+  return { read: sampleRead, received_at: '2026-07-25T19:00:00.000Z' };
 }
 
-describe('M8 forget', () => {
-  it('deletes from all three targets and reports per-target', async () => {
-    const f = fakes({
-      poolRows: [poolRow('m1'), poolRow('m2')], // duplicate re-ingest: two copies, same read_id
-      relayEntries: [{ read: sampleRead, received_at: '2026-07-25T19:00:00.000Z' }],
-      userRows: { 'profile-a': [{ memoryId: 'u1', kind: 'fact', content: 'derived' }] },
-    });
-    const report = await forget(sampleRead.read_id, f.deps, {
-      userMemories: [{ profile: 'profile-a', memoryId: 'u1' }],
-    });
+describe('M8 forget — the relay delete is the authoritative one (D-7)', () => {
+  it('removes the read from the store, so it leaves every cohort count', async () => {
+    const f = fakes({ relayEntries: [entry()] });
+    const report = await forget(sampleRead.read_id, f.deps);
     expect(report.ok).toBe(true);
-    expect(report.pool).toEqual({ status: 'deleted', count: 2 });
     expect(report.relay).toEqual({ status: 'deleted', count: 1 });
-    expect(report.user).toEqual({ status: 'deleted', count: 1 });
-    expect(f.removed).toContainEqual({ scope: POOL_SCOPE, memoryId: 'm1' });
-    expect(f.removed).toContainEqual({ scope: POOL_SCOPE, memoryId: 'm2' });
-    expect(f.removed).toContainEqual({ scope: 'profile-a', memoryId: 'u1' });
     expect(f.relayEntries).toHaveLength(0);
   });
 
-  it('a relay-only failure is reported as such — pool purge still happens', async () => {
-    const f = fakes({
-      poolRows: [poolRow('m1')],
-      relayEntries: [{ read: sampleRead, received_at: '2026-07-25T19:00:00.000Z' }],
-      relayDropFails: true,
-    });
+  it('an unknown read_id is not an error', async () => {
+    const f = fakes({});
+    const report = await forget('never-existed', f.deps);
+    expect(report.ok).toBe(true);
+    expect(report.relay.status).toBe('nothing_to_delete');
+  });
+
+  it('a relay failure is reported and makes the whole report not-ok', async () => {
+    // This is the failure that matters now: the relay holds the read, so a
+    // failed relay delete means the read is still there and still counted.
+    const f = fakes({ relayEntries: [entry()], relayDropFails: true });
     const report = await forget(sampleRead.read_id, f.deps);
     expect(report.ok).toBe(false);
     expect(report.relay.status).toBe('failed');
     expect(report.relay.detail).toMatch(/relay unreachable/);
-    expect(report.pool).toEqual({ status: 'deleted', count: 1 });
   });
+});
 
-  it('an unknown read_id is not an error: nothing_to_delete everywhere, ok true', async () => {
-    const f = fakes({});
-    const report = await forget('never-existed', f.deps);
-    expect(report.ok).toBe(true);
-    expect(report.pool.status).toBe('nothing_to_delete');
-    expect(report.relay.status).toBe('nothing_to_delete');
-    expect(report.user.status).toBe('skipped');
-  });
-
-  it('rows that merely mention the read_id are left in place and logged', async () => {
-    const f = fakes({
-      poolRows: [
-        poolRow('m1'),
-        { memoryId: 'ep1', kind: 'episode', content: `an episode citing ${sampleRead.read_id}` },
-        poolRow('m3', OTHER_READ),
-      ],
-    });
+describe('M8 forget — the XTrace targets are honest about what they cannot do', () => {
+  it('reports pool as SKIPPED without handles, never nothing_to_delete', async () => {
+    // The regression this locks: forget used to search the pool for JSON rows
+    // holding the read_id, find none — because XTrace stores prose, not the read
+    // — and report `nothing_to_delete`. That told the user "there was nothing
+    // there" while five prose facts derived from their confession stayed put. A
+    // deletion report that overstates itself is the one bug this flow cannot have.
+    const f = fakes({ relayEntries: [entry()] });
     const report = await forget(sampleRead.read_id, f.deps);
-    expect(report.pool).toEqual({ status: 'deleted', count: 1 });
-    expect(f.poolRows.map((r) => r.memoryId).sort()).toEqual(['ep1', 'm3']);
-    expect(f.log.some((l) => l.includes('mention') && l.includes('left in place'))).toBe(true);
+    expect(report.pool.status).toBe('skipped');
+    expect(report.pool.detail).toMatch(/not keyed by read_id/);
+    expect(report.pool.status).not.toBe('nothing_to_delete');
   });
 
-  it('user target without handles reports skipped with the documented reason', async () => {
-    const f = fakes({ poolRows: [poolRow('m1')] });
+  it('reports user as SKIPPED without handles, with the reason', async () => {
+    const f = fakes({});
     const report = await forget(sampleRead.read_id, f.deps);
     expect(report.user.status).toBe('skipped');
     expect(report.user.detail).toMatch(/not keyed by read_id/);
   });
 
-  it('a substrate failure on the pool search is a failed pool target, not a crash', async () => {
-    const f = fakes({ searchFails: true });
-    const report = await forget(sampleRead.read_id, f.deps);
+  it('never searches XTrace to decide what to delete', async () => {
+    // A fuzzy search choosing deletion targets means a near-miss destroys
+    // someone else's row. Handles or nothing.
+    const f = fakes({
+      poolRows: [{ memoryId: 'm1', kind: 'fact', content: `mentions ${sampleRead.read_id}` }],
+      relayEntries: [entry()],
+    });
+    await forget(sampleRead.read_id, f.deps);
+    expect(f.searches).toEqual([]);
+    expect(f.removed).toEqual([]);
+  });
+
+  it('deletes both XTrace scopes when the caller supplies handles', async () => {
+    const f = fakes({ relayEntries: [entry()] });
+    const report = await forget(sampleRead.read_id, f.deps, {
+      poolMemories: ['m1', 'm2'],
+      userMemories: [{ profile: 'profile-a', memoryId: 'u1' }],
+    });
+    expect(report.ok).toBe(true);
+    expect(report.pool).toEqual({ status: 'deleted', count: 2 });
+    expect(report.user).toEqual({ status: 'deleted', count: 1 });
+    expect(f.removed).toContainEqual({ scope: POOL_SCOPE, memoryId: 'm1' });
+    expect(f.removed).toContainEqual({ scope: POOL_SCOPE, memoryId: 'm2' });
+    expect(f.removed).toContainEqual({ scope: 'profile-a', memoryId: 'u1' });
+  });
+
+  it('a substrate failure deleting a handle is failed, not a crash', async () => {
+    const f = fakes({ relayEntries: [entry()], removeFails: true });
+    const report = await forget(sampleRead.read_id, f.deps, { poolMemories: ['m1'] });
     expect(report.pool.status).toBe('failed');
     expect(report.ok).toBe(false);
-    expect(report.relay.status).toBe('nothing_to_delete');
+    // And the authoritative delete still happened — targets are independent.
+    expect(report.relay.status).toBe('deleted');
+    expect(f.relayEntries).toHaveLength(0);
   });
 });

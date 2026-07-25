@@ -1,11 +1,17 @@
 # The shared relay (P0.4, made durable in P0.8)
 
-Originally the KV service that carried un-settled reads across devices while XTrace
-settled behind it (design v0.8 §6, [E14]) — transport, not memory.
+The KV service that holds the pool's reads and carries them across devices
+(design v0.8 §6, [E14], as amended by DAG §4 D-7).
 
-**D-7 changed that: the relay is now the store of record.** Losing it now loses data,
-so P0.8 replaced "in-memory with a periodic JSON dump" with a file-backed store that
-writes every mutation to disk, atomically, before acknowledging it.
+> **This is memory, not transport.** [E14] called it "transport, not memory: losing it
+> loses nothing that has settled", and that was true while XTrace was the durable side.
+> Gate zero ended it — XTrace extracts payloads rather than storing them, so a read exists
+> verbatim *here and nowhere else*. Losing this service loses every confession in it,
+> permanently. The sweeper no longer deletes from it (see `src/memory/sweeper.ts`), and
+> `tests/guards/relayDurability.test.ts` keeps it that way.
+>
+> **P0.8 built the durability to match that role.** The 10-second, non-atomic, opt-in
+> dump is gone: every mutation is written to disk atomically before it is acknowledged.
 
 Run:
 
@@ -55,8 +61,9 @@ the [prod] list to required".**
 It is not fixed here because neither available fix fits inside `infra/relay/**`:
 
 - Coarsening `received_at` changes `RelayEntry` in `src/contracts/types.ts` (frozen —
-  integrator only), and M7's sweeper computes a seconds-precision settle window from
-  that exact field. M9 is rewriting the sweeper right now.
+  integrator only), and the sweeper computes a seconds-precision settle window from that
+  exact field. Still true after M9: `src/memory/sweeper.ts` derives `ageSeconds` from
+  `entry.received_at` and compares it against `settleWindowSeconds`.
 - Requiring the token on `GET /reads` contradicts P0.4's tested "reads stay open" and
   breaks M4's client, which sends no token on `list()`.
 
@@ -70,15 +77,15 @@ needs seconds — would break the sweeper and leave the side channel open throug
 | --- | --- | --- |
 | `POST /reads` `{token, read}` | token | 201; validates against `READ_KEYS` exactly — extra keys (incl. `received_at`, `ingest_job_id`) → 400 |
 | `POST /reads/{read_id}/ingest-job` `{token, ingest_job_id}` | token | 204; 404 unknown read |
-| `GET /reads?since=` | open | `RelayEntry[]` = `{read, received_at, ingest_job_id?}` — see the [E26] gap below |
-| `DELETE /reads/{read_id}` `{token}` | token | 204; 404 unknown — used by both the deletion purge and the sweeper's verified-drop |
-| `GET /stats` | open | `{count, oldest_entry_age_seconds}` — every present entry is unverified by construction, so oldest age IS the stuck-entry signal |
+| `GET /reads?since=` | open | `RelayEntry[]` = `{read, received_at, ingest_job_id?}` — see the [E26] gap above |
+| `DELETE /reads/{read_id}` `{token}` | token | 204; 404 unknown — **`forget` only.** The sweeper's verified-drop used to call this and no longer may (D-7) |
+| `GET /stats` | open | `{count, oldest_entry_age_seconds}` — `count` is the pool size. Oldest age is **no longer** a stuck-entry signal: nothing is removed, so it is just the oldest read ever confessed. Use `SweepReport.pending` |
 | `POST /seed` `{token, reads[]}` | token | `{count}`; batch is all-or-nothing, 400 names the failing index |
 | `POST /reset` `{token}` | token | `{count: 0}` |
 
 Re-`POST` of an existing `read_id` updates the body but preserves `received_at` and
-`ingest_job_id` — retries must not reset the stuck-entry clock or orphan a job
-annotation.
+`ingest_job_id` — retries must not restart the settle window the sweeper measures from,
+or orphan a job annotation.
 
 ## Two-machine curl round-trip (the P0.4 acceptance drill)
 
