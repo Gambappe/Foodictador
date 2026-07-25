@@ -143,6 +143,7 @@ const FLAG_VALUES: Record<keyof Flags, readonly string[]> = {
   extraction: ['live', 'seeded'],
   narrator: ['live', 'template'],
   pool: ['live', 'relay-only'],
+  scoring: ['live', 'kernel'],
   demoMode: ['true', 'false'],
 };
 

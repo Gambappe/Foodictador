@@ -35,7 +35,7 @@ describe('P0.3 degrade flags are remembered across processes (SL-60)', () => {
 
   it('a saved override is read back by a later process', () => {
     const config = tempConfig();
-    saveFlags(config, { extraction: 'live', narrator: 'live', pool: 'relay-only', demoMode: true });
+    saveFlags(config, { extraction: 'live', narrator: 'live', scoring: 'live', pool: 'relay-only', demoMode: true });
     // A FRESH initialFlags call stands in for the next `confit` invocation exactly: nothing is
     // shared between them but the file.
     const flags = initialFlags(config, quiet);
@@ -52,7 +52,7 @@ describe('P0.3 degrade flags are remembered across processes (SL-60)', () => {
     // so would describe a path nothing is running — `liveGraph` hands back the template
     // narrator regardless, so the flag would be the only thing lying.
     const config = { ...tempConfig(), anthropicApiKey: null };
-    saveFlags(config, { extraction: 'live', narrator: 'live', pool: 'live', demoMode: false });
+    saveFlags(config, { extraction: 'live', narrator: 'live', scoring: 'live', pool: 'live', demoMode: false });
     const flags = initialFlags(config, quiet);
     expect(flags.narrator).toBe('template');
     expect(flags.extraction).toBe('seeded');

@@ -12,6 +12,8 @@
  * the demo's rehearsed branch, not a failure.
  */
 
+import { applyAffinity } from '../kernel/askEngine.js';
+import type { Scorer } from '../llm/scorer.js';
 import type { Narrator, PoolView, UserStore } from '../contracts/modules.js';
 import type {
   AskContext,
@@ -131,6 +133,13 @@ export interface AskDeps {
   inducedClaim?: (query: string) => Promise<string>;
   /** THIS user's own synthesis — M3 over their scope. D-8's second input (M16). */
   personalClaim?: (query: string) => Promise<string>;
+  /**
+   * Affinity over the kernel's survivors (D-14). Absent means kernel-only ranking, which is
+   * what the no-key demo runs and what this product did before affinity existed.
+   */
+  scorer?: Scorer;
+  /** The diner's own words, for affinity. Absent or empty means no affinity is requested. */
+  confessions?: () => Promise<readonly string[]>;
 }
 
 /** Deterministic pick among citable cohorts: largest k, then vocabulary order. */
@@ -169,6 +178,17 @@ function usualNote(pick: Place, solo: boolean): UsualNoteKey[] {
   return seated ? ['solo_comfortable'] : [];
 }
 
+/** The diner's own words, or none — a missing source is not an error, just no affinity. */
+async function confessionsFor(deps: AskDeps): Promise<readonly string[]> {
+  if (deps.confessions === undefined) return [];
+  try {
+    return await deps.confessions();
+  } catch {
+    // Affinity is an enhancement; failing to fetch the words costs nuance, never the card.
+    return [];
+  }
+}
+
 export async function runAsk(deps: AskDeps): Promise<CommandResult> {
   const usual = await deps.userStore.usual(deps.profile);
   if (usual === null) {
@@ -197,7 +217,18 @@ export async function runAsk(deps: AskDeps): Promise<CommandResult> {
     }
   }
 
-  const ranked: RankedPlace[] = scorePlaces({
+  // D-8's second and third inputs. Both are XTrace synthesis, both are the only text on a
+  // card Confit did not write, so both go through ONE gate — a second copy of the lint rule
+  // is a second copy free to drift, and the personal claim is the one where a leaked
+  // identifier would be describing the reader.
+  const claims = deps.inducedClaim === undefined && deps.personalClaim === undefined
+    ? { pool: undefined, personal: undefined }
+    : {
+        pool: degraded ? undefined : await safeClaim('pool', deps.inducedClaim, POOL_QUERY, deps),
+        personal: await safeClaim('personal', deps.personalClaim, PERSONAL_QUERY, deps),
+      };
+
+  const kernelRanked: RankedPlace[] = scorePlaces({
     reads,
     usual,
     log,
@@ -205,6 +236,26 @@ export async function runAsk(deps: AskDeps): Promise<CommandResult> {
     context: contextFor(deps.flags, deps.now, usual.soloComfort),
     now: deps.now,
   });
+
+  // Affinity over the places the KERNEL already allowed (D-14). It reorders survivors and
+  // cannot resurrect an exclusion, because an excluded place is not in this list to be
+  // scored. With `scoring: kernel` — which is what no ANTHROPIC_API_KEY produces — the
+  // scorer returns `{}` and `applyAffinity` multiplies by 1, so this whole block is
+  // arithmetically the ranking above.
+  const affinity =
+    deps.scorer === undefined
+      ? {}
+      : await deps.scorer.affinity({
+          candidates: kernelRanked.map((entry) => entry.place),
+          usual,
+          // The personal claim IS what the diner has told us, already fetched for the card.
+          // Using it costs no second call and makes the card's personal line the explanation
+          // for the ranking rather than a sentence sitting beside it.
+          confessions: claims.personal === undefined || claims.personal.trim() === ''
+            ? await confessionsFor(deps)
+            : [claims.personal],
+        });
+  const ranked = applyAffinity(kernelRanked, affinity);
   const pick = ranked[0];
   if (pick === undefined) {
     return {
@@ -217,17 +268,6 @@ export async function runAsk(deps: AskDeps): Promise<CommandResult> {
   const citation = bestCohort(matched(usual, reads));
   const miss = citation === undefined ? bestCohort(missed(usual, reads)) : undefined;
   const suppressed = suppressions(log, deps.now);
-
-  // D-8's second and third inputs. Both are XTrace synthesis, both are the only text on a
-  // card Confit did not write, so both go through ONE gate — a second copy of the lint rule
-  // is a second copy free to drift, and the personal claim is the one where a leaked
-  // identifier would be describing the reader.
-  const claims = deps.inducedClaim === undefined && deps.personalClaim === undefined
-    ? { pool: undefined, personal: undefined }
-    : {
-        pool: degraded ? undefined : await safeClaim('pool', deps.inducedClaim, POOL_QUERY, deps),
-        personal: await safeClaim('personal', deps.personalClaim, PERSONAL_QUERY, deps),
-      };
 
   const facts: NarratorFacts = {
     ...(citation ? { citation: { driver: citation.driver, k: citation.k } } : {}),
@@ -311,5 +351,8 @@ export const askHandler: CommandHandler = async (context: CommandContext) => {
     // D-8's second input, finally read. The personal scope has been written on every
     // confession since M5 and queried by nothing until now.
     personalClaim: (query) => graph.user.personalClaim(profile, query),
+    // Affinity over the kernel's survivors (D-14). Under `scoring: kernel` — which is what
+    // no ANTHROPIC_API_KEY produces — this returns `{}` and the ranking is the kernel's.
+    scorer: graph.scorer,
   });
 };

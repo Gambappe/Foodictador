@@ -143,7 +143,7 @@ describe('liveGraph', () => {
     // read another — the toggle would appear to work and change nothing.
     const { logger } = silentLogger();
     const shared = createFlagStore(
-      { extraction: 'live', narrator: 'live', pool: 'live', demoMode: false },
+      { extraction: 'live', narrator: 'live', scoring: 'live', pool: 'live', demoMode: false },
       logger,
     );
     const graph = liveGraph(withKey, logger, shared);
@@ -156,7 +156,7 @@ describe('liveGraph', () => {
   it('honours an operator toggle to template even when a key is present', () => {
     const { logger } = silentLogger();
     const shared = createFlagStore(
-      { extraction: 'live', narrator: 'template', pool: 'live', demoMode: false },
+      { extraction: 'live', narrator: 'template', scoring: 'live', pool: 'live', demoMode: false },
       logger,
     );
     // Otherwise `pass flags --set narrator=template` would silently keep calling the model.

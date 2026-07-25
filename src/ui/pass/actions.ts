@@ -147,6 +147,7 @@ export const FLAG_CHOICES = {
   extraction: ['live', 'seeded'],
   narrator: ['live', 'template'],
   pool: ['live', 'relay-only'],
+  scoring: ['live', 'kernel'],
   demoMode: ['true', 'false'],
 } as const satisfies Readonly<Record<string, readonly string[]>>;
 

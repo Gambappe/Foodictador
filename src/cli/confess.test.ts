@@ -297,6 +297,7 @@ describe('the CommandHandler adapter', () => {
         get: () => ({
           extraction: 'seeded',
           narrator: 'template',
+          scoring: 'live',
           pool: 'live',
           demoMode: true,
         }),

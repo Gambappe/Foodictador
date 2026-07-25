@@ -75,6 +75,7 @@ function storedOverrides(path: string): Partial<Flags> {
     if (record['narrator'] === 'live' || record['narrator'] === 'template')
       out.narrator = record['narrator'];
     if (record['pool'] === 'live' || record['pool'] === 'relay-only') out.pool = record['pool'];
+    if (record['scoring'] === 'live' || record['scoring'] === 'kernel') out.scoring = record['scoring'];
     if (typeof record['demoMode'] === 'boolean') out.demoMode = record['demoMode'];
     return out;
   } catch {
@@ -111,6 +112,10 @@ export function initialFlags(config: AppConfig, logger: Logger): Flags {
     if (flags.narrator !== 'template') {
       logTransition(logger, 'narrator', flags.narrator, 'template', 'no-api-key');
       flags.narrator = 'template';
+    }
+    if (flags.scoring !== 'kernel') {
+      logTransition(logger, 'scoring', flags.scoring, 'kernel', 'no-api-key');
+      flags.scoring = 'kernel';
     }
   }
   return flags;
