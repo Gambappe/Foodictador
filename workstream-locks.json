@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T09:02:08.485Z",
+  "updated_at": "2026-07-25T09:02:25.278Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -374,13 +374,13 @@
         "M5"
       ],
       "mock_start_ok": true,
-      "note": "Stub-first, but NOT claimable in wave 1: mock-start skips every dependency check, so this shows ready before contracts exist. Claim only once P0.2 has merged — you build against its fixture stubs. The [E27] consent sentence is asserted in a test so it cannot be dropped silently.",
+      "note": "Stub-first, but NOT claimable in wave 1: mock-start skips every dependency check, so this shows ready before contracts exist. Claim only once P0.2 has merged — you build against its fixture stubs. The [E27] consent sentence is asserted in a test so it cannot be dropped silently. | X1 landed: do NOT edit src/cli/main.ts to register your command — it is X1's file (§2). Build your module under src/cli/ and the integrator wires the registry handler on merge. Your command already resolves, validates its options and exits 1 from a placeholder naming your task. Return a CommandResult {lines, data, exit?} from render.ts; do not print. Exit codes: 0 ok, 1 expected failure, 2 usage, 3 environment.",
       "status": "available",
       "owner": null,
       "branch": null,
       "pr": null,
       "claimed_at": null,
-      "updated_at": "2026-07-25T07:37:34.268Z"
+      "updated_at": "2026-07-25T09:02:25.278Z"
     },
     "X3": {
       "title": "confit ask: assemble and print the card — pick, reason line, cohort citation or cohort-miss, rotation/usual lines, degraded disclosure, runners-up, full score map under --json",
