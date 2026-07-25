@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T09:05:17.145Z",
+  "updated_at": "2026-07-25T09:06:04.187Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -358,12 +358,12 @@
       ],
       "mock_start_ok": false,
       "note": "No business logic in this lane. Commands return plain objects; render.ts prints them. Exit codes: 0 ok, 1 expected failure, 2 usage, 3 config/connectivity — a cohort miss is NOT a failure.",
-      "status": "in_review",
+      "status": "done",
       "owner": "claude-session-014n6NYRN6Rb",
       "branch": "claude/upload-code-artifact-zop9uz",
-      "pr": null,
+      "pr": "https://github.com/Gambappe/Foodictador/pull/33",
       "claimed_at": "2026-07-25T08:51:19.969Z",
-      "updated_at": "2026-07-25T09:05:17.144Z"
+      "updated_at": "2026-07-25T09:06:04.186Z"
     },
     "X2": {
       "title": "confit confess: chips preview -> confirm -> writeRead, prints read_id and per-target status; consent copy states both halves",
