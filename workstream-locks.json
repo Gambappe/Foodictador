@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T10:27:11.726Z",
+  "updated_at": "2026-07-25T10:33:26.923Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -828,6 +828,22 @@
       "pr": null,
       "claimed_at": null,
       "updated_at": "2026-07-25T10:13:42.793Z"
+    },
+    "M10": {
+      "title": "Ingest ledger (D-7/M10): capture memories_created[] handles at write time so forget deletes both XTrace scopes instead of reporting skipped",
+      "phase": "M",
+      "depends_on": [
+        "M5",
+        "M8"
+      ],
+      "mock_start_ok": false,
+      "note": "Gate zero found the handles exist: a succeeded job's result carries memories_created:[{id,type,text}]. Capture them in M5's write path and thread them into forget's poolMemories/userMemories. Today BOTH XTrace targets report skipped-with-reason, which is honest but is a weaker deletion promise than design v0.8 §7 makes. Do not close this by searching for the read_id — that is a fuzzy match choosing what to destroy.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T10:33:26.922Z"
     }
   }
 }
