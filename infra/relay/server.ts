@@ -87,13 +87,58 @@ export function createRelayServer(options: RelayServerOptions): Server {
     const method = req.method ?? 'GET';
     const segments = url.pathname.split('/').filter((s) => s !== '');
 
-    // ---- open reads ----
+    // ---- reads: open to read, precise only with the token (P0.9 / D-12) ----
+    //
+    // D-7 made the relay hold every read for ever, which turned [E26]'s accepted
+    // minutes-wide window into a permanent archive: an open GET serving precise
+    // `received_at` in arrival order let anyone reconstruct who-confessed-when long
+    // after the fact. The open view still discloses WHAT the pool holds — the six
+    // identity-free fields, P0.4's transparency posture — but not WHEN beyond the
+    // day, not in an order that encodes arrival (read_id sort, arrival-independent),
+    // and without the operational metadata (`ingest_job_id`, `pool_memories`) that
+    // no public reader has a use for. Clients holding the token (M4 sends it on
+    // every request, M11's `x-relay-token` header convention) get exactly the old
+    // view — precise, arrival-ordered, since-filterable — so the sweeper's settle
+    // window and the counting path are unchanged.
+    //
+    // A live poller can still diff snapshots to observe new arrivals; that is the
+    // [E26] slice risk the design discloses, and it needs no timestamp to work.
+    // What this closes is the HISTORY: yesterday's ordering is not reconstructible
+    // from the open surface today.
     if (method === 'GET' && url.pathname === '/reads') {
-      send(res, 200, store.list(url.searchParams.get('since') ?? undefined));
+      if (req.headers['x-relay-token'] === token) {
+        send(res, 200, store.list(url.searchParams.get('since') ?? undefined));
+        return;
+      }
+      if (url.searchParams.has('since')) {
+        // `since` is an ordering query: answering it openly hands back exactly the
+        // arrival sequence the coarse view exists to withhold.
+        send(res, 401, {
+          error: 'since requires the token — arrival order is not served openly ([E26]/P0.9)',
+        });
+        return;
+      }
+      const coarse = store
+        .list()
+        .map((entry) => ({ read: entry.read, received_at: entry.received_at.slice(0, 10) }))
+        .sort((a, b) =>
+          a.read.read_id < b.read.read_id ? -1 : a.read.read_id > b.read.read_id ? 1 : 0,
+        );
+      send(res, 200, coarse);
       return;
     }
     if (method === 'GET' && url.pathname === '/stats') {
-      send(res, 200, store.stats());
+      const stats = store.stats();
+      if (req.headers['x-relay-token'] === token) {
+        send(res, 200, stats);
+        return;
+      }
+      // The count is the pool size and stays exact; the age is time information and
+      // follows the same day rule as `received_at` ([E26]/P0.9).
+      send(res, 200, {
+        count: stats.count,
+        oldest_entry_age_seconds: Math.floor(stats.oldest_entry_age_seconds / 86400) * 86400,
+      });
       return;
     }
 

@@ -61,6 +61,11 @@ describe('M4 relay client, against a live P0.4 instance', () => {
     expect(entries).toHaveLength(1);
     expect(entries[0]?.read).toEqual(sampleRead);
     expect(entries[0]?.received_at).toMatch(/^2026-/);
+    // Seconds precision, not the open surface's day floor: the client sends the
+    // token header on GETs (P0.9/D-12), and the sweeper's settle window computes
+    // ageSeconds off this exact field. A day-only stamp here means the header was
+    // dropped and every entry looks 0-to-24h old — this is the pin against that.
+    expect(entries[0]?.received_at).toMatch(/T\d{2}:\d{2}:\d{2}/);
     expect(entries[0]?.ingest_job_id).toBeUndefined();
 
     await relay.setJob(sampleRead.read_id, 'job-77');

@@ -28,6 +28,23 @@ function http(
   });
 }
 
+/** The operator's view (P0.9/D-12): the token header buys precise timestamps and `since`. */
+function httpAuthed(
+  method: string,
+  path: string,
+  body?: unknown,
+): Promise<{ status: number; json: unknown }> {
+  const init: RequestInit = { method, headers: { 'x-relay-token': TOKEN } };
+  if (body !== undefined) {
+    init.headers = { 'content-type': 'application/json', 'x-relay-token': TOKEN };
+    init.body = JSON.stringify(body);
+  }
+  return fetch(`${base}${path}`, init).then(async (res) => {
+    const text = await res.text();
+    return { status: res.status, json: text === '' ? null : (JSON.parse(text) as unknown) };
+  });
+}
+
 beforeAll(async () => {
   const store = new RelayStore(() => new Date((clock += 1000)));
   server = createRelayServer({ token: TOKEN, store });
@@ -99,7 +116,7 @@ describe('P0.4 relay service', () => {
       ingest_job_id: 'job-42',
     });
     expect(annotate.status).toBe(204);
-    const listed = (await http('GET', '/reads')).json as Array<{
+    const listed = (await httpAuthed('GET', '/reads')).json as Array<{
       read: { read_id: string };
       ingest_job_id?: string;
     }>;
@@ -119,7 +136,7 @@ describe('P0.4 relay service', () => {
   });
 
   it('re-putting the same read_id preserves received_at and ingest_job_id', async () => {
-    const before = (await http('GET', '/reads')).json as Array<{
+    const before = (await httpAuthed('GET', '/reads')).json as Array<{
       read: { read_id: string; weight: number };
       received_at: string;
       ingest_job_id?: string;
@@ -130,7 +147,7 @@ describe('P0.4 relay service', () => {
       read: { ...sampleRead, weight: 0.5 },
     });
     expect(res.status).toBe(201);
-    const after = (await http('GET', '/reads')).json as typeof before;
+    const after = (await httpAuthed('GET', '/reads')).json as typeof before;
     const updated = after.find((e) => e.read.read_id === sampleRead.read_id);
     expect(updated?.read.weight).toBe(0.5);
     expect(updated?.received_at).toBe(entry?.received_at);
@@ -138,16 +155,17 @@ describe('P0.4 relay service', () => {
   });
 
   it('oldest_entry_age_seconds grows as the clock advances past a stale entry', async () => {
-    const first = (await http('GET', '/stats')).json as { oldest_entry_age_seconds: number };
+    // Authed: 30 seconds of growth is deliberately invisible at the open day floor (P0.9).
+    const first = (await httpAuthed('GET', '/stats')).json as { oldest_entry_age_seconds: number };
     clock += 30_000; // 30 fake seconds pass
-    const second = (await http('GET', '/stats')).json as { oldest_entry_age_seconds: number };
+    const second = (await httpAuthed('GET', '/stats')).json as { oldest_entry_age_seconds: number };
     expect(second.oldest_entry_age_seconds).toBeGreaterThan(first.oldest_entry_age_seconds);
   });
 
   it('since= filters, DELETE removes (404 when unknown), seed and reset round-trip', async () => {
-    const all = (await http('GET', '/reads')).json as Array<{ received_at: string }>;
+    const all = (await httpAuthed('GET', '/reads')).json as Array<{ received_at: string }>;
     const latest = all.map((e) => e.received_at).sort().at(-1) ?? '';
-    expect(((await http('GET', `/reads?since=${encodeURIComponent(latest)}`)).json as unknown[]).length).toBe(0);
+    expect(((await httpAuthed('GET', `/reads?since=${encodeURIComponent(latest)}`)).json as unknown[]).length).toBe(0);
 
     expect((await http('DELETE', `/reads/${sampleRead.read_id}`, { token: TOKEN })).status).toBe(204);
     expect((await http('DELETE', `/reads/${sampleRead.read_id}`, { token: TOKEN })).status).toBe(404);
@@ -178,6 +196,82 @@ describe('P0.4 relay service', () => {
     expect(res.status).toBe(400);
     expect((await http('GET', '/nope')).status).toBe(404);
     expect((await http('POST', '/reads/extra/deep/route', { token: TOKEN })).status).toBe(404);
+  });
+});
+
+describe('P0.9 [E26]: the open surface serves no ordering', () => {
+  // Fresh reads with DISTINCT arrival times, annotated with operational metadata,
+  // so each open-view property below is falsifiable against the authed view.
+  const later = { ...sampleRead, read_id: 'ffffffff-0000-4000-8000-000000000001' };
+  const earlier = { ...sampleRead, read_id: '00000000-0000-4000-8000-000000000001' };
+
+  it('seeds two reads in REVERSE read_id order so arrival and id order disagree', async () => {
+    expect((await http('POST', '/reads', { token: TOKEN, read: later })).status).toBe(201);
+    clock += 90_000_000; // ~25 fake hours, so the two arrivals sit on different days
+    expect((await http('POST', '/reads', { token: TOKEN, read: earlier })).status).toBe(201);
+    const annotate = await http('POST', `/reads/${later.read_id}/ingest-job`, {
+      token: TOKEN,
+      ingest_job_id: 'job-e26',
+    });
+    expect(annotate.status).toBe(204);
+  });
+
+  it('open list: day-precision stamps, read_id order, no operational metadata', async () => {
+    const open = (await http('GET', '/reads')).json as Array<Record<string, unknown>>;
+    for (const entry of open) {
+      expect(entry['received_at']).toMatch(/^\d{4}-\d{2}-\d{2}$/); // day, nothing finer
+      expect(entry).not.toHaveProperty('ingest_job_id');
+      expect(entry).not.toHaveProperty('pool_memories');
+    }
+    const ids = open.map((e) => (e['read'] as { read_id: string }).read_id);
+    expect(ids).toEqual([...ids].sort()); // read_id order — arrival-independent
+    // The listing still discloses WHAT the pool holds: both reads are present.
+    expect(ids).toContain(later.read_id);
+    expect(ids).toContain(earlier.read_id);
+  });
+
+  it('the authed view is unchanged: precise stamps, arrival order, metadata intact', async () => {
+    const authed = (await httpAuthed('GET', '/reads')).json as Array<{
+      read: { read_id: string };
+      received_at: string;
+      ingest_job_id?: string;
+    }>;
+    const laterEntry = authed.find((e) => e.read.read_id === later.read_id);
+    expect(laterEntry?.received_at).toMatch(/T\d{2}:\d{2}:\d{2}/); // seconds precision
+    expect(laterEntry?.ingest_job_id).toBe('job-e26');
+    // Arrival order: `later` was POSTed first, so it precedes `earlier` here — the
+    // exact inversion the open view's read_id sort erases.
+    const order = authed.map((e) => e.read.read_id);
+    expect(order.indexOf(later.read_id)).toBeLessThan(order.indexOf(earlier.read_id));
+  });
+
+  it('open ?since= is refused with 401 naming the side channel', async () => {
+    const res = await http('GET', '/reads?since=2026-01-01');
+    expect(res.status).toBe(401);
+    expect((res.json as { error: string }).error).toMatch(/E26/);
+  });
+
+  it('open stats floor the age to whole days; authed stats keep seconds', async () => {
+    const open = (await http('GET', '/stats')).json as {
+      count: number;
+      oldest_entry_age_seconds: number;
+    };
+    expect(open.oldest_entry_age_seconds % 86_400).toBe(0);
+    const authed = (await httpAuthed('GET', '/stats')).json as {
+      count: number;
+      oldest_entry_age_seconds: number;
+    };
+    expect(open.count).toBe(authed.count); // the pool size stays exact and public
+    expect(authed.oldest_entry_age_seconds).toBeGreaterThanOrEqual(open.oldest_entry_age_seconds);
+    expect(authed.oldest_entry_age_seconds % 86_400).not.toBe(0); // clock ticks make this safe here
+  });
+
+  it('a wrong token gets the coarse view, not an error — same as no token', async () => {
+    const init: RequestInit = { method: 'GET', headers: { 'x-relay-token': 'wrong' } };
+    const res = await fetch(`${base}/reads`, init);
+    expect(res.status).toBe(200);
+    const rows = (await res.json()) as Array<Record<string, unknown>>;
+    for (const entry of rows) expect(entry['received_at']).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });
 
