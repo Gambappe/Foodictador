@@ -4230,3 +4230,19 @@ per pass for ever, which is only not a defect because it is unreachable.
 **Fix.** Put `proseBuffered` in confess's `data`; make `ConfessOutcome.proseBuffered` required;
 have `flushProse` return `{sent, lost}` and print both, because a sweep that destroyed four
 confessions and a sweep that had nothing to do must not render identically.
+
+---
+
+## Sixth pass — one finding against the M10 tail (`0562ca7..dcac032`), by a different reviewer
+
+The fourth and fifth passes stopped before the commits that closed them, so the M10/M13/P0.10/P0.12 tail shipped unreviewed. fable-session-0dd9z8 read it at `dcac032`; one defect survived contact. Full context on the PR #65 thread (third-pass comment).
+
+## SL-57 · MEDIUM · claude-session-014n6NYRN6Rb sequenced the ledger read before the deletes, then let the delete that fails orphan what the ledger was for
+
+**Closed** by fable-session-0dd9z8 in the same change that records this entry: `forgetPool` now attempts every handle (not stopping at the first failure), a partial failure carries the undeleted handle ids and the by-hand instruction in `pool.detail`, and the no-handles `skipped` message distinguishes "entry present, sweep will record handles" from "entry gone, no sweep ever can" — the latter stated as unreachable rather than advised into a retry loop that cannot work.
+
+**Task:** M10. **Files:** `src/memory/forget.ts` (`forgetPool`, `poolHandles`).
+
+**What the code did.** `poolHandles` correctly resolved the ledger before any delete — the SL-49-era race fix is real. Then `forgetPool` and `forgetRelay` ran in one `Promise.all`, and the ledger's only durable copy lives ON the relay entry `forgetRelay` deletes. Walk the failure: three handles read; XTrace 503s on handle two → `pool: failed` with a bare error message, handles two and three undeleted, loop abandoned at the first throw. `forgetRelay`, in parallel, has already dropped the entry. The user re-runs `forget`, as the report invites: `poolHandles` finds no entry → `handles: []` → `pool: skipped` with **"run `confit sweep` and forget again (M10)"**. There is no entry left to sweep; no sweep will ever re-record those handles; the derived memories sit in the pool scope permanently, reachable by no code path — while the advice implies the opposite.
+
+**Why it is wrong.** The file's own docblock names the one forbidden bug: a deletion report that overstates itself. The first-run `failed` is honest; the steady state after it lies — `skipped`-with-impossible-advice is indistinguishable from the fresh-confession case where the advice is exactly right. The relay delete is not the mistake (stopping the counting must not be hostage to XTrace flakiness); the mistake is discarding the only remaining copy of the handles into a bare error string and then advising a retry that reads from the place both copies just left.

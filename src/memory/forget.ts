@@ -98,26 +98,44 @@ export interface ForgetOptions {
 async function forgetPool(
   deps: ForgetDeps,
   handles: readonly string[],
+  entryPresent: boolean,
 ): Promise<ForgetTargetReport> {
   if (handles.length === 0) {
+    // Which skipped this is matters (SL-57): the sweep advice is only true while the
+    // relay entry — the ledger's home — still exists. After `forgetRelay` has dropped
+    // it, no sweep can ever record handles for this read again, and saying so would
+    // send the user chasing an impossible retry.
     return {
       status: 'skipped',
-      detail:
-        'no pool handles recorded for this read — the ingest ledger is written by the sweeper when the job succeeds, so a read confessed moments ago has none yet; run `confit sweep` and forget again (M10)',
+      detail: entryPresent
+        ? 'no pool handles recorded for this read — the ingest ledger is written by the sweeper when the job succeeds, so a read confessed moments ago has none yet; run `confit sweep` and forget again (M10)'
+        : 'no relay entry holds a ledger for this read — nothing to delete by handle. If it was forgotten before a sweep recorded its handles, any derived pool records are unreachable by handle now (SL-57)',
     };
   }
-  const poolMemoriesToDelete = handles;
-  try {
-    for (const memoryId of poolMemoriesToDelete) {
+  // Every handle is attempted (SL-57): the old loop stopped at the first failure, and the
+  // relay entry carrying the only other copy of these ids is deleted in this same forget —
+  // so a handle not attempted now is a handle nothing can reach later.
+  const undeleted: string[] = [];
+  let firstError: string | undefined;
+  let deleted = 0;
+  for (const memoryId of handles) {
+    try {
       await deps.client.remove(POOL_SCOPE, memoryId);
+      deleted += 1;
+    } catch (error) {
+      undeleted.push(memoryId);
+      firstError ??= error instanceof Error ? error.message : String(error);
     }
-    return { status: 'deleted', count: poolMemoriesToDelete.length };
-  } catch (error) {
-    return {
-      status: 'failed',
-      detail: error instanceof Error ? error.message : String(error),
-    };
   }
+  if (undeleted.length === 0) return { status: 'deleted', count: deleted };
+  return {
+    status: 'failed',
+    detail:
+      `deleted ${String(deleted)} of ${String(handles.length)}; undeleted handle(s): ` +
+      `${undeleted.join(', ')} — the relay entry and its ledger are gone in this same ` +
+      `forget, so a re-run cannot reach these; remove them by hand in the pool scope ` +
+      `(first error: ${firstError ?? 'unknown'}) (SL-57)`,
+  };
 }
 
 /**
@@ -202,14 +220,17 @@ async function poolHandles(
   readId: string,
   deps: ForgetDeps,
   supplied: ForgetOptions['poolMemories'],
-): Promise<{ handles: readonly string[]; error?: string }> {
-  if (supplied !== undefined && supplied.length > 0) return { handles: supplied };
+): Promise<{ handles: readonly string[]; entryPresent: boolean; error?: string }> {
+  if (supplied !== undefined && supplied.length > 0) {
+    return { handles: supplied, entryPresent: true };
+  }
   try {
     const entry = (await deps.relay.list()).find((e) => e.read.read_id === readId);
-    return { handles: entry?.pool_memories ?? [] };
+    return { handles: entry?.pool_memories ?? [], entryPresent: entry !== undefined };
   } catch (error) {
     return {
       handles: [],
+      entryPresent: false,
       error: `could not read the ingest ledger from the relay: ${
         error instanceof Error ? error.message : String(error)
       }`,
@@ -228,7 +249,7 @@ export async function forget(
   const ledger = await poolHandles(readId, deps, options.poolMemories);
   const [pool, relay, user] = await Promise.all([
     ledger.error === undefined
-      ? forgetPool(deps, ledger.handles)
+      ? forgetPool(deps, ledger.handles, ledger.entryPresent)
       : Promise.resolve<ForgetTargetReport>({ status: 'failed', detail: ledger.error }),
     forgetRelay(readId, deps),
     forgetUser(deps, options.userMemories),
