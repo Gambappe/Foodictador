@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"],
+
+    "rootDir": ".",
+    "outDir": "dist",
+    "declaration": true,
+    "sourceMap": true,
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
+  },
+  // `*.config.ts` keeps root-level tool configs typechecked and lintable — vitest today,
+  // vite and tailwind when the UI lane lands.
+  "include": ["src", "scripts", "infra", "tests", "*.config.ts"]
+}

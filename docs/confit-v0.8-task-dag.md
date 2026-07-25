@@ -42,7 +42,7 @@ Every path below is owned by exactly one lane. If your task needs a file outside
 
 | Lane | `phase` | Owns |
 | --- | --- | --- |
-| Foundation / integrator | `P0` | `package.json`, `tsconfig.json`, `vitest.config.ts`, `src/contracts/**`, `src/config/**`, `infra/relay/**`, `scripts/gate0.ts` |
+| Foundation / integrator | `P0` | `package.json`, `package-lock.json`, `tsconfig.json`, `vitest.config.ts`, `eslint.config.js`, `.gitignore`, `src/index.ts`, `src/contracts/**`, `src/config/**`, `infra/relay/**`, `scripts/gate0.ts` |
 | Kernel | `K` | `src/kernel/**` |
 | Memory & transport | `M` | `src/memory/**` |
 | LLM | `L` | `src/llm/**` |
@@ -53,6 +53,10 @@ Every path below is owned by exactly one lane. If your task needs a file outside
 | UI | `U` | `src/ui/**`, `index.html`, `vite.config.ts`, `tailwind.config.ts` |
 
 Tests for a lane's own modules live beside them (`src/kernel/rotation.test.ts`). `tests/guards/**` is only for the cross-cutting guards in lane G. Nothing outside this table may be created without the integrator adding a row.
+
+**Adding a dependency is an integrator change.** `package.json` and `package-lock.json` belong to lane P0, so a task that needs a new package — `U1` adding React and Vite is the obvious one — does not edit them itself. Ask the integrator, who adds the dependency and pushes the lockfile. This keeps one agent responsible for the lockfile and stops two lanes racing on it.
+
+**One import convention, imposed by the toolchain.** `module: NodeNext` with `verbatimModuleSyntax` and `"type": "module"` means **relative imports carry a `.js` extension even though the source is `.ts`** — `import { parseRead } from './read.js'`. That is Node's ESM resolution, not a quirk to work around; `tsx` and `vitest` both honour it. Bare package imports are unaffected.
 
 **Within a lane, tasks own disjoint paths too.** A lane's globs stop two lanes colliding; they do not stop two tasks in the same lane colliding, and several lanes run their tasks in parallel. Every task's **Owns** list below is exclusive against every other task's — check yours before you create a file. Lane U is where this matters most: `U2`–`U5` all land in the same wave, so each owns its own subdirectory and only `U1` touches the shell.
 
@@ -200,10 +204,12 @@ Format: **Owns** (files you may touch) · **Depends** · **Build** · **Acceptan
 ### Lane P0 — foundation (integrator)
 
 **P0.1 — Repo bootstrap, CLI-shaped**
-- **Owns:** `package.json`, `tsconfig.json`, `vitest.config.ts`, `.gitignore`, `src/index.ts`
+- **Owns:** `package.json`, `package-lock.json`, `tsconfig.json`, `vitest.config.ts`, `eslint.config.js`, `.gitignore`, `src/index.ts` + test
 - **Depends:** —
-- **Build:** Node 20, TypeScript strict (`strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`), `vitest`, `tsx`. Scripts: `build`, `test`, `typecheck`, `lint`, `confit` (→ `tsx src/cli/main.ts`), `gate0`, `gate:cli`. **No Vite, React, or Tailwind yet** — the UI lane adds them at U1.
-- **Acceptance:** `npm run typecheck && npm test` passes on an empty suite; `npm run confit -- --help` exits 0.
+- **Build:** Node 20, TypeScript strict (`strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`), `vitest`, `tsx`, `eslint`. Scripts: `build`, `test`, `typecheck`, `lint`, `confit` (→ `tsx src/cli/main.ts`), `gate0`, `gate:cli`. **No Vite, React, or Tailwind as direct dependencies** — the UI lane adds them at U1. (`vite` will appear in the lockfile transitively; vitest is built on it. That is not a violation.)
+  `eslint.config.js` is where §1 stops being prose: `no-explicit-any`, `no-non-null-assertion`, `no-floating-promises`, and a `no-restricted-imports` ban that makes `src/kernel/**` importing `node:*` or another lane a build failure.
+- **Acceptance:** `npm run typecheck`, `npm run lint`, `npm test` and `npm run build` all exit 0. The suite is **not** empty — vitest is configured without `passWithNoTests` on purpose, so this task ships the toolchain-invariant tests that assert the strict compiler options, the shared test roots, and the npm scripts other tasks invoke by name.
+  **`npm run confit -- --help` is X1's acceptance, not this one** — the script is declared here, but `src/cli/main.ts` belongs to lane X, so P0.1 cannot satisfy it without violating §2. Same for `gate0` (P0.5) and `gate:cli` (G5): declared here, satisfied there.
 
 **P0.2 — Contracts freeze v0.8**
 - **Owns:** `src/contracts/**`, `src/contracts/fixtures/**`
@@ -366,7 +372,7 @@ Format: **Owns** (files you may touch) · **Depends** · **Build** · **Acceptan
 - **Owns:** `src/cli/main.ts`, `src/cli/args.ts`, `src/cli/render.ts` + test
 - **Depends:** P0.1, P0.3
 - **Build:** subcommand dispatch for §5's surface, `--profile`, `--json`, `--yes`, `--help`. Exit codes: `0` success, `1` expected failure (blocked topic, partial deletion — a cohort miss is **not** a failure), `2` usage error, `3` config or connectivity error. Rendering is separate from logic: every command returns a plain object that `render.ts` prints as text or JSON. **No business logic in this lane.**
-- **Acceptance:** `--help` lists every command; unknown command exits 2; a missing required flag exits 2; `--json` output parses as JSON for every implemented command.
+- **Acceptance:** **`npm run confit -- --help` exits 0** — P0.1 declares the script but cannot satisfy it, because `src/cli/main.ts` is yours. `--help` lists every command; unknown command exits 2; a missing required flag exits 2; `--json` output parses as JSON for every implemented command.
 
 **X2 — `confit confess`**
 - **Owns:** `src/cli/confess.ts` + test · **mock-start OK**
