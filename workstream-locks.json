@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T08:15:58.169Z",
+  "updated_at": "2026-07-25T08:16:14.123Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -176,12 +176,12 @@
       ],
       "mock_start_ok": false,
       "note": "Resolves D-2 — confirm real endpoint paths against the live API and record them in src/memory/README.md. Omitting user_id searches app-wide, so it must be impossible to omit.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "fable-session-0dd9z8",
+      "branch": "claude/upload-artifact-docs-0dd9z8",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T07:37:34.268Z"
+      "claimed_at": "2026-07-25T08:16:14.123Z",
+      "updated_at": "2026-07-25T08:16:14.123Z"
     },
     "M2": {
       "title": "PoolStore: writeRead to confit:pool with read_id in content; readsForDriver is the per-driver counting query at COUNTING_K; inducedClaim stays top-k",
