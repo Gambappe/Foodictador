@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T12:47:48.401Z",
+  "updated_at": "2026-07-25T12:47:49.869Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -1119,6 +1119,19 @@
       "pr": null,
       "claimed_at": null,
       "updated_at": "2026-07-25T12:47:48.400Z"
+    },
+    "N2": {
+      "title": "SL-23: NudgeState is never persisted anywhere",
+      "phase": "N",
+      "depends_on": [],
+      "mock_start_ok": false,
+      "note": "SL-23 in docs/defect-log.md (still open). grep across src/nudge, src/memory and src/config finds only the NudgeState type import — nothing writes or reads it back. src/cli/pass-ops.ts's nudge command and N1's createNudge() operate on in-memory state only; a test titled 'persisted state round-trips' asserts only that a constructor accepts an object.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T12:47:49.868Z"
     }
   }
 }
