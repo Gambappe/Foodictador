@@ -51,8 +51,11 @@ Every path below is owned by exactly one lane. If your task needs a file outside
 | Nudge | `N` | `src/nudge/**` |
 | Guards & CI | `G` | `tests/guards/**`, `.github/workflows/**`, `scripts/gate-cli.sh` |
 | UI | `U` | `src/ui/**`, `index.html`, `vite.config.ts`, `tailwind.config.ts` |
+| **Specs and docs** | *integrator* | `docs/**` |
 
 Tests for a lane's own modules live beside them (`src/kernel/rotation.test.ts`). `tests/guards/**` is only for the cross-cutting guards in lane G. Nothing outside this table may be created without the integrator adding a row.
+
+**Editing this document is an integrator change, and it gets its own commit.** `docs/**` had no owner in this table until now, which is how the D-6 resolution came to be narrowed inside the very PR that implemented K7 — by the agent whose task it describes, in a forty-line commit message that mentioned everything except the spec edit (defect log SL-12). The substance happened to be right; the process was not. A task that needs a spec change raises it as a note on the task, and a spec change lands as a commit that does nothing else, so it is reviewable as a spec change rather than buried in an implementation diff.
 
 **Adding a dependency is an integrator change.** `package.json` and `package-lock.json` belong to lane P0, so a task that needs a new package — `U1` adding React and Vite is the obvious one — does not edit them itself. Ask the integrator, who adds the dependency and pushes the lockfile. This keeps one agent responsible for the lockfile and stops two lanes racing on it.
 
