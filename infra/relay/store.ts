@@ -1,9 +1,21 @@
 /**
- * In-memory relay store (P0.4). The clock is injected so tests can age entries.
+ * The relay store (P0.4, made durable in P0.8). The clock is injected so tests can age
+ * entries.
  *
  * `put` is idempotent on read_id: re-putting an existing read updates the body but
  * PRESERVES received_at and ingest_job_id — a retried write must not reset the
  * stuck-entry signal or orphan a job annotation.
+ *
+ * **Persistence is synchronous and happens inside the mutation** (P0.8). D-7 made this
+ * the store of record, and the only useful meaning of that is: when the caller gets its
+ * 201, the read is on disk. A periodic flush cannot provide that no matter how short the
+ * interval, because the acknowledgement and the durability are not ordered — the client
+ * is told "stored" and then the process dies. So `persist` runs before the mutation
+ * returns, and if it throws, the mutation throws, and the caller is told the truth.
+ *
+ * The hook is injected rather than imported so the store stays a plain data structure
+ * that tests can drive without a filesystem — and so the "did it persist before it
+ * answered?" ordering can be asserted directly, which is the property that matters.
  */
 
 import type { Read } from '../../src/contracts/types.js';
@@ -14,27 +26,73 @@ export interface StoredEntry {
   ingest_job_id?: string;
 }
 
+/**
+ * Called with the full serialized state after each mutation, before it returns.
+ * Throwing rejects the mutation.
+ */
+export type PersistFn = (snapshot: string) => void;
+
+export interface RelayStoreOptions {
+  now?: () => Date;
+  persist?: PersistFn;
+}
+
 export class RelayStore {
   private entries = new Map<string, StoredEntry>();
+  private readonly nowFn: () => Date;
+  private readonly persistFn: PersistFn | null;
+  /** Suppresses persistence while `restore` repopulates from disk. */
+  private loading = false;
 
-  constructor(private readonly nowFn: () => Date = () => new Date()) {}
+  constructor(options: RelayStoreOptions | (() => Date) = {}) {
+    // P0.4's constructor took a bare clock. Kept working rather than churning every
+    // call site, since the clock-only form is what the existing tests and stubs use.
+    const opts = typeof options === 'function' ? { now: options } : options;
+    this.nowFn = opts.now ?? (() => new Date());
+    this.persistFn = opts.persist ?? null;
+  }
+
+  /**
+   * Runs a mutation and persists the result before returning it.
+   *
+   * On a persist failure the in-memory change is rolled back, so a caller that sees a
+   * 500 and retries does not find the write already applied — and a relay that cannot
+   * write to disk does not silently drift into being an in-memory cache again.
+   */
+  private mutate<T>(apply: () => T): T {
+    if (this.persistFn === null || this.loading) return apply();
+    const rollback = new Map(this.entries);
+    const result = apply();
+    try {
+      this.persistFn(this.serialize());
+    } catch (error) {
+      this.entries = rollback;
+      throw error;
+    }
+    return result;
+  }
 
   put(read: Read): StoredEntry {
-    const existing = this.entries.get(read.read_id);
-    if (existing) {
-      existing.read = read;
-      return existing;
-    }
-    const entry: StoredEntry = { read, received_at: this.nowFn().toISOString() };
-    this.entries.set(read.read_id, entry);
-    return entry;
+    return this.mutate(() => {
+      const existing = this.entries.get(read.read_id);
+      if (existing) {
+        existing.read = read;
+        return existing;
+      }
+      const entry: StoredEntry = { read, received_at: this.nowFn().toISOString() };
+      this.entries.set(read.read_id, entry);
+      return entry;
+    });
   }
 
   setJob(readId: string, jobId: string): boolean {
     const entry = this.entries.get(readId);
+    // Persisting a no-op would rewrite the snapshot for every unknown read_id.
     if (!entry) return false;
-    entry.ingest_job_id = jobId;
-    return true;
+    return this.mutate(() => {
+      entry.ingest_job_id = jobId;
+      return true;
+    });
   }
 
   list(since?: string): StoredEntry[] {
@@ -43,7 +101,8 @@ export class RelayStore {
   }
 
   drop(readId: string): boolean {
-    return this.entries.delete(readId);
+    if (!this.entries.has(readId)) return false;
+    return this.mutate(() => this.entries.delete(readId));
   }
 
   stats(): { count: number; oldest_entry_age_seconds: number } {
@@ -56,12 +115,26 @@ export class RelayStore {
   }
 
   seed(reads: Read[]): number {
-    for (const read of reads) this.put(read);
-    return reads.length;
+    // One snapshot for the batch, not one per read: seeding is thousands of reads and
+    // the atomic write is a whole-file rewrite. Still all-or-nothing — if the single
+    // persist fails, mutate() rolls the whole batch back.
+    return this.mutate(() => {
+      for (const read of reads) {
+        const existing = this.entries.get(read.read_id);
+        if (existing) {
+          existing.read = read;
+          continue;
+        }
+        this.entries.set(read.read_id, { read, received_at: this.nowFn().toISOString() });
+      }
+      return reads.length;
+    });
   }
 
   reset(): void {
-    this.entries.clear();
+    this.mutate(() => {
+      this.entries.clear();
+    });
   }
 
   serialize(): string {
@@ -71,17 +144,22 @@ export class RelayStore {
   /** Skips structurally invalid entries rather than keying the map on undefined. */
   restore(json: string): { restored: number; skipped: number } {
     const parsed = JSON.parse(json) as { entries?: unknown[] };
-    this.entries.clear();
-    let skipped = 0;
-    for (const raw of parsed.entries ?? []) {
-      const entry = raw as StoredEntry | null;
-      const readId = entry?.read?.read_id;
-      if (typeof readId !== 'string' || readId === '' || typeof entry?.received_at !== 'string') {
-        skipped += 1;
-        continue;
+    this.loading = true;
+    try {
+      this.entries.clear();
+      let skipped = 0;
+      for (const raw of parsed.entries ?? []) {
+        const entry = raw as StoredEntry | null;
+        const readId = entry?.read?.read_id;
+        if (typeof readId !== 'string' || readId === '' || typeof entry?.received_at !== 'string') {
+          skipped += 1;
+          continue;
+        }
+        this.entries.set(readId, entry);
       }
-      this.entries.set(readId, entry);
+      return { restored: this.entries.size, skipped };
+    } finally {
+      this.loading = false;
     }
-    return { restored: this.entries.size, skipped };
   }
 }
