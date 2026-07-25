@@ -26,8 +26,18 @@ function sourceFiles(dir: string): string[] {
 /** Matches static imports, `export … from`, and dynamic `import()` alike. */
 const NODE_IMPORT = /(?:from\s*|import\s*\(\s*)['"]node:[^'"]+['"]/;
 
+/**
+ * Exempt for the same reason and by the same rule eslint.config.js uses: `.test.ts`
+ * under `src/ui/**` runs in the node project and never reaches the browser bundle, so a
+ * `node:` import there is legal. This used to exempt only `purity.test.ts` by filename,
+ * which made this check disagree with the lint rule beside it — the lint rule allowed a
+ * second such test, and this one failed it. Rendered tests are `.test.tsx`, run under
+ * jsdom, and stay covered.
+ */
+const isNodeProjectTest = (path: string): boolean => path.endsWith('.test.ts');
+
 describe('U1: src/ui/** stays browser-safe', () => {
-  const files = sourceFiles(UI_DIR).filter((path) => !path.endsWith('purity.test.ts'));
+  const files = sourceFiles(UI_DIR).filter((path) => !isNodeProjectTest(path));
 
   it('finds the UI source to check', () => {
     expect(files.length).toBeGreaterThan(0);
