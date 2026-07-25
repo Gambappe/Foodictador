@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T12:13:38.095Z",
+  "updated_at": "2026-07-25T12:23:04.443Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -983,6 +983,22 @@
       "pr": null,
       "claimed_at": null,
       "updated_at": "2026-07-25T12:08:57.546Z"
+    },
+    "M16": {
+      "title": "The Ask reads all three D-8 inputs: add the PERSONAL synthesis, which is written today and never read",
+      "phase": "M",
+      "depends_on": [
+        "M11",
+        "M12"
+      ],
+      "mock_start_ok": false,
+      "note": "D-8's missing middle. writeProse ingests every confession to the profile scope and NOTHING queries it back — grep finds no synthesis query against a profile scope anywhere, so the personal tier has been pure cost since it was written. Add UserStore.inducedClaim(profile, query) (episodes over the user's own confessions, same shape as PoolStore.inducedClaim) and thread it onto the ask path. CONTRACT CHANGE: NarratorFacts.inducedClaim is singular and would now have two callers — the personal claim ('what you keep doing') and the group claim ('what people like you keep doing') are different promises and must be separate fields, or one silently replaces the other. Also raise INDUCTION_TOP_K's lesson here: facts sort before episodes, so a profile scope thick with prose facts can push its episode past the cut — measure the index before picking k.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T12:23:04.442Z"
     }
   }
 }
