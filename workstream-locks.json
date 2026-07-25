@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T10:13:02.715Z",
+  "updated_at": "2026-07-25T10:13:42.793Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -813,6 +813,21 @@
       "pr": null,
       "claimed_at": null,
       "updated_at": "2026-07-25T10:13:02.714Z"
+    },
+    "P0.8": {
+      "title": "Relay durability (D-7): file-backed store with atomic writes; a restart must lose nothing",
+      "phase": "P0",
+      "depends_on": [
+        "P0.4"
+      ],
+      "mock_start_ok": false,
+      "note": "D-7 makes the relay the store of record. P0.4 built it as an in-memory Map with a periodic JSON dump, which was right for a settle-window buffer and is wrong for a store of record. Needs persistence, atomic write-and-rename, and a restart that loses nothing. Also [E26]: the relay now holds every read for ever rather than for minutes, so coarse timestamps move from the [prod] list to required.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T10:13:42.793Z"
     }
   }
 }
