@@ -4246,3 +4246,80 @@ The fourth and fifth passes stopped before the commits that closed them, so the 
 **What the code did.** `poolHandles` correctly resolved the ledger before any delete — the SL-49-era race fix is real. Then `forgetPool` and `forgetRelay` ran in one `Promise.all`, and the ledger's only durable copy lives ON the relay entry `forgetRelay` deletes. Walk the failure: three handles read; XTrace 503s on handle two → `pool: failed` with a bare error message, handles two and three undeleted, loop abandoned at the first throw. `forgetRelay`, in parallel, has already dropped the entry. The user re-runs `forget`, as the report invites: `poolHandles` finds no entry → `handles: []` → `pool: skipped` with **"run `confit sweep` and forget again (M10)"**. There is no entry left to sweep; no sweep will ever re-record those handles; the derived memories sit in the pool scope permanently, reachable by no code path — while the advice implies the opposite.
 
 **Why it is wrong.** The file's own docblock names the one forbidden bug: a deletion report that overstates itself. The first-run `failed` is honest; the steady state after it lies — `skipped`-with-impossible-advice is indistinguishable from the fresh-confession case where the advice is exactly right. The relay delete is not the mistake (stopping the counting must not be hostage to XTrace flakiness); the mistake is discarding the only remaining copy of the handles into a bare error string and then advising a retry that reads from the place both copies just left.
+
+---
+
+## Seventh pass — the deploy path, executed rather than read (`2faec28`), during demo setup
+
+`docs/deploy-flyio.md` had never been run end to end. Executing it surfaced three defects, all
+in the deploy lane, all of which stop the demo before it starts. Each was reproduced by
+execution — `flyctl` parsing the real `fly.toml`, a real image build, and a container on a
+root-owned volume shaped like a fresh fly volume.
+
+## SL-59 · HIGH · `fly.toml` does not parse, so `fly deploy` never runs
+
+**Task:** DEPLOY.1. **Files:** `fly.toml`.
+
+`[[vm.processes]]` with `name = "app"` made `processes` an array of tables. It is a list of
+process-group *names*, so flyctl rejects the file outright:
+
+```
+$ fly config validate -c fly.toml
+WARN WARNING the config file at 'fly.toml' is not valid:
+  json: cannot unmarshal object into Go struct field Compute.vm.processes of type string
+```
+
+Step 1.5 of the runbook (`fly deploy`) cannot succeed in any environment. Fixed to
+`processes = ["app"]`; `fly config validate` now prints `Configuration is valid`.
+
+**Fix also added `[checks.stats]`.** The relay has no public address and no `[http_service]`,
+so nothing external ever notices it wedged, and fly ignores the Dockerfile `HEALTHCHECK`. The
+check makes a dead relay fail the deploy instead of reporting a healthy machine.
+
+## SL-60 · HIGH · the relay image cannot build, because `tsc` compiles a file the build stage never copies
+
+**Task:** DEPLOY.1. **Files:** `infra/relay/Dockerfile`.
+
+The build stage copies root files by name and omitted `vitest.config.ts`. tsconfig's `include`
+covers `*.config.ts`, and `src/index.test.ts` imports it for the toolchain invariants, so
+`npm run build` inside the image dies:
+
+```
+src/index.test.ts(6,60): error TS2307: Cannot find module '../vitest.config.js'
+src/index.test.ts(110,40): error TS7006: Parameter 'testRoot' implicitly has an 'any' type.
+```
+
+`npm run build`, `npm test`, `npm run lint` and `npm run typecheck` all pass on a laptop in
+that state. The only signal is a container build, which nothing in CI or the runbook performs
+before demo day. Guarded now by `tests/guards/relayImageBuild.test.ts`, which asserts the
+COPY directives (not the file text — a filename in a comment satisfied the first version of
+that assertion) name every root config tsconfig compiles.
+
+## SL-61 · HIGH · every confession 500s on a fly volume, while the machine reports healthy
+
+**Task:** DEPLOY.1. **Files:** `infra/relay/Dockerfile`, `infra/relay/entrypoint.sh` (new).
+
+A fly volume is mounted root-owned `0755` over the destination, hiding the image's
+`chown node:node /var/lib/confit`. The relay ran as `node`, so the first mutation failed:
+
+```
+$ curl -X POST .../reads -d '{"token":…,"read":{…}}'
+HTTP 500 {"error":"EACCES: permission denied, open '/data/relay.json.tmp'"}
+```
+
+Reproduced against the real image on a fresh root-owned Docker volume. The failure mode is the
+one this repo keeps legislating against: because a failed snapshot write is a failed mutation
+(P0.8, correctly), *every* confession fails — while `/stats` answers 200, the machine is
+`healthy`, and the runbook's step 1.6 log line looks exactly right. Seeding would have failed
+too, at 220 reads out of 220.
+
+Fixed with an entrypoint that chowns the snapshot directory as root and then `exec`s the relay
+as `node` via busybox `su` — no `apk add`, so the image build makes no network call for it.
+Verified: `HTTP 201`, `pid 1 node dist/infra/relay/main.js` owned by uid 1000, `docker stop`
+in 0.2s (SIGTERM still reaches the relay), and `restored 1 entries` across a restart.
+
+**Also fixed, found the same way (MEDIUM, `scripts/preflight.mjs`).** `XTRACE_*` unset was a
+warning on the theory that reads stay countable from the relay alone (D-7) — true of the data,
+false of the binary: `loadConfig` lists both in `REQUIRED_VARS`, so every command exits 1
+before it starts. Pre-flight said `READY, with 1 warning(s)` on a laptop where nothing runs.
+Now a hard failure.

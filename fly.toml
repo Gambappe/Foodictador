@@ -31,8 +31,24 @@ primary_region = "lhr" # change to the region nearest the venue
   size = "shared-cpu-1x"
   memory = "512mb"
 
-# One machine, never zero. auto_stop would suspend the relay between commands and the
-# first request after a stop would fail rather than wake it — not something to discover
-# on stage.
-[[vm.processes]]
-  name = "app"
+  # One machine, never zero. There is no [http_service] to hang autostart/autostop off,
+  # so nothing suspends the relay between commands — a stopped machine would fail the
+  # first request rather than wake it, and that is not something to discover on stage.
+  #
+  # `processes` is a list of process-group NAMES, not a table. It was `[[vm.processes]]`
+  # with `name = "app"`, which flyctl rejects outright: "cannot unmarshal object into Go
+  # struct field Compute.vm.processes of type string" — `fly deploy` never starts. There
+  # is no [processes] block, so "app" is the implicit default group.
+  processes = ["app"]
+
+# The relay is the store of record and has no public address, so nothing external would
+# ever notice it wedged. This check is the only thing that turns "the machine is up" into
+# "the relay answers": a failing check fails the deploy instead of leaving a dead relay
+# reported healthy. `/stats` is the open, coarse view (P0.9), so it needs no token.
+[checks.stats]
+  type = "http"
+  port = 8787
+  path = "/stats"
+  interval = "30s"
+  timeout = "5s"
+  grace_period = "15s"

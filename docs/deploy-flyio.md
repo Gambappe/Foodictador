@@ -82,11 +82,48 @@ fly logs --app confit-relay | head -20
 **Expect:** `relay: listening on :8787 (durable → /data/relay.json)`
 
 ```bash
+fly checks list --app confit-relay
+```
+**Expect:** the `stats` check `passing`. It is an HTTP probe of `/stats` declared in
+`fly.toml`; fly ignores the Dockerfile `HEALTHCHECK`, so this is the only thing that
+distinguishes "the machine is up" from "the relay answers". A `critical` check here means
+the process is wedged — read the logs, do not proceed.
+
+```bash
 fly ips list --app confit-relay
 ```
 **Expect: an empty list, or only a private `v6` entry.** If a **public** IPv4 or IPv6 is
 listed, the relay is on the internet — remove it with
 `fly ips release <address> --app confit-relay` before continuing.
+
+### 1.7 Write one read and delete it — proves the volume is writable
+
+The relay is the store of record, and a volume it cannot write to is invisible until the
+first confession: `/stats` answers `200`, the machine reports healthy, and every write
+fails. Prove it now, from the machine you deployed from:
+
+```bash
+fly proxy 8787:8787 --app confit-relay &     # or a second terminal
+curl -s -X POST http://127.0.0.1:8787/reads \
+  -H 'content-type: application/json' \
+  -d '{"token":"<RELAY_TOKEN>","read":{"read_id":"00000000-0000-4000-8000-000000000000",
+       "place":"rosas_taqueria","signal":"pretends_preference","driver":"spice_tolerance_low",
+       "cadence":"weekly","weight":0.85}}'
+```
+**Expect:** `{"read_id":"00000000-…","received_at":"…"}` — HTTP 201.
+
+`{"error":"EACCES: permission denied, open '/data/relay.json.tmp'"}` means the volume is
+root-owned and the relay is not running through its entrypoint (SL-61). Stop — seeding and
+every confession will fail.
+
+Then remove the probe read, so the pool is exactly the seed:
+
+```bash
+curl -s -X DELETE http://127.0.0.1:8787/reads/00000000-0000-4000-8000-000000000000 \
+  -H 'content-type: application/json' -d '{"token":"<RELAY_TOKEN>"}'
+```
+**Expect:** HTTP 204 with no body, and `curl -s http://127.0.0.1:8787/stats` back to
+`{"count":0,…}`.
 
 ---
 
@@ -167,7 +204,14 @@ Specifically confirm:
 - `ok ANTHROPIC_API_KEY unset — scripted demo: … zero spend`
 - `ok reachable — count=0`
 
-If XTrace shows `SET but does not work`, stop — the key is wrong or has no quota.
+If XTrace shows `SET but does not work`, stop — the key is wrong or has no quota. If it
+shows `XTRACE_BASE_URL/XTRACE_API_KEY unset`, stop too: the CLI requires both, so every
+command exits 1 before it starts.
+
+`pass provision` in Part 3 does not have to be repeated here. Profile settings live on the
+relay (`/settings/{profile}/{key}`), not on disk, so provisioning once reaches every laptop
+pointed at the same relay — which is also why every laptop must use the same
+`RELAY_TOKEN`.
 
 ---
 
@@ -224,6 +268,9 @@ Rehearse these exact commands before the audience is in the room.
 | `pool is EMPTY` | seed did not run, or ran against a different relay | re-run Part 3; check `RELAY_TOKEN` matches |
 | `pass census` exits 1 | seed did not fully land | re-run `pass seed`, then census again |
 | Relay unreachable, proxy fine | machine stopped | `fly status --app confit-relay`, then `fly machine start <id>` |
+| `fly deploy` refuses: `config file … is not valid` | `fly.toml` was edited (or `fly launch` rewrote it) | `fly config validate -c fly.toml` names the field; do not deploy until it prints `Configuration is valid` |
+| Writes 500 with `EACCES … relay.json.tmp`, `/stats` still 200 | the volume is root-owned and the image's entrypoint was bypassed | confirm the machine runs `ENTRYPOINT /usr/local/bin/relay-entrypoint.sh`; `fly ssh console -a confit-relay -C 'ls -ldn /data'` should show uid 1000 |
+| `pass seed`: `internal error: … relay: POST /seed failed with 500` | the relay could not write its snapshot — the same EACCES, seen from the CLI | fix the volume ownership above, then `pass seed` again; re-seeding is idempotent (keyed by `read_id`, `count` stays 220) |
 
 Recover the pool after an accidental `pass reset`:
 

@@ -106,11 +106,14 @@ async function probe(label, request) {
 const xtraceBase = env('XTRACE_BASE_URL');
 const xtraceKey = env('XTRACE_API_KEY');
 if (xtraceBase === null || xtraceKey === null) {
-  // Not hard: reads are countable from the relay alone (D-7). But the confessor's own
-  // memory tier is half of what [E27]'s consent copy promises, and it needs XTrace.
-  soft("XTRACE_* unset — reads still pool and cohorts still cite, but the confessor's OWN");
-  cont('memory tier will not be written. The consent copy promises it. Do not claim the');
-  cont('personal-memory half on stage from this machine.');
+  // Hard, because `loadConfig` lists both in REQUIRED_VARS: without them every CLI command
+  // — ask, confess, pass census — exits 1 on "Missing required environment variable(s)"
+  // before it does anything. This was a warning on the theory that reads stay countable
+  // from the relay alone (D-7), which is true of the DATA and false of the BINARY. Left
+  // soft, the T-1h check said READY-with-a-warning on a laptop where nothing runs.
+  hard('XTRACE_BASE_URL/XTRACE_API_KEY unset — the CLI requires BOTH (src/config/env.ts');
+  cont('REQUIRED_VARS). Every command exits 1 before it starts, and the confessor\'s own');
+  cont("memory tier — half of what [E27]'s consent copy promises — needs them anyway.");
 } else {
   const verdict = await probe('xtrace', (signal) =>
     fetch(new URL('/v1/memories?limit=1', xtraceBase), {
