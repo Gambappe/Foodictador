@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T16:40:14.056Z",
+  "updated_at": "2026-07-25T16:50:36.992Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -1074,12 +1074,12 @@
       "depends_on": [],
       "mock_start_ok": false,
       "note": "SL-17 in docs/defect-log.md (still open). data/seeds/induction-set.json must be derived from what actually landed in XTrace via induction (S2's own induced claims), not a copy of the raw seed reads — otherwise confit pass census's [E22] cross-check can never catch a broken pool.",
-      "status": "claimed",
+      "status": "in_review",
       "owner": "fable-session-0dd9z8",
       "branch": "feat/s5-induction-set",
-      "pr": null,
+      "pr": "https://github.com/Gambappe/Foodictador/pull/70",
       "claimed_at": "2026-07-25T16:40:14.056Z",
-      "updated_at": "2026-07-25T16:40:14.056Z"
+      "updated_at": "2026-07-25T16:50:36.991Z"
     },
     "X8": {
       "title": "SL-16: census labels the six UNMATCHABLE_DRIVERS citable",
