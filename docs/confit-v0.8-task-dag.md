@@ -216,6 +216,25 @@ What (c) required in code, none of it cosmetic:
 
 `M19` is closed by this decision rather than built. If (a) is ever wanted, the cost is a `UsualProfile` contract change, a `PlaceTag` contract change, and a re-audit of all 40 corpus records — where a place mistagged as free of an allergen is exactly the failure the feature would exist to prevent, and no test can catch it.
 
+**D-10 — Losing a confession is acceptable; batching them is not optional.** Decided by the product owner, on the question D-8 left open and M16 made concrete.
+
+Two findings framed the choice. First, XTrace retention is `~11/16` and non-deterministic, and `verifyPendingProse` cannot detect a drop because it clears on `jobStatus === 'complete'` — which means the extraction *job* finished, not that the memory survived. Second, and measured twice: **episodes are generated per ingest call, not per accumulated conversation.** Four separate POSTs sharing one `conv_id` still produced four per-POST paraphrases with the `conv_id` recorded, so grouping alone does nothing; the guide's R4 "batch by session/day" means *one POST with several messages*, which is exactly what M12 did for the pool.
+
+The owner's ruling: **the loss is fine, the batching is the point.** So:
+
+- **`M17` is closed by decision, not built.** A spool sized for a delivery *guarantee* — atomic writes, retrievability verification, stuck-item escalation — is machinery for a promise the owner has declined to make. What survives is the far smaller thing batching actually requires.
+- **`M20` becomes the work.** Confession prose is buffered and ingested as one grouped POST, so the personal synthesis spans several confessions instead of paraphrasing one. Losing the buffer is explicitly acceptable, which removes the atomicity, the verification and the escalation.
+- **The buffer is local, not on the relay.** It has no cross-device requirement: unlike settings (`pass provision` here, `ask` there) and unlike the pool (cross-device by design), a buffer is only ever flushed by a process on the machine that wrote it. Sharing it would put raw confessions on a service where one token reads everything, and buy nothing.
+- **`M10` stays independent.** Surfacing `result.memories_created[]` was going to fall out of M17's verification; with M17 closed it does not, so the ingest ledger remains its own task.
+
+One consequence the owner should see rather than discover: a buffered confession has **not** reached XTrace when `confess` prints its receipt, so `your memory ok (your words, your tier only)` becomes untrue at the moment it is printed. Deferral is not loss, but the receipt must say which of the two it is. Fixed with the copy, not with more machinery.
+
+**What D-10 does NOT sanction, found by review of M20 (SL-39, SL-40).** The first implementation read the buffer, appended, and rewrote one shared document — an unlocked read-modify-write across processes, and every confession arrives in its own process. Measured: six concurrent `confess` runs destroyed three to five of six confessions, each of which had printed `held` first; two processes crossing the threshold together POSTed the same texts twice under one `conv_id`.
+
+Both were defended as "D-10 accepts losing confessions", and that reading is wrong. D-10 sanctions losing **the buffer** — a disk that goes away, a machine that never sweeps again. It does not sanction destroying a confession when nothing failed, and it does not sanction duplicate ingestion at all, which puts near-identical texts in one batch and reproduces the per-confession paraphrase M20 exists to remove. The fix is one file per confession, claimed by `renameSync`: no shared document, and the loser of a race takes fewer rather than the same ones. That is not the atomicity ceremony D-10 declined — it is what makes concurrent operation correct, and it is three lines.
+
+The general rule, since it will come up again: **a decision that accepts a failure mode is not a licence for a different failure mode that resembles it.** "Losing this is fine" is scoped to the cause named in the decision.
+
 **D-11 — `budgetBand` is a wall until strangers' evidence says otherwise (resolves K8).** The ruling was made on the K8 registry note and delegated to the implementing session; recorded here per §2, as its own commit.
 
 The D-8 amendment found `budgetBand` acting as both a soft `priceFit` and a hard exclusion, which contradicts "soft preferences on similar footing to evidence." Four options were weighed. (a) Purely soft — rejected: `priceFit` contributes 0.5-vs-1.0 on one of four sub-fits inside one 0.25-weighted component, so removing the exclusion does not put budget on similar footing with evidence, it makes budget nearly irrelevant, and a band-1 declarer would routinely see band-4 places on unrelated merits. (b) Widening `BUDGET_TOLERANCE_BANDS` — rejected as moving an arbitrary wall rather than justifying one. (c) A budget-only exception to D-8 — rejected as abandoning the ruling for money with no reason beyond intuition. **(d) chosen: evidence can lift the ceiling; the exclusion is not removed.**

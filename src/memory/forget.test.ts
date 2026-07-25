@@ -4,7 +4,13 @@ import type { MemoryClient, Relay } from '../contracts/modules.js';
 import type { MemoryRow, RelayEntry } from '../contracts/types.js';
 import { createLogger } from '../config/logger.js';
 import { sampleRead } from '../contracts/fixtures/index.js';
+import { mkdtempSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import { createProseBuffer } from './proseBuffer.js';
 import { POOL_SCOPE } from './pool.js';
+import { personalScope } from './scopes.js';
 import { forget } from './forget.js';
 
 function fakes(init: {
@@ -38,11 +44,14 @@ function fakes(init: {
       return Promise.resolve();
     },
     jobStatus: () => Promise.resolve('unknown'),
+    // M10's ledger is not what this suite is about; no handles is a valid job result.
+    jobResult: () => Promise.resolve([]),
   };
 
   const relay: Relay = {
     put: () => Promise.reject(new Error('unused')),
     setJob: () => Promise.reject(new Error('unused')),
+    setPoolMemories: () => Promise.resolve(),
     list: () => Promise.resolve(relayEntries.map((e) => ({ ...e }))),
     drop(readId) {
       if (init.relayDropFails) return Promise.reject(new Error('relay unreachable'));
@@ -91,17 +100,52 @@ describe('M8 forget — the relay delete is the authoritative one (D-7)', () => 
 });
 
 describe('M8 forget — the XTrace targets are honest about what they cannot do', () => {
-  it('reports pool as SKIPPED without handles, never nothing_to_delete', async () => {
-    // The regression this locks: forget used to search the pool for JSON rows
-    // holding the read_id, find none — because XTrace stores prose, not the read
-    // — and report `nothing_to_delete`. That told the user "there was nothing
-    // there" while five prose facts derived from their confession stayed put. A
-    // deletion report that overstates itself is the one bug this flow cannot have.
+  it('reports pool as SKIPPED with no handles recorded, never nothing_to_delete', async () => {
+    // The regression this locks: forget used to search the pool for JSON rows holding the
+    // read_id, find none — because XTrace stores prose, not the read — and report
+    // `nothing_to_delete`. That told the user "there was nothing there" while five prose facts
+    // derived from their confession stayed put. A deletion report that overstates itself is the
+    // one bug this flow cannot have.
+    //
+    // M10 gave it handles to delete by, but only once a sweep has recorded them. An entry with
+    // no ledger yet is still `skipped` — and the reason now says what to do about it.
     const f = fakes({ relayEntries: [entry()] });
     const report = await forget(sampleRead.read_id, f.deps);
     expect(report.pool.status).toBe('skipped');
-    expect(report.pool.detail).toMatch(/not keyed by read_id/);
+    expect(report.pool.detail).toMatch(/ingest ledger is written by the sweeper/);
+    expect(report.pool.detail).toMatch(/run `confit sweep` and forget again/);
     expect(report.pool.status).not.toBe('nothing_to_delete');
+  });
+
+  it('sequences the ledger read before the deletes, in the source', () => {
+    // Found LIVE, not by a test: the ledger was on the entry and `forget` still reported
+    // `skipped`. The handles live ON the entry `forgetRelay` destroys, both requests went out
+    // together, and the DELETE reached the relay first — so the GET answered without it.
+    //
+    // Source-level, and I want to be exact about why rather than dress this up. I tried three
+    // behavioural versions: a fake whose `list` waits for the drop (deadlocks against the
+    // correct code, proving nothing), a `list` with deferred resolution (green both ways), and
+    // an ordering trace (green both ways). All three fail for the same reason — in-process, JS
+    // ordering supplies the sequencing that the network does not, so the concurrent version is
+    // genuinely safe under a fake and unsafe against a real relay. Only latency separates them.
+    //
+    // So this asserts the shape that makes the reorder impossible: the ledger is awaited on its
+    // own line, before the Promise.all that deletes anything.
+    const source = readFileSync(new URL('./forget.js'.replace('.js', '.ts'), import.meta.url), 'utf8');
+    const sequenced = /const ledger = await poolHandles\([\s\S]{0,200}?const \[pool, relay, user\] = await Promise\.all\(/;
+    expect(source).toMatch(sequenced);
+  });
+
+  it('deletes the pool memories the SWEEPER recorded, with no handles passed in (M10)', async () => {
+    // The point of the ledger. The handles come from the ingest job's result, which does not
+    // exist until long after `confess` returned — so nothing can pass them at forget time, and
+    // before M10 both XTrace targets reported `skipped` for every read ever confessed.
+    const withLedger = { ...entry(), pool_memories: ['pool-mem-1', 'pool-mem-2'] };
+    const f = fakes({ relayEntries: [withLedger] });
+    const report = await forget(sampleRead.read_id, f.deps);
+    expect(report.pool).toEqual({ status: 'deleted', count: 2 });
+    expect(f.removed).toContainEqual({ scope: POOL_SCOPE, memoryId: 'pool-mem-1' });
+    expect(f.removed).toContainEqual({ scope: POOL_SCOPE, memoryId: 'pool-mem-2' });
   });
 
   it('reports user as SKIPPED without handles, with the reason', async () => {
@@ -134,7 +178,7 @@ describe('M8 forget — the XTrace targets are honest about what they cannot do'
     expect(report.user).toEqual({ status: 'deleted', count: 1 });
     expect(f.removed).toContainEqual({ scope: POOL_SCOPE, memoryId: 'm1' });
     expect(f.removed).toContainEqual({ scope: POOL_SCOPE, memoryId: 'm2' });
-    expect(f.removed).toContainEqual({ scope: 'profile-a', memoryId: 'u1' });
+    expect(f.removed).toContainEqual({ scope: personalScope('profile-a'), memoryId: 'u1' });
   });
 
   it('a substrate failure deleting a handle is failed, not a crash', async () => {
@@ -145,5 +189,42 @@ describe('M8 forget — the XTrace targets are honest about what they cannot do'
     // And the authoritative delete still happened — targets are independent.
     expect(report.relay.status).toBe('deleted');
     expect(f.relayEntries).toHaveLength(0);
+  });
+});
+
+describe('M8 forget — the FOURTH target, the local confession buffer (SL-50)', () => {
+  it('deletes the buffered copy, so the next flush cannot send it', async () => {
+    // Executed before this existed: `forget` reported ok on all three targets and the next
+    // flush ingested the confession it had just promised to delete. A deletion promise a later
+    // batch quietly reverses is worse than one that admits it cannot reach something.
+    const path = mkdtempSync(join(tmpdir(), 'confit-forget-buffer-'));
+    const buffer = createProseBuffer({ path, logger: createLogger(() => undefined) });
+    buffer.append('A', 'the confession being forgotten', sampleRead.read_id);
+    buffer.append('A', 'an unrelated one', 'some-other-read');
+
+    const f = fakes({ relayEntries: [entry()] });
+    const report = await forget(sampleRead.read_id, { ...f.deps, buffer });
+
+    expect(report.buffer).toEqual({ status: 'deleted', count: 1 });
+    expect(report.ok).toBe(true);
+    // And what is left is only the unrelated confession.
+    expect(buffer.drain().flatMap((fl) => fl.texts)).toEqual(['an unrelated one']);
+  });
+
+  it('reports nothing_to_delete when no buffered copy carries the id', async () => {
+    const path = mkdtempSync(join(tmpdir(), 'confit-forget-buffer-'));
+    const buffer = createProseBuffer({ path, logger: createLogger(() => undefined) });
+    const f = fakes({ relayEntries: [entry()] });
+    const report = await forget(sampleRead.read_id, { ...f.deps, buffer });
+    expect(report.buffer).toEqual({ status: 'nothing_to_delete' });
+  });
+
+  it('a caller with NO buffer wired says skipped-with-reason, never a silent clean', async () => {
+    // The same honesty rule the XTrace targets follow. Claiming the target was clean when it
+    // was never looked at is how SL-50 stayed invisible.
+    const f = fakes({ relayEntries: [entry()] });
+    const report = await forget(sampleRead.read_id, f.deps);
+    expect(report.buffer.status).toBe('skipped');
+    expect(report.buffer.detail).toMatch(/buffered copy may still be sent/);
   });
 });

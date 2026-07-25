@@ -11,6 +11,7 @@ const config: AppConfig = {
   relayToken: 't',
   anthropicApiKey: null,
   settleWindowSeconds: 480,
+  proseBufferPath: '/tmp/confit-test-prose.json',
 };
 
 /** Runs an invocation with no environment and no real stores, capturing both streams. */

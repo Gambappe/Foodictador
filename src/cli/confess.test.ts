@@ -40,6 +40,10 @@ function harness(options: {
   poolFails?: boolean;
   noProfile?: boolean;
   confirmed?: boolean;
+  /** Confessions held rather than sent, for the M20 receipt. */
+  proseBuffered?: number;
+  /** A CONCURRENT process claimed this confession's batch (SL-49). */
+  proseHandedOff?: boolean;
 } = {}) {
   const calls = { relayPut: 0, poolWrite: 0, prose: 0, propose: 0, confirm: 0 };
 
@@ -50,6 +54,7 @@ function harness(options: {
       return Promise.resolve();
     }),
     setJob: vi.fn(() => Promise.resolve()),
+    setPoolMemories: () => Promise.resolve(),
     list: vi.fn(() => Promise.resolve([])),
     drop: vi.fn(() => Promise.resolve()),
     stats: vi.fn(() => Promise.resolve({ count: 0, oldest_entry_age_seconds: 0 })),
@@ -73,7 +78,10 @@ function harness(options: {
     personalClaim: () => Promise.resolve(''),
     writeProse: vi.fn(() => {
       calls.prose += 1;
-      return Promise.resolve({ jobId: 'job-prose' });
+      if (options.proseHandedOff === true) return Promise.resolve({ buffered: 0, handedOff: true });
+      if (options.proseBuffered !== undefined)
+        return Promise.resolve({ buffered: options.proseBuffered });
+      return Promise.resolve({ buffered: 0, jobId: 'job-prose' });
     }),
     // Returns null for an unprovisioned profile, exactly as the contract declares. The
     // first version of this harness threw instead, which let the command's own null
@@ -123,6 +131,7 @@ describe('the happy path', () => {
     expect(text).toMatch(/Added to the pot as [0-9a-f-]{36}\./);
     expect(text).toContain('relay          ok');
     expect(text).toContain('your memory    ok');
+    expect(text).toContain('sent to your tier only');
     expect(result.data).toMatchObject({ blocked: false, approved: true, pooled: true });
   });
 
@@ -282,6 +291,7 @@ describe('the CommandHandler adapter', () => {
         relayToken: 't',
         anthropicApiKey: null,
         settleWindowSeconds: 480,
+        proseBufferPath: '/tmp/confit-test-prose.json',
       },
       flags: {
         get: () => ({
@@ -335,5 +345,27 @@ describe('X2 confess — what off-limits does NOT do (D-9)', () => {
       expect(printed).toMatch(/not where it sends you/);
       expect(printed).toMatch(/does not check menus for allergens/i);
     }
+  });
+});
+
+describe('the `your memory` receipt has three states, not two (M20, SL-49)', () => {
+  it('HELD when the confession is waiting for a batch', async () => {
+    const { deps } = harness({ proseBuffered: 3 });
+    const text = (await confess(deps, input)).lines.join('\n');
+    expect(text).toContain('your memory    held');
+    expect(text).toContain('with 3 of yours');
+    // Never both. "held" and "sent to your tier only" in one receipt is the false claim.
+    expect(text).not.toContain('sent to your tier only');
+  });
+
+  it('does NOT claim this process sent it when a concurrent batch took it (SL-49)', async () => {
+    // Measured 9 times in 60: two `confess` runs cross the threshold together, one claims the
+    // batch, the other has nothing left to hold — and printed `ok (your words, sent to your
+    // tier only)` having sent nothing at all. The words are safe; the sentence was not true.
+    const { deps } = harness({ proseHandedOff: true });
+    const text = (await confess(deps, input)).lines.join('\n');
+    expect(text).toContain('your memory    ok');
+    expect(text).toContain('went with a batch another confession was sending');
+    expect(text).not.toContain('sent to your tier only');
   });
 });

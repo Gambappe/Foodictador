@@ -21,7 +21,30 @@ export interface AppConfig {
    * range; gate zero (P0.5) measures the real number and records it here (DAG D-3).
    */
   settleWindowSeconds: number;
+  /**
+   * DIRECTORY where confession prose waits until several can share one ingest call (M20).
+   *
+   * A directory, not a file: one file per confession is what makes concurrent `confess`
+   * processes safe (SL-39/SL-40 — see `src/memory/proseBuffer.ts`).
+   *
+   * Optional and defaulted, unlike the four required vars: a missing buffer path must not
+   * stop `confess` from running, and the consequence of the default is a directory under the
+   * working directory rather than a failure. Overridable with `CONFIT_PROSE_BUFFER` so an
+   * operator can put it somewhere they control.
+   *
+   * Local by design (D-10, and see `src/memory/proseBuffer.ts`): a buffer is only ever
+   * flushed by a process on the machine that wrote it, and raw confessions must not sit on
+   * the relay, whose single shared token reads everything.
+   */
+  proseBufferPath: string;
 }
+
+/**
+ * Beside the working directory, dot-prefixed so it is obviously not a deliverable, and
+ * git-ignored — `.confit/` is in `.gitignore` because the default path holds raw confession
+ * text and the repo root is where `confess` is run from (SL-45).
+ */
+const DEFAULT_PROSE_BUFFER_PATH = '.confit/prose-buffer';
 
 const REQUIRED_VARS = [
   ['xtraceBaseUrl', 'XTRACE_BASE_URL'],
@@ -70,5 +93,6 @@ export function loadConfig(env: Env = process.env): AppConfig {
     relayToken: read('RELAY_TOKEN'),
     anthropicApiKey: present(env, 'ANTHROPIC_API_KEY'),
     settleWindowSeconds,
+    proseBufferPath: present(env, 'CONFIT_PROSE_BUFFER') ?? DEFAULT_PROSE_BUFFER_PATH,
   };
 }

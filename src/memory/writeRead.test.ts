@@ -26,6 +26,7 @@ function fakes(failures: Failures = {}) {
       calls.push(`relay.setJob:${readId}:${jobId}`);
       return failures.setJob ? Promise.reject(new Error('setJob down')) : Promise.resolve();
     },
+    setPoolMemories: () => Promise.resolve(),
     list: () => Promise.resolve([]),
     drop: () => Promise.resolve(),
     stats: () => Promise.resolve({ count: 0, oldest_entry_age_seconds: 0 }),
@@ -48,7 +49,7 @@ function fakes(failures: Failures = {}) {
       calls.push(`user.writeProse:${profile}:${text}`);
       return failures.prose
         ? Promise.reject(new Error('user tier down'))
-        : Promise.resolve({ jobId: 'job-p' });
+        : Promise.resolve({ buffered: 0, jobId: 'job-p' });
     },
     usual: () => Promise.resolve(null),
     setUsual: () => Promise.resolve(),

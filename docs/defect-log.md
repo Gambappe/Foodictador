@@ -2978,3 +2978,1255 @@ Seven of pass 2's defects are still open, and they are now *gateable* rather tha
 `SL-14`, `SL-16`, `SL-17`, `SL-19`, `SL-20`, `SL-23`, plus pass 1's `SL-06`/`SL-07`/`SL-08`/`SL-10`.
 `SL-19` and `SL-20` in particular are single-command defects that the new harness can assert in
 three lines each. There is no longer an excuse of "nothing runs the CLI".
+
+---
+
+# Fourth pass
+
+**Reviewed PR #65 — `M20`, one commit `24600d4` on `claude/upload-code-artifact-zop9uz` · 25 July 2026**
+
+## What was reviewed
+
+One PR, one task, one commit: **28 files, 725 insertions, 121 deletions.** New:
+`src/memory/proseBuffer.ts` (+159), its test (+121), `src/contracts/stubs/proseBuffer.ts`.
+Rewritten: `src/memory/user.ts`, `src/memory/writeRead.ts`, `src/cli/confess.ts`,
+`src/cli/sweep.ts`, `tests/guards/offLimits.test.ts`, plus the `ProseWrite` contract and
+`AppConfig.proseBufferPath`. Author of every line: `claude-session-014n6NYRN6Rb`, the
+registry's owner of `M20`.
+
+Baseline on the head commit, checked before anything else:
+
+| gate | result |
+| --- | --- |
+| `npm run typecheck` | **exit 0** |
+| `npm run lint` | **exit 0** |
+| `npm test` | **exit 0 — 908 tests, 58 files** |
+
+**10 new defects: 4 high, 4 medium, 2 low.** Everything below was executed, not read: six
+`confit confess` processes released against one buffer file through a barrier, the real
+`confess()` driven against the real `createUserStore` and a real file-backed buffer with a
+failing `ingestBatch`, and three source mutations run against the full 908-test suite and
+reverted. Four findings are red-verified by mutation and say so.
+
+**The shape of this pass.** `M20`'s premise is sound and its central measurement is real:
+XTrace makes one episode per ingest *call*, so batching is the only thing that produces a
+synthesis across confessions, and the docblocks explaining it are the best in the repo. Then
+the implementation put a shared mutable queue behind an unsynchronised read-modify-write in a
+command that runs once per process, and wrote 121 lines of test that never runs two of them.
+The result is that `D-10`'s sanctioned loss — *the buffer file may be lost* — has been quietly
+widened into two failures nobody ruled on: **an ordinary burst of confessions destroys most of
+them** (`SL-39`), and **an ordinary flush ingests the same confession twice** (`SL-40`). The
+second one defeats the task's own purpose, because a synthesis over four rows where three are
+the same confession is exactly the per-confession paraphrase `M20` exists to stop.
+
+The other half of the pass is the receipt. `D-10`'s write-up names **one** consequence the
+owner should see rather than discover — "a buffered confession has not reached XTrace when
+`confess` prints its receipt … the receipt must say which of the two it is." The CLI receipt
+was fixed, carefully and well. The other front end still prints `your memory: written`
+(`SL-42`), and the repo's own new guard assertion documents the lie two lines apart.
+
+## Table
+
+| id | file:line | task | author | sev | one line |
+| --- | --- | --- | --- | --- | --- |
+| SL-39 | `src/memory/proseBuffer.ts:119-137` | M20 | claude-session-014n6NYRN6Rb | high | Six concurrent `confess` processes, released together: **three to five of six confessions destroyed.** Every one printed `held … or on the next sweep`. |
+| SL-40 | `src/memory/proseBuffer.ts:120-136` | M20 | claude-session-014n6NYRN6Rb | high | The same missing lock POSTs the same three confessions **twice**, both under `conv_id confit:prose:A:0`. `D-10` sanctioned loss, not duplication, and duplication is what breaks the synthesis. |
+| SL-41 | `src/memory/user.ts:163-177`, `src/cli/confess.ts:106-119` | M20 | claude-session-014n6NYRN6Rb | high | One `503` destroys four confessions. The receipt says `FAILED (your words were not recorded)` — singular — and no line, stdout or stderr, ever says four. |
+| SL-42 | `src/ui/confess/ConfessScreen.tsx:139` | M20 | claude-session-014n6NYRN6Rb | high | `your memory: written` for a confession that is on the local disk. `D-10`'s single named consequence, fixed in the CLI and left standing in the UI. |
+| SL-43 | `src/cli/sweep.ts:113-121`, `:147-156` | M20 | claude-session-014n6NYRN6Rb | medium | `pass sweep --watch` never flushes the buffer. Red-verified: making `pass sweep` not flush **at all** leaves 908/908 green. |
+| SL-44 | `src/memory/proseBuffer.test.ts:115-120` | M20 | claude-session-014n6NYRN6Rb | medium | A test titled "batches four at a time" asserts `BATCH_SIZE > 1`. Red-verified: `3` and `20` pass all 908 tests — including the value the docblock names as broken. |
+| SL-45 | `src/config/env.ts:40`, `:30`, `.gitignore` | M20 | claude-session-014n6NYRN6Rb | medium | Raw confessions default to `.confit/prose-buffer.json` **relative to the shell's cwd**, inside an un-ignored path in the git tree, and the promised "logged on first write" logs nothing. |
+| SL-46 | `src/memory/proseBuffer.ts:86-96` | M20 | claude-session-014n6NYRN6Rb | medium | `as BufferFile` over a file on disk. A JSON-valid, shape-invalid buffer throws from `pending`, `append` **and** `drain`, and never reaches the write that would repair it — the personal tier is off permanently. |
+| SL-47 | `src/memory/proseBuffer.ts:110-116`, `:72` | M20 | claude-session-014n6NYRN6Rb | low | "Distinct per flush, so each batch is its own conversation" — the counter it is built from resets to `0` on exactly the buffer loss `D-10` sanctions. |
+| SL-48 | `docs/confit-v0.8-task-dag.md:219-231` in `24600d4`; `src/memory/user.ts:9-12`; `src/memory/writeRead.ts:16` | M20 | claude-session-014n6NYRN6Rb | low | `D-10`'s thirteen lines of ruling landed buried in a 28-file implementation commit — §2's rule, whose own paragraph cites `SL-12`. Two docblocks still describe the verify-and-retry this PR deleted. |
+
+---
+
+## SL-39 · HIGH · claude-session-014n6NYRN6Rb put a shared queue behind an unsynchronised read-modify-write in a command that runs once per process, and destroyed four confessions in six
+
+**Task:** `M20`. **Files:** `src/memory/proseBuffer.ts:119-137` (`append`), `:86-96` (`read`),
+`:98-104` (`write`).
+
+**What the code does.** `append` is read-then-mutate-then-write over one JSON file, with
+nothing between the read and the write:
+
+```ts
+const profiles = read();                      // readFileSync
+const state = stateFor(profiles, profile);
+state.texts.push(text);
+if (state.texts.length < BATCH_SIZE) {
+  profiles[profile] = state;
+  write(profiles);                            // writeFileSync — last writer wins
+  return null;
+}
+```
+
+No lock, no `O_EXCL`, no compare-and-swap, no append-only log. The module's own docblock states
+the premise that makes this fatal: "**A confession arrives in its own CLI process**, so
+batching at write time is impossible without holding text across processes. Hence a file."
+Every `confit confess` is a separate OS process performing this sequence on the same path. Two
+that overlap both read the same array and both write their own copy of it; the second write
+erases the first confession outright.
+
+**Reproduction, executed.** Six `confess`-equivalent processes, each loading the real
+`createProseBuffer` and then spinning on a barrier file so the JIT and module load are paid
+*before* any of them touches the buffer, released simultaneously by the parent. Four runs:
+
+| run | confessions appended | in the buffer afterwards | flushed | **destroyed** |
+| --- | --- | --- | --- | --- |
+| 1 | 6 | `["c4","c2"]` | 0 | **4** |
+| 2 | 6 | `["c6"]` | 0 | **5** |
+| 3 | 6 | `["c3","c5"]` | 0 | **4** |
+| 4 | 6 | `["c4","c1","c6"]` | 0 | **3** |
+
+`batches` stayed `0` in every run, so not one of the six ever reached a flush either. And
+every one of those six invocations exited `0` and printed, from `confess.ts:112`:
+
+```
+  your memory    held   (with N of yours — sent together, or on the next sweep)
+```
+
+Six confessions accepted, six receipts promising a later send, one to three confessions
+actually retained.
+
+**Why it is a defect and not `D-10`.** `D-10` is quotable, and it is narrow: "**losing the
+buffer** is explicitly acceptable", and `proseBuffer.ts:19-24` restates it as "**if the file is
+lost**, some confessions never reach XTrace." That ruling covers a *file-scoped* event — a
+wiped disk, a corrupt buffer, an `rm`. What is above is not that. Nothing failed: no crash, no
+I/O error, no substrate outage, no corrupt file. The buffer file is intact, well-formed, and
+*wrong*. This is per-write loss on the ordinary success path, at a rate of 50-80% under
+concurrency, and it is invisible — the loser's receipt is identical to the winner's. An owner
+who signed off on "we may lose the buffer" was not shown "we lose most of a burst, silently,
+and tell each user their words are held." `D-10`'s own framing is that the owner "should see
+rather than discover"; this is the discover column.
+
+**Reachability, honestly.** A human typing one `confess` at a time will not hit this. Two
+things will: a scripted or seeded demo (`confit confess … & confit confess … &` is how every
+other burst in this repo has been produced, including `M20`'s own live measurement of seven
+confessions), and the UI, which shares `writeRead` and does not serialise submissions. It also
+needs no true parallelism to bite — any interleaving of two processes' read and write windows
+does it, and the window here spans a `readFileSync`, an object walk and a `writeFileSync`.
+
+**Invariant violated.** DAG §4 `D-10` (loss is sanctioned at the granularity of the buffer, not
+the write); design v0.8 `[E27]`/`[E11]` by consequence, since the consent copy and the receipt
+both promise the text goes to the user's own memory.
+
+**Verified by.** The barrier-synchronised six-process run above, four times, against unmodified
+`src/memory/proseBuffer.ts` at `24600d4`. Working tree clean afterwards.
+
+**Fix.** The cheap and correct one, and it is genuinely cheap: stop sharing one mutable
+document. Write each confession as its own file — `<dir>/<profile>/<uuid>.txt`, created with
+`{ flag: 'wx' }` — and make `append`/`drain` a `readdirSync` plus `unlinkSync` per file taken.
+Creation is then atomic per confession, two processes cannot collide because they never write
+the same path, and a flush claims files by renaming them into a batch directory before sending.
+That is *less* machinery than the current file, not more: no counter to keep, no document to
+merge, and it deletes `SL-40`, `SL-46` and `SL-47` at the same time. If a shared document must
+stay, then `append` needs a real lock — an `O_EXCL` lockfile with a stale-age override — and
+`D-10` needs re-asking, because a lock is the thing the decision was read as ruling out.
+
+---
+
+## SL-40 · HIGH · the same missing lock POSTs one confession twice under one `conv_id`, which is the failure M20 was built to remove
+
+**Task:** `M20`. **Files:** `src/memory/proseBuffer.ts:120-136`; `src/memory/user.ts:172`.
+
+**What the code does.** `append` clears the profile's texts and increments `batches` *before*
+returning the flush, and both halves land in the same unsynchronised read-modify-write as
+`SL-39`. So two processes that overlap while a profile sits at `BATCH_SIZE - 1` each compute a
+full batch from the same three retained texts, each returns a `Flush` containing them, and
+each caller then does its own `client.ingestBatch(...)` at `user.ts:172`.
+
+**Reproduction, executed.** Three confessions already waiting (`old1`,`old2`,`old3`, written one
+at a time, normally), then two `confess` processes released together on the barrier. Runs 1 and
+3 of three:
+
+```
+{"me":"new2","flushed":["old1","old2","old3","new2"],"convId":"confit:prose:A:0"}
+{"me":"new1","flushed":["old1","old2","old3","new1"],"convId":"confit:prose:A:0"}
+--- final --- {"profiles":{"A":{"texts":[],"batches":1}}}
+```
+
+Two POSTs. `old1`, `old2` and `old3` are in both. Both carry the **identical** `conv_id`. And
+`batches` advanced by one, not two, so the *next* flush will reuse an id again.
+
+**Why it is worse than the loss.** `D-10` ruled on loss and said nothing about duplication,
+because duplication was not on the table. It matters here more than loss does, because of what
+the batch is *for*. `M20`'s entire justification — measured, quoted in three docblocks — is
+that XTrace synthesises across the messages inside one call. Hand it four messages of which
+three are the same confession and the synthesis it produces is a paraphrase of that one
+confession, weighted three to one. That is, precisely and by name, the defect the task exists
+to fix: "8 confessions gave 8 episodes across 8 conv_ids, every episode a paraphrase of a
+single confession." `M20` then spends 159 lines arriving back at a per-confession paraphrase by
+a different route. Downstream, `personalClaim` (`user.ts:201`) reads `episodes[0].content` onto
+an Ask card, so the duplicated confession is what the user is told about themselves.
+
+The shared `conv_id` compounds it: the module's own test comment (`proseBuffer.test.ts:64-67`)
+names the harm — "a shared id would just make two batches indistinguishable in the substrate" —
+and here two genuinely different batches are indistinguishable, so an operator cannot even
+diagnose the duplication after the fact.
+
+**Invariant violated.** DAG §4 `D-10` ("batching is not optional" — a batch of near-duplicates
+is not the batch that was ruled on); `M20`'s stated acceptance ("4 confessions produced 1
+conv_id and 1 episode synthesising all four", per the task's own registry note).
+
+**Verified by.** The two-process barrier run above, three times; duplication in 2 of 3, and the
+shared `conv_id` in all runs that flushed.
+
+**Fix.** `SL-39`'s fix removes this as a side effect: if a flush *claims* its confessions by
+renaming per-confession files into a batch directory, two claimants cannot claim the same file
+and the loser's batch is empty. Whatever the mechanism, the `conv_id` must be minted from
+something unique to the flush — a `randomUUID()` — not from a counter in the document the race
+is already corrupting (`SL-47`).
+
+---
+
+## SL-41 · HIGH · one `503` destroys four confessions, and the receipt reports one
+
+**Task:** `M20`. **Files:** `src/memory/user.ts:163-177` (`writeProse`);
+`src/memory/writeRead.ts:114-124`; `src/cli/confess.ts:106-119` (`targetLines`).
+
+**What the code does.** `append` clears the buffer *before* the caller ingests — deliberately,
+and `D-10` does sanction that — and then `writeProse` calls `ingestBatch` with **no `try`**. So
+a failed flush POST propagates to `writeRead`, which catches it into one warning and
+`wrote.prose = false`, and `confess` renders `targetLines` with `wrote.prose === false`.
+
+**Reproduction, executed.** Real `confess()`, real `createUserStore`, real file-backed
+`createProseBuffer`, real `StubRelay`/`StubPoolStore`, and an `ingestBatch` that rejects with
+`XTrace 503`. Four confessions:
+
+```
+--- confession 1 ---   your memory    held   (with 1 of yours — sent together, or on the next sweep)
+--- confession 2 ---   your memory    held   (with 2 of yours — sent together, or on the next sweep)
+--- confession 3 ---   your memory    held   (with 3 of yours — sent together, or on the next sweep)
+--- confession 4 ---   your memory    FAILED (your words were not recorded)
+                       ! prose write failed — personal memory not recorded: XTrace 503
+--- logger lines ---
+user: confession held for A — 1/4 until the batch is sent
+user: confession held for A — 2/4 until the batch is sent
+user: confession held for A — 3/4 until the batch is sent
+writeRead: prose write failed for 0a1f6ea6-…: XTrace 503
+```
+
+Buffer afterwards: empty. Four confessions gone; the words "four", "batch" and "lost" appear
+nowhere, on either stream.
+
+**Why it is a defect.** Not the loss — `D-10` bought that. The **accounting**. Three receipts
+made a specific forward promise ("sent together, or on the next sweep") and the fourth reports
+a singular failure of the fourth confession only, in the second person: *your words* were not
+recorded. A user reading these four receipts in order concludes that confessions 1-3 are still
+queued and one is gone, and re-confesses one thing. Three are gone and nothing will retry.
+This is the identical defect the same session's `forget` shipped and the log already
+records — a per-target line that overstates what happened — restated in the PR whose own
+docblock cites it: `confess.ts:104`, "a receipt that overstates what happened is the same defect
+as `forget` printing 'Deleted from Confit' over two skipped targets."
+
+It is also a §1 breach on the degrade path: "**A degrade path is a handled error and must log
+which flag it flipped.**" The flag flipped here is four confessions destroyed, and the log line
+carries a `read_id` and an HTTP message. `flushProse` twenty lines below gets this exactly
+right — `"${n} confession(s) lost, which D-10 accepts"` — so the correct line already exists in
+the file and was not reused on the path that actually loses them.
+
+**Reachability.** Every fourth confession, whenever XTrace is unavailable, rate-limiting, or
+slow enough to reject. `pool: 'relay-only'` is a declared flag in this product precisely
+because XTrace being unavailable is expected.
+
+**Verified by.** The four-confession run above against unmodified sources at `24600d4`; plus
+`grep -n "try\|catch" src/memory/user.ts` — `writeProse` has neither.
+
+**Fix.** Two lines of copy and one `catch`. Wrap the `ingestBatch` in `writeProse`, log
+`"${flush.texts.length} confession(s) lost"` the way `flushProse` already does, and return the
+count so `targetLines` can print `FAILED (4 confessions, including this one, were not
+recorded — they are gone, not queued)`. The `WroteFlags`/`ProseWrite` pair already has room for
+it: `ProseWrite.jobId` is dead weight today (its only consumer in the whole repo is
+`user.test.ts:106` asserting it is truthy), so replace it with the lost count.
+
+---
+
+## SL-42 · HIGH · the UI still tells the user their confession reached their memory, which is the one consequence D-10 wrote down
+
+**Task:** `M20`. **File:** `src/ui/confess/ConfessScreen.tsx:139`. Corroborating:
+`tests/guards/offLimits.test.ts:177` and `:183`.
+
+**What the code does.** The confess screen's done-state renders the write report from three
+booleans:
+
+```tsx
+<li>your memory: {wrote?.prose === true ? 'written' : 'not written'}</li>
+```
+
+`wrote.prose` is set `true` by `writeRead.ts:120` on **every** successful `writeProse`,
+including the 3-in-4 that only put the text in a local file. So the UI prints
+`your memory: written` for a confession sitting in `.confit/prose-buffer.json`, under a heading
+that reads **Added to the pot**.
+
+**Why it is a defect.** `D-10` names exactly one consequence for the owner: "a buffered
+confession has **not** reached XTrace when `confess` prints its receipt, so
+`your memory ok (your words, your tier only)` becomes untrue at the moment it is printed.
+Deferral is not loss, but the receipt must say which of the two it is. **Fixed with the copy,
+not with more machinery.**" The copy fix was applied to one of the two front ends. DAG §0.1 is
+explicit that the CLI and the UI are two front ends over one core, and this PR added
+`proseBuffered` to `WriteReadReport` — the exact field the UI needs — then did not read it.
+`ConfessScreen` receives the whole report; the fix is one ternary.
+
+The report is worse than the CLI's old line, too: `written` is flatter and more absolute than
+`ok (your words, your tier only)`, and it sits beside `pot: written` and `relay: written`,
+which are true, so nothing signals that one of the three means something different.
+
+**And the PR's own new guard assertion documents it.** `tests/guards/offLimits.test.ts`, edited
+in this PR, now contains six lines apart:
+
+```ts
+expect(result.wrote).toEqual({ relay: true, pool: true, job: true, prose: true });   // :177
+…
+expect(h.buffered('A')).toBe(1);                                                     // :183
+expect(h.countRows('A') - userRowsBefore).toBe(0);                                   // :184
+```
+
+`prose: true`, buffered `1`, XTrace rows `0` — the author wrote down that `prose: true` means
+"not in XTrace" and left the UI reading `prose: true` as "written". The comment above `:181`
+even explains the distinction.
+
+**Reachability.** Every confession through the UI, three times in four. The screens are wired
+(`SL-27` closed), so this is the shipping path.
+
+**Invariant violated.** DAG §4 `D-10` (the receipt must distinguish held from sent); design
+v0.8 `[E27]`; DAG §0.1 (no behaviour — including the honesty of a receipt — in one front end
+only).
+
+**Verified by.** `src/ui/confess/ConfessScreen.tsx:126-146` read in full; `writeRead.ts:117-124`
+traced; `grep -rn "proseBuffered" src/ui` → **nothing**.
+
+**Fix.** `ConfessScreen` already has `phase.outcome`. Read `proseBuffered` off it and print
+`held on this device — sent with the next few, or on the next sweep` when it is non-zero. Then
+put the assertion in `ConfessScreen.test.tsx` — the file this PR already edited — so the two
+front ends cannot drift on this again.
+
+---
+
+## SL-43 · MEDIUM · `pass sweep --watch` never drains the buffer, and no test in the repo notices that `pass sweep` drains it at all
+
+**Task:** `M20`. **File:** `src/cli/sweep.ts:113-121` and `:147-156`.
+
+**What the code does.** The flush is inside the `--once` branch only:
+
+```ts
+if (!context.argv.flags.has('watch')) {
+  const prose = await flushProse(deps, context);      // :115
+  …
+}
+// --watch: sweep, log, sleep, repeat — and never flush            :147-156
+while (!interrupted) {
+  last = await deps.sweep(now());
+  …
+}
+```
+
+**Why it is a defect.** The buffer has exactly two flush triggers, and `proseBuffer.ts:47-50`
+says so in the paragraph justifying `BATCH_SIZE = 4`: "the threshold is only one of two
+triggers and the other (`pass sweep`) is operator-driven." `sweep.ts:38-42` repeats it: the
+flush is here "because the buffer's size threshold alone would leave a profile's last few
+confessions unsent indefinitely." `--watch` is the mode an operator *leaves running* — it is
+the one described in the module docblock as "the command that must work when the author's
+session is gone" — and it is the mode that never fires the second trigger. So the deployment
+posture that looks most like continuous drainage is the one where a profile's last one to three
+confessions sit on local disk forever. `indefinitely` is the author's own word for the failure,
+in the docstring of the function that has the gap.
+
+**Red-verified, and this is the part that should sting.** I replaced line 115 with
+`const prose = 0;` — `pass sweep` no longer drains the confession buffer under **any** flag —
+and ran the whole suite:
+
+```
+Test Files  58 passed (58)
+     Tests  908 passed (908)
+```
+
+Green. `grep -n "flushProse\|confessions" src/cli/sweep.test.ts` returns **nothing**: the new
+dep, the new report line, the new `confessions_sent` JSON field and the error-swallowing
+wrapper have no test of any kind, and `tests/guards/acceptance.test.ts` — the gate `C16` built
+specifically so the CLI is exercised end to end — does not reach them either. §1: "Every task
+ships tests in the same PR. A task is not done because the code exists." Mutation reverted;
+tree clean.
+
+**Invariant violated.** DAG §1 (tests in the same PR); `M20`'s own stated design (two triggers).
+
+**Verified by.** The mutation above; `grep` over `src/cli/sweep.test.ts`; the `--watch` loop read
+in full.
+
+**Fix.** Move the flush to the top of the returned handler, before the branch, and add the one
+line to the watch loop body so a long-running watch drains on every pass. Then two tests in
+`sweep.test.ts`: `--once` calls `flushProse` and prints the count, and `--watch` calls it once
+per pass. Both are three lines with the existing `context()` helper.
+
+---
+
+## SL-44 · MEDIUM · a test titled "batches four at a time — not one, which is the defect it exists for" asserts that four is greater than one
+
+**Task:** `M20`. **File:** `src/memory/proseBuffer.test.ts:115-120`.
+
+**What the code does.**
+
+```ts
+it('batches four at a time — not one, which is the defect it exists for', () => {
+  // Pinned deliberately. … If this constant drifts back to 1 the whole task is undone with
+  // nothing else going red.
+  expect(BATCH_SIZE).toBeGreaterThan(1);
+});
+```
+
+**Red-verified by mutation, twice.** `BATCH_SIZE = 3` → **908/908 pass.** `BATCH_SIZE = 20` →
+**908/908 pass.** Both reverted; tree clean. So the constant is pinned against `1` and — by
+three unrelated tests that happen to append exactly two texts and expect no flush — against
+`2`. Every other value in the universe is green, including the two the module's own docblock
+argues are wrong: `proseBuffer.ts:47-50` says "Four, not one and not **twenty**. … Twenty means
+a demo never reaches a flush." The suite is content with twenty. A test whose name asserts a
+number and whose body asserts a strict inequality is not a pin; it is a comment with a passing
+assertion attached, and its own comment claims otherwise ("Pinned deliberately").
+
+`expect(BATCH_SIZE).toBe(4)` is the whole fix, and it is four characters different from what
+was written.
+
+**The rest of the file has the same texture, which is why this is `medium` and not `low`.**
+
+- `:78-84` — `it('clears before the caller ingests, so a failed send loses the batch')` performs
+  **no send**. Its only assertion is `expect(buf.pending('A')).toBe(0)`, which is byte-identical
+  in meaning to `:22` in the first test six lines up. The named behaviour — that a failed send
+  loses the batch — is untested here and untested anywhere: `user.test.ts` covers a failing
+  `flushProse` but nothing covers a failing flush inside `writeProse`, which is the path
+  `SL-41` proves destroys four confessions and misreports it. `SL-09`/`SL-34`'s duplicate-body
+  shape, fourth occurrence.
+- `:23` — `await Promise.resolve()` as the last statement of an `async` test that contains
+  nothing asynchronous. Lint appeasement left in the suite.
+- `:32` — `expect(buf.append('A', 'a2')?.texts).toBeUndefined(); // still under the threshold`
+  inside a test named `keeps profiles apart`. It does go red at `BATCH_SIZE = 2`, so it is not
+  vacuous, but `?.texts` reached through optional chaining is an oblique way to write
+  `toBeNull()`, and the assertion has nothing to do with keeping profiles apart — the two
+  `pending` assertions above it are the ones that earn the title.
+
+**Invariant violated.** DAG §1 (a task is done when its stated acceptance check passes — the
+acceptance recorded in the registry for `M20` is "4 confessions produced 1 conv_id and 1
+episode", and no test asserts the 4).
+
+**Verified by.** Two full-suite mutation runs (`BATCH_SIZE = 3`, `= 20`), both green, both
+reverted; and one at `= 2`, which fails three tests, none of them this one.
+
+**Fix.** `toBe(4)`. Then either give `:78-84` a send to fail — inject a rejecting `ingestBatch`
+and assert the count in the log line — or delete it and stop describing untested behaviour in
+an `it` string.
+
+---
+
+## SL-45 · MEDIUM · the most sensitive text in the product defaults to a path that follows the shell's working directory and is not in `.gitignore`
+
+**Task:** `M20`. **Files:** `src/config/env.ts:40`, `:30`, `:89`; `.gitignore`.
+
+**What the code does.**
+
+```ts
+const DEFAULT_PROSE_BUFFER_PATH = '.confit/prose-buffer.json';
+```
+
+Relative. `mkdirSync(dirname(path))` and `writeFileSync(path)` in `proseBuffer.ts:99-103`
+resolve it against `process.cwd()` of whichever process is running.
+
+**Three consequences, all checked.**
+
+1. **The buffer follows the shell.** `confit confess` from `~` and `confit confess` from the
+   repo write two different buffers, so neither ever reaches `BATCH_SIZE` and the batching this
+   task exists for silently does not happen. Worse, `pass sweep` — the only other flush trigger
+   (`SL-43`) — drains the buffer belonging to *its own* cwd, so an operator sweeping from
+   anywhere else drains an empty file, reports `confessions sent: 0`, and the confessions stay
+   on disk indefinitely with no indication they exist. The env var `CONFIT_PROSE_BUFFER` is
+   offered as the escape, but the failure is silent, so nobody learns they need it.
+2. **It lands in the git working tree, un-ignored.** `git check-ignore -v .confit/prose-buffer.json`
+   → **exit 1, no match.** `.gitignore` covers `node_modules/`, `dist/`, `coverage/`,
+   `*.tsbuildinfo`, `.env*`, `*.log`, `.DS_Store` — not `.confit/`. Running the demo from the
+   repo, which is how every gate and every acceptance run in this project has been driven, puts
+   raw confession prose in an untracked file inside the checkout, where `git add -A` commits it
+   and `git status` advertises it. This is the file whose own docblock calls it "the most
+   sensitive text in the product" and reasons carefully about not putting it on the relay
+   because one token reads everything. It then put it next to `package.json`.
+3. **The stated mitigation does not exist.** `env.ts:30`: "Overridable with `CONFIT_PROSE_BUFFER`
+   so an operator can put it somewhere they control — **the path is logged on first write**."
+   Nothing logs the path. `createProseBuffer` takes no logger, imports no logger, and calls
+   nothing that could log: `grep -n "logger" src/memory/proseBuffer.ts` → no match. So the one
+   affordance that would let an operator discover which of their several `.confit` directories
+   holds their confessions is a sentence in a comment. `SL-02`/`SL-36`'s named-mechanism
+   pattern, now applied to a privacy affordance.
+
+**Why `medium`.** `.gitignore` and `src/config/**` are lane P0 and this session is the
+integrator, so there is no ownership excuse and the fix is one line in each. Nothing has leaked
+in this repo yet — `git log --all --diff-filter=A -- '.confit'` is empty — which is the only
+reason this is not `high`.
+
+**Invariant violated.** Design v0.8 `[E9]`-successor split (the local tier is local *and*
+locatable); DAG §1 ("a degrade path … must log which flag it flipped" — the flag here is *where
+your confessions are*).
+
+**Verified by.** `git check-ignore -v .confit/prose-buffer.json` → exit 1;
+`grep -n "logger\|console" src/memory/proseBuffer.ts` → no match; `env.ts:30` read verbatim.
+
+**Fix.** Default to `${os.homedir()}/.confit/prose-buffer.json` — the buffer is per-machine by
+`D-10`'s own argument, so per-machine is where it belongs, and a home-relative path removes the
+cwd-dependence and the git-tree question together. Add `.confit/` to `.gitignore` anyway. Then
+either log the resolved path once from `wiring.ts` where a logger is in hand, or delete the
+sentence that says it is logged.
+
+---
+
+## SL-46 · MEDIUM · `as BufferFile` over a file on disk, and the shape it does not check disables the personal tier permanently
+
+**Task:** `M20`. **File:** `src/memory/proseBuffer.ts:86-96`.
+
+**What the code does.**
+
+```ts
+const parsed = JSON.parse(readFileSync(options.path, 'utf8')) as BufferFile;
+return parsed.profiles ?? {};
+```
+
+A cast. No validation of `profiles`, of any `BufferState`, of `texts` being an array or
+`batches` a number. The `catch` below it — with the comment "Missing, unreadable or **corrupt**
+all mean the same thing here: nothing is buffered" — only ever fires for `JSON.parse` and
+`readFileSync`. A file that is valid JSON and the wrong shape sails through the cast and blows
+up downstream.
+
+**Executed against the real module.** Four bodies, three entry points each:
+
+| buffer file contents | `pending` | `append` | `drain` |
+| --- | --- | --- | --- |
+| `{"profiles":{"A":{}}}` | **throws** `…undefined (reading 'length')` | **throws** `…undefined (reading 'push')` | **throws** |
+| `{"profiles":{"A":{"texts":null,"batches":0}}}` | **throws** `…null (reading 'length')` | **throws** | **throws** |
+| `{"profiles":[]}` | ok | ok | ok |
+| `null` | ok | ok | ok |
+
+**Why it matters more than "a corrupt file".** The throw happens *before* `write()`, so the bad
+file is never replaced. `writeRead.ts:121` catches it into `prose write failed — personal
+memory not recorded` and `confess` carries on with exit 0. The result is a `confit` install
+where **every future confession's prose is silently discarded, forever**, one warning line at a
+time, and the only symptom is a per-target `FAILED` that looks like an XTrace outage. There is
+no self-heal, no `confit pass` command that resets the buffer, and the log never names the
+file. The `drain` column means `pass sweep` cannot clear it either.
+
+The docblock claims this case is handled and the suite claims to test it:
+`:86 'a corrupt file reads as empty rather than failing confess'` writes `'not json at all'` —
+the one corruption class that *is* handled — and asserts the recovery. The class that is not
+handled is untested and the comment says it is covered.
+
+**And it is §1, in the file that should know better.** "TypeScript strict, no `any`. **Parse
+external input at the boundary** and hand typed values inward." A JSON file on disk, editable
+by the operator the env var invites to relocate it, is external input. `SL-04` is in this log
+for precisely this — a predicate that checked shapes loosely and "launder[ed] `spiceTolerance:
+42` into the type system" — and the fix for `SL-04` is `parseUsualProfile` and
+`parseMealLogEntry`, forty careful lines in `src/memory/user.ts:97-149`, in the same lane, in
+the same PR's diff, imported by the same module that consumes this buffer. One file over, the
+same author wrote a bare cast.
+
+**Reachability, honestly.** A torn `writeFileSync` usually yields invalid JSON, which is caught.
+The realistic routes are an operator hand-editing or truncating the file the docblock invites
+them to relocate, and any future writer of the format. Low frequency, unbounded blast radius,
+and the code claims the case is handled — which is what puts it at `medium`.
+
+**Verified by.** The table above, produced by `npx tsx` against unmodified
+`src/memory/proseBuffer.ts` at `24600d4`; `proseBuffer.test.ts:86-96` read.
+
+**Fix.** Twelve lines, in the style already established next door: a `parseBufferState` that
+returns a clean `{texts: string[], batches: number}` or `null`, applied per profile, dropping
+what fails and logging that it did. Every skipped entry is a loss `D-10` genuinely does cover;
+crashing every future write is not.
+
+---
+
+## SL-47 · LOW · "Distinct per flush" is built from a counter that resets on exactly the loss D-10 sanctions
+
+**Task:** `M20`. **Files:** `src/memory/proseBuffer.ts:110-116`, `:72`.
+
+**What the code does.** `Flush.convId` is documented at `:72` as "**Distinct per flush**, so each
+batch is its own conversation and gets its own episode", and built at `:114` as
+`` `confit:prose:${profile}:${String(state.batches)}` `` — a counter stored inside the buffer
+file.
+
+**Why it is wrong.** The counter dies with the file, and the file is the thing `D-10` says may
+be lost. Lose or corrupt the buffer — the sanctioned event, the one `read()`'s `catch` exists
+for — and `batches` restarts at `0`, so the next flush is `confit:prose:A:0` again, colliding
+with a conversation already in XTrace. The two failure modes the design accepts as free are
+therefore not free: they cost `conv_id` uniqueness, which is the one property the id was
+introduced to have. The race in `SL-40` produces the collision without any loss at all — two
+different batches, both `confit:prose:A:0`, observed.
+
+**Scope, and why it is `low`.** The measured behaviour the whole task rests on is that a shared
+`conv_id` across separate POSTs does **not** merge episodes, so a collision does not corrupt the
+substrate's content. The cost is diagnostic, and the file itself names it:
+`proseBuffer.test.ts:64-67` — "a shared id would just make two batches indistinguishable in the
+substrate." That is precisely the state produced. The test that guards it
+(`'gives every batch a distinct conv_id'`) compares two sequential flushes over an intact file,
+which is the only case where the counter works.
+
+**Verified by.** `:110-116` read; the two-process run in `SL-40`, where both flushes carried
+`confit:prose:A:0`; `read()`'s `catch` at `:90-95` returning `{}`, which discards `batches`.
+
+**Fix.** `convId: \`confit:prose:${profile}:${randomUUID()}\``. There is no reason for the id to
+be derived from durable state at all, and the counter has no other reader.
+
+---
+
+## SL-48 · LOW · D-10's ruling landed buried in the implementation that depends on it, which is §2's rule, whose own paragraph cites SL-12
+
+**Task:** `M20`. **Files:** `docs/confit-v0.8-task-dag.md:219-231` as introduced by `24600d4`;
+`src/memory/user.ts:9-12`; `src/memory/writeRead.ts:16`.
+
+**What happened.** PR #65 is one commit. That commit contains `src/memory/proseBuffer.ts`, the
+`ProseWrite` contract change, the `AppConfig` change, four rewritten modules, seven touched test
+files — and the **thirteen lines that create decision `D-10` itself**: the ruling that loss is
+acceptable, that `M17` is closed by decision rather than built, that `M20` becomes the work,
+that the buffer is local, and that the receipt must distinguish held from sent. Every argument
+this review has had to weigh `M20` against arrived in the same diff as `M20`.
+
+**Why it is a defect.** DAG §2 states the rule and states the reason, in the paragraph this log
+is the cause of:
+
+> **Editing this document is an integrator change, and it gets its own commit.** … which is how
+> the `D-6` resolution came to be narrowed inside the very PR that implemented `K7` — by the
+> agent whose task it describes … (defect log `SL-12`). The substance happened to be right; the
+> process was not. … a spec change lands as a commit that does nothing else, so it is
+> reviewable as a spec change rather than buried in an implementation diff.
+
+Same shape, same session, same document, four passes later. And the same mitigating clause
+applies: the substance is right — `D-10` reads as a genuine product ruling with real
+measurements behind it, and the registry note on `M20` is unusually honest. But a reviewer
+cannot separate "was this the right call" from "was it implemented" when both arrive as one
+blob, and this pass had to reconstruct the boundary of the ruling by reading its wording
+closely — which is exactly the work that produced `SL-39` and `SL-40`, where the
+implementation quietly exceeds what was sanctioned. A spec commit of its own would have made
+that boundary the reviewable artefact it is meant to be.
+
+**Two docblocks now describe machinery this PR deleted.** `verifyPendingProse` and
+`dropUnconfirmedProse` are gone, correctly, and `user.ts:80-83` says so. Twenty lines above it,
+`user.ts:9-12` still reads: "its **verify-and-retry** holds the text in memory until the
+substrate confirms it and dies with the process. … each unconfirmed drop logs a warning." And
+`writeRead.ts:16`: "The prose is the personal tier with its own durability story (**M3's
+verify-and-retry**), so it is still written." Neither mechanism exists at `24600d4`. `grep -rn
+"verifyPendingProse\|dropUnconfirmedProse" src tests` returns one hit — the comment recording
+their removal. A module docblock that describes a deleted retry as the durability story is how
+the next reader concludes the buffer has one; it has the opposite, by design, and the file's
+head paragraph should be the first place that says so.
+
+**Verified by.** `git log --format='%H %s' base..HEAD` → one commit;
+`git diff base...HEAD -- docs/` → the `D-10` block;
+`grep -rn "verifyPendingProse\|dropUnconfirmedProse" src tests` → one hit, a comment.
+
+**Fix.** Nothing to revert. For the next spec change, one commit that touches only `docs/`, then
+the implementation. And rewrite the two stale paragraphs: `user.ts:9-12` should say the prose is
+buffered locally, that the buffer's loss is sanctioned by `D-10`, and that there is no retry —
+which is the interesting fact about this module and is currently stated only in the file it
+delegates to.
+
+---
+
+## Fourth pass — closed by the author, same PR
+
+Every finding above was fixed in `#65` before it merged, so the review changed the shipped code
+rather than the backlog. Recorded here because a defect log that only accumulates is a list of
+things nobody did.
+
+| id | closed by | note |
+| --- | --- | --- |
+| SL-39 | one file per confession | No shared document, so there is no read-modify-write to lose a race in. Two concurrent appends never write the same path. |
+| SL-40 | claim by `renameSync` | `rename` is atomic and fails `ENOENT` for the loser, so a confession has exactly one owner and the loser takes fewer rather than the same ones. |
+| SL-41 | `try` around `ingestBatch` in `writeProse` | Logs `LOST n buffered confession(s)` and throws a message naming `n`, so the count reaches both streams instead of neither. |
+| SL-42 | `MEMORY_RECEIPT` | Three states in the UI, matching the CLI. `held` says *where* the words are — "on this device" — not merely that they are late. |
+| SL-43 | flush in both branches | `--watch` flushes every pass and totals the count. Red-verified per branch: removing the `--once` call reds two tests, removing the `--watch` call reds the other two. |
+| SL-44 | `expect(BATCH_SIZE).toBe(4)` | Pinned to the value. The "failed send" test now asserts a fresh buffer sees nothing; the stray `await Promise.resolve()` is gone. |
+| SL-45 | `.gitignore` + honest comment | `.confit/` is ignored. `env.ts` no longer promises a log line that nothing wrote. |
+| SL-46 | per-entry parse | A JSON-valid, shape-invalid entry is one skipped file. One lost confession is `D-10`'s accepted loss; a permanently dark personal tier was not. |
+| SL-47 | convId from the claimed batch | Derived from an entry name that is unique by construction and already on disk, so nothing has to be remembered across the loss `D-10` sanctions. |
+| SL-48 | half | The two stale docblocks are rewritten. The commit-hygiene half is **not** retroactive — `24600d4` still carries the ruling and the implementation together. The `D-10` scope note added this round went in its own commit, which is the rule going forward. |
+
+**What the guards are.** Two structural assertions rather than a re-run of the race: *an append
+never touches an existing file*, and *a claimed confession cannot be claimed twice*. Both go red
+against the shared-document version (7 of 16 fail). A spawned-process race was written first and
+thrown away — against a correct implementation it proves only that the processes did not happen
+to collide, which is the kind of test that passes for the wrong reason.
+
+**The decision the review actually forced.** `D-10` says losing a confession is acceptable, and
+that sentence was doing work it was never given: it was used to defend destroying confessions
+when nothing had failed. `D-10` is scoped to losing **the buffer**. The general rule is now in
+the DAG next to the decision — *a decision that accepts a failure mode is not a licence for a
+different failure mode that resembles it* — because this will come up again, and the next author
+reaching for "the owner said this is fine" should find the boundary written down.
+
+**Measured after the fix.** Four real concurrent `confess` processes: all four accounted for
+(three `held`, one `ok`), buffer directory empty, one ingest call carrying all four texts under
+one `conv_id`. Before the fix the same shape lost three to five of six.
+
+---
+
+# Fifth pass
+
+**Reviewed the `SL-39`–`SL-48` closures — `2adeae7` and `1c85dbc` on
+`claude/upload-code-artifact-zop9uz`, still PR #65 · 25 July 2026**
+
+## What was reviewed
+
+The author's closure claim, and the code under it. `2adeae7` is 12 files, 590 insertions, 136
+deletions; `1c85dbc` is six doc lines. `src/memory/proseBuffer.ts` was **rewritten** — the
+shared JSON document became one file per confession under a per-profile directory, claimed by
+`renameSync` — so it was reviewed as new code rather than as a diff, which is the right
+standard for 230 lines that have never been reviewed once.
+
+| gate | result |
+| --- | --- |
+| `npm test` | **exit 0 — 924 tests, 58 files** |
+| `git check-ignore -v .confit/prose-buffer` | **exit 0** (`SL-45` holds) |
+
+The working tree also carries another agent's in-flight `M15` edits to
+`src/memory/{user,pool,forget}.ts` and a new `src/memory/scopes.ts`. Nothing below depends on
+them; every line cited is at `9b18ddf`.
+
+**One re-open and eight new defects: 2 high, 4 medium, 3 low.** Everything was executed:
+six `confess`-shaped processes released against one buffer directory through a spin barrier and
+accounted for text-by-text; 30,000 claims raced against an in-flight `writeFileSync`; a
+`forget` driven end-to-end against a real buffer and a stub substrate; and two source mutations
+run against the full 924-test suite and reverted. Three findings are red-verified by mutation
+and say so.
+
+**Seven of the ten closures hold, and two hold well.** `SL-40` is genuinely fixed — the rename
+partitions a claim, and no interleaving produced a duplicate. `SL-41`'s count now reaches
+stdout, `SL-44` is pinned to the value, `SL-45` is ignored and the false promise is gone,
+`SL-46`'s shape-invalid entry costs one confession instead of the tier, `SL-47`'s id is unique
+by construction, `SL-48`'s docblocks are honest and the DAG note landed in its own commit. The
+`base64url` round-trip guard in `drain` resisted everything thrown at it — `QQ==`, `QQ.`,
+`lost+found`, 190 four-letter English words — and the two-line escape test is real.
+
+**And `SL-39` is not fixed.** The author's argument for closing it is a syllogism about paths:
+"two concurrent appends never write the same path, so there is no read-modify-write, so nothing
+is lost." Both premises are true. The conclusion does not follow, because the loss was never
+about two *writers* — it is about a reader and a writer, and the rewrite left that
+unsynchronised. `writeFileSync` publishes the pending filename **before** the bytes, a
+concurrent `claim` renames the empty file and drops it as unparseable, and `rmSync` removes the
+evidence. Measured, on the fixed code: **1 confession in 60 destroyed with nothing having
+failed**, and 427 of 30,000 claims against an in-flight write saw a zero-byte file. The rate is
+two orders of magnitude better than the 3-to-5-in-6 it replaced. The property `D-10` was
+argued not to cover is still violated.
+
+The rest of the pass is the receipt, again. `confess` now prints
+`ok (your words, sent to your tier only)` — and the UI prints `written` — from a process that
+sent nothing, 9 times in 60 (`SL-49`). And the one place raw confession text now lives is a
+place `forget` cannot reach, so `Deleted from Confit` is followed by the next sweep ingesting
+the deleted confession (`SL-50`).
+
+## Table
+
+| id | file:line | task | author | sev | one line |
+| --- | --- | --- | --- | --- | --- |
+| SL-39 | `src/memory/proseBuffer.ts:217`, `:173-184` | M20 | claude-session-014n6NYRN6Rb | high | **RE-OPENED.** `writeFileSync` publishes the name before the bytes; a concurrent `claim` renames the empty file, `JSON.parse('')` throws, the entry is dropped and deleted. **1 of 60** confessions destroyed on the fixed code; 427/30,000 claims saw a zero-byte file. |
+| SL-49 | `src/memory/user.ts:165-171`, `src/cli/confess.ts:106-112` | M20 | claude-session-014n6NYRN6Rb | high | `append` loses every rename → `null`; `pending` is then `0`; `0` means "sent". **9 of 60** concurrent confessions printed `ok (your words, sent to your tier only)` having sent nothing. Log line: `held for A — 0/4`. |
+| SL-50 | `src/memory/forget.ts:9-13`, `:110-117`, `src/cli/forget.ts:46` | M20 | claude-session-014n6NYRN6Rb | medium | The buffer is a fourth place raw confession text lives and `forget` has three targets. Executed: `forget` reports `ok`, then the next flush ingests the forgotten confession into XTrace. |
+| SL-51 | `src/config/env.ts:47`, `src/memory/proseBuffer.ts:213`, `src/config/wiring.ts:186` | M20 | claude-session-014n6NYRN6Rb | medium | The default silently changed from a **file** to a **directory** with no migration. An operator whose `CONFIT_PROSE_BUFFER` points at the file the old docblock described gets `ENOTDIR` out of every `append`, for ever — `SL-46`'s blast radius by a new route. |
+| SL-52 | `src/memory/proseBuffer.test.ts:210-222`, `:224-242` | M20 | claude-session-014n6NYRN6Rb | medium | The two guards written *for* `SL-39`/`SL-40` constrain neither mechanism. Red-verified: deleting `randomUUID()` → 924/924 green (and 172/200 two-process runs destroy a confession); deleting the `renameSync` claim → 924/924 green. |
+| SL-53 | `src/memory/proseBuffer.ts:146`, `:169-171`, `:182-184`, `:190-192` | M20 | claude-session-014n6NYRN6Rb | medium | Four bare catches in forty lines, not one of which logs — §1's "no silent catch". The module takes no logger, so a destroyed confession leaves no record anywhere and `SL-39`'s recurrence is invisible in the field. |
+| SL-54 | `src/memory/proseBuffer.ts:47-48`, `:141-149`, `:253-255` | M20 | claude-session-014n6NYRN6Rb | low | `.taken` files hold raw confession text, nothing ever deletes them, and `pending()` cannot see them — the receipt promised "the next sweep" and no sweep will ever take it. `D-10` sanctions losing the buffer, not retaining it for ever. |
+| SL-55 | `src/memory/proseBuffer.ts:125-128`, `:131-134` | M20 | claude-session-014n6NYRN6Rb | low | "Sortable so a flush sends confessions in the order they were made." `seq` is per-process and is always `0001` in the production path, so same-millisecond order is decided by a random uuid. Measured **127 inversions in 300** two-process runs. |
+| SL-56 | `src/cli/confess.ts:191-199`, `src/ui/confess/ConfessScreen.tsx:53`, `src/cli/sweep.ts:90-102` | M20 | claude-session-014n6NYRN6Rb | low | `SL-42` is fixed for humans only: `confit confess --json` still emits `wrote.prose: true` and no count. `proseBuffered?` + `?? 0` fails **open** where the neighbouring `wrote?` fails closed. `pass sweep` reports `confessions sent: 0` when a flush destroyed four. |
+
+---
+
+## SL-39 · RE-OPENED · HIGH · the closure claim is a syllogism about paths, and the loss was never about two writers
+
+**Task:** `M20`. **Files:** `src/memory/proseBuffer.ts:217` (`writeFileSync` in `append`),
+`:173-184` (the parse-and-drop in `claim`), `:188-192` (`rmSync`), and the closure claim in
+`docs/defect-log.md` — "one file per confession … no shared document, so there is no
+read-modify-write to lose a race in. Two concurrent appends never write the same path."
+
+**Why the claim is wrong.** Both premises are true and the conclusion does not follow. The lost
+confession was never a collision between two *writers*; it is a reader arriving inside a
+writer's window, and the rewrite synchronises the readers against each other (`renameSync`) and
+the writers against each other (unique names) while leaving reader-against-writer wide open:
+
+```ts
+writeFileSync(join(dir, `${entryName(seq)}${PENDING}`), JSON.stringify({ text }));   // :217
+```
+
+`writeFileSync` is `open(O_CREAT|O_TRUNC)` then `write`. The pending name — the name
+`pendingNames()` matches on, `.json` — therefore exists, and is **zero bytes**, before the
+confession is in it. Another process's `claim` at that instant does exactly what it is written
+to do: renames it (succeeds, the name exists), reads `''`, `JSON.parse('')` throws, the `catch`
+at `:182` drops the text with the comment "One lost confession, which D-10 accepts", and
+`rmSync` at `:189` deletes the only copy.
+
+**Measured, on the fixed code, twice.**
+
+*The window.* One process writing 30,000 realistic confession bodies; another claiming each one
+with the module's own two steps, `renameSync` then `readFileSync`:
+
+```
+claimed 30000 in-flight files: empty=427 unparseable-partial=0
+  => confessions the claim would DROP and DELETE: 427
+```
+
+1.4%. Nothing was corrupt, nothing failed, no disk went away.
+
+*End to end.* Six processes, each `createProseBuffer({path}).append('A', textN)` — one append
+per process, which is what `confess` is — released through a spin-wait barrier on a shared
+timestamp, ten trials. Every text accounted for against the union of what any process flushed
+and what a final `drain()` found:
+
+```
+trial 3: reported=6 DESTROYED=["c4"] leftover-files=[]
+...
+confessions destroyed with nothing failing: 1/60
+```
+
+**Why this is a re-open and not a new number.** It is the same defect as `SL-39`: an ordinary
+burst of concurrent `confess` processes destroys a confession that the diner was told was
+recorded. The mechanism moved from the shared document to the create-then-write window, the
+rate dropped from three-to-five-in-six to one-in-sixty, and the log's own scope rule — added to
+the DAG by this very author in `1c85dbc`, "a decision that accepts a failure mode is not a
+licence for a different failure mode that resembles it" — says one-in-sixty is the same
+category as three-in-six, not a smaller version of an accepted loss.
+
+**And the docblock waves at exactly this.** `:50-51`: "The rename is not ceremony against torn
+writes, which is what `D-10` declined." That sentence dismisses the only hazard left in the
+file. A torn write here is not a lost *buffer*; it is one confession destroyed while everything
+was working, which is the distinction the author wrote six lines of DAG to establish.
+
+**Combine with `SL-49` and `SL-53` for the shipped experience.** The destruction is silent —
+`proseBuffer` has no logger and the `catch` is bare — and the process whose confession was
+destroyed can print `ok (your words, sent to your tier only)`. Nobody will ever know.
+
+**Verified by.** `renameSync`-then-`readFileSync` against an in-flight `writeFileSync`, 30,000
+iterations, 427 zero-byte claims; the six-process barrier race, 10 trials, `DESTROYED=["c4"]`
+in trial 3 with an empty buffer directory afterwards; `:173-184` and `:217` read at `9b18ddf`.
+
+**Fix.** Two lines, and it is the same primitive already in the file. Write to a name
+`pendingNames()` cannot match, then `renameSync` it into place:
+
+```ts
+const tmp = join(dir, `${name}.writing`);
+writeFileSync(tmp, JSON.stringify({ text }));
+renameSync(tmp, join(dir, `${name}${PENDING}`));
+```
+
+A pending name then never exists until the bytes are complete, which is the property the file
+already relies on for the claim. Whatever remains after that is genuinely `D-10`'s.
+
+---
+
+## SL-49 · HIGH · `confess` prints "sent to your tier only" from a process that sent nothing, nine times in sixty
+
+**Task:** `M20`. **Files:** `src/memory/user.ts:165-171`, `src/memory/proseBuffer.ts:219-222`,
+`src/memory/writeRead.ts:118-125`, `src/cli/confess.ts:106-112`,
+`src/ui/confess/ConfessScreen.tsx:34-36`.
+
+**The path.** `append` decides to flush on a file count, then claims — and a claim can come
+back empty because another process renamed everything first:
+
+```ts
+if (pendingNames(profile).length < BATCH_SIZE) return null;
+const claimed = claim(profile, BATCH_SIZE);
+if (claimed === null) return null; // Another process took the batch; ours is in it.   // :222
+```
+
+`writeProse` then treats `null` as "held" and asks how many are waiting:
+
+```ts
+const held = deps.buffer.pending(profile);                                    // user.ts:167
+deps.logger.line(`user: confession held for ${profile} — ${held}/4 …`);      // :168-170
+return { buffered: held };                                                   // :171
+```
+
+When the other process claimed *everything*, `held` is `0`. And `0` is the wire value for
+**sent**: `writeRead` reports `proseBuffered: 0` with `wrote.prose = true`, `confess.ts:110`
+renders `proseBuffered === 0` as `ok (your words, sent to your tier only)`, and
+`ConfessScreen.tsx:36` renders it as `written`. The comment at `:222` — "ours is in it" — is
+the author's own note that this process did not send anything.
+
+**Measured.** The same six-process barrier race, ten trials, each child printing exactly what
+`writeProse` would return:
+
+```
+trial 3: false-"sent"=["c2","c4","c5"]
+trial 5: false-"sent"=["c0","c1","c4"]
+trial 8: false-"sent"=["c0","c4"]
+trial 6: false-"sent"=["c2"]
+
+receipts claiming "sent to your tier only" by a process that sent nothing: 9/60
+```
+
+**Why it is HIGH and not a wording nit.** This is `SL-42` inverted, and `SL-42` was filed HIGH.
+`D-10`'s write-up names one consequence the owner should see rather than discover — "a buffered
+confession has **not** reached XTrace when `confess` prints its receipt … the receipt must say
+which of the two it is" (DAG `:230`). The fix taught the receipt to say `held`, then left a path
+where it says `sent` for a confession that at best is in someone else's in-flight POST and at
+worst was destroyed by `SL-39` a millisecond earlier. In trial 3, `c4` is in **both** lists: it
+was destroyed, and it printed `ok — sent to your tier only`. There is also no honest reading of
+the stderr line `user: confession held for A — 0/4 until the batch is sent`; it says held and
+says zero in one sentence.
+
+**Verified by.** 10 trials × 6 spawned processes against the real
+`createProseBuffer`/`append`/`pending`, reproducing `writeProse`'s branch verbatim; the four
+cited source ranges read at `9b18ddf`.
+
+**Fix.** `append` already knows which of the two happened, and it throws the knowledge away by
+returning `null` for both. Return the distinction — a `Flush | 'held' | 'taken-by-another'`, or
+simply have `writeProse` not turn `pending === 0` into `buffered: 0`. A confession this process
+neither sent nor holds is not "sent"; the true statement is that it is in another process's
+batch, and the receipt has a wording slot for that already (`held`).
+
+---
+
+## SL-50 · MEDIUM · `forget` has three targets and the raw confession now lives in a fourth, so "Deleted from Confit" is followed by ingesting it
+
+**Task:** `M20`. **Files:** `src/memory/forget.ts:9-13`, `:110-117`, `src/cli/forget.ts:46`,
+`src/memory/proseBuffer.ts:217`.
+
+**What M20 changed about deletion, without touching the deletion path.** Before this PR, a
+confession's raw prose existed in memory for the length of one process and was ingested
+immediately. Now it sits on local disk — unencrypted, by design, and the module says so — until
+a batch fills or an operator sweeps. `forget` was not told. Its targets are `pool`, `relay` and
+`user` (XTrace user scope), and `forgetUser` deletes only against caller-supplied handles.
+
+**Executed**, real `createProseBuffer` + real `createUserStore` + stub substrate:
+
+```
+after confess: {"buffered":1} (receipt: held on this device)
+forget report: {"pool":"skipped","relay":"nothing_to_delete","user":"skipped","ok":true}
+buffer still holds it: 1
+next `pass sweep` ingested 1 confession(s) AFTER the forget
+  XTrace now holds under confit:prose:A:001784990770611-0001-8feb5678-…:
+    ["I only order the tasting menu when my ex is watching."]
+```
+
+`ok: true`, so `cli/forget.ts:46` prints `Deleted from Confit: <read_id>`. Then the next
+`confess` for that profile, or the next `pass sweep`, POSTs the forgotten text into the
+substrate the user just asked to be cleared of it. Deletion followed by ingestion of the
+deleted thing is a worse shape than the one this log has cited three times — `forget` printing
+"Deleted from Confit" over two skipped targets — because the count of copies goes *up* after
+the user acts.
+
+**And the module docblock is now false.** `forget.ts:11-13`: "The **relay** delete is the
+authoritative one … once its entry is gone the read is gone from every place that can produce
+it." There is now a place that can produce it, on the same machine, after the relay entry is
+gone.
+
+**Not merely an omission — currently unimplementable.** A buffer entry is `{"text": "…"}`
+(`proseBuffer.ts:217`). It carries no `read_id`, so a fourth target could not identify which
+file to delete even if one existed. Closing this needs the entry to carry the `read_id`
+`writeRead` has in hand at `:120`, which is a format change, which is why it needs to be
+written down rather than noticed later.
+
+**Verified by.** The transcript above, `npx tsx` against the real modules;
+`grep -rn "prose\|buffer" src/cli/forget.ts src/memory/forget.ts` → no buffer reference;
+`forget.ts:110-117` and `cli/forget.ts:40-46` read.
+
+**Fix.** Two honest options. (a) `forget` takes the buffer and drops the profile's pending
+entries, and the entry format grows a `read_id` so it can drop *that* confession rather than
+all of them. (b) If (a) is out of scope, the copy stops claiming completeness and
+`forget.ts:11-13` stops claiming the relay delete is authoritative — with `D-10`'s window named,
+because "your words may be sent to your memory after you delete them, until the next sweep" is
+a product decision and not an implementation detail.
+
+---
+
+## SL-51 · MEDIUM · the default buffer path silently changed from a file to a directory, and an operator who took the docblock's invitation gets `ENOTDIR` for ever
+
+**Task:** `M20`. **Files:** `src/config/env.ts:42-47`, `src/memory/proseBuffer.ts:211-213`,
+`src/config/wiring.ts:186`.
+
+**What changed.** `DEFAULT_PROSE_BUFFER_PATH` went from `.confit/prose-buffer.json` to
+`.confit/prose-buffer`, and the meaning of `CONFIT_PROSE_BUFFER` went from *a file* to *a
+directory*. `env.ts` documents the new meaning in capitals. Nothing migrates, nothing detects
+the old shape, and nothing warns.
+
+**Two consequences, both executed.**
+
+*(a) The old buffer is orphaned, and it is the most sensitive text in the product.* Anyone who
+ran the previous build has `.confit/prose-buffer.json` holding raw confessions. The new code
+reads `.confit/prose-buffer`, so those confessions are never sent and never deleted; they sit
+on disk indefinitely, and `.gitignore`'s `.confit/` — added for `SL-45` — now also guarantees
+nobody notices them.
+
+*(b) An operator-set path that points at a file kills the personal tier permanently.*
+`CONFIT_PROSE_BUFFER` exists so "an operator can put it somewhere they control", and until this
+commit the thing to control was a file. Point it at one:
+
+```
+root-is-file pending: 0
+root-is-file drain:   []
+root-is-file append:  THREW ENOTDIR: not a directory, mkdir '/tmp/…/prose-buffer.json/QQ'
+```
+
+`mkdirSync` at `:213` throws out of `append`, out of `writeProse`, into
+`writeRead.ts:122` — `prose write failed — personal memory not recorded` — and `confess`
+carries on with exit 0. Every future confession's prose is discarded, one warning line at a
+time, with no self-heal and no `pass` command that repairs it; and `pending`/`drain` return
+`0`/`[]` on that path, so `pass sweep` reports nothing wrong. That is `SL-46`'s finding
+verbatim — "a `confit` install where every future confession's prose is silently discarded,
+forever … the only symptom is a per-target FAILED that looks like an XTrace outage" — filed at
+medium, closed as fixed, and reachable again through the shape the fix introduced. The sibling
+case is the same: a profile directory that exists as a file gives `EEXIST` from the same
+`mkdirSync`.
+
+**And the file that constructs the buffer still thinks it is a file.** `wiring.ts:186` passes
+`join(mkdtempSync(…), 'prose.json')` as the buffer root, so the fixture graph now creates a
+*directory* named `prose.json`. Harmless, and it is evidence the rename was applied to the
+default and not to the idea.
+
+**§2, while we are here.** `src/config/**` and `.gitignore` belong to the Foundation/integrator
+lane — "If your task needs a file outside your lane's list, that is a contract change: raise
+it, don't take it." A semantic change to the meaning of `AppConfig.proseBufferPath` is exactly
+that, and it landed inside a lane-M implementation commit with no note. `SL-48` closed as
+"half"; this is the other half recurring in the fix.
+
+**Verified by.** `npx tsx` against the real module for the `ENOTDIR` and `EEXIST` transcripts;
+`env.ts:42-47` and `wiring.ts:186` read; `git show 24600d4:src/config/env.ts` for the previous
+default.
+
+**Fix.** Detect it rather than crash on it. `append` catching `ENOTDIR`/`EEXIST` on the root and
+throwing a message that names the path and says "this must be a directory; the pre-M20 buffer
+was a file" costs three lines and turns a permanent silent outage into one legible error. Then
+migrate or delete the old file, and say which in the release note.
+
+---
+
+## SL-52 · MEDIUM · the two guards written for SL-39 and SL-40 constrain neither mechanism — both defects are restorable with 924/924 green
+
+**Task:** `M20`. **File:** `src/memory/proseBuffer.test.ts:210-222`, `:224-242`.
+
+The author's claim: "Two structural assertions rather than a re-run of the race: *an append
+never touches an existing file*, and *a claimed confession cannot be claimed twice*. Both go
+red against the shared-document version (7 of 16 fail)." Going red against a *different
+implementation* is not a guard; it is a coincidence of that implementation failing many things
+at once. The standard `SL-44` established is mutation against the code as written. Applied:
+
+**Mutation 1 — delete the uniqueness that the whole fix rests on.**
+
+```ts
+-  return `${stamp}-${String(seq).padStart(4, '0')}-${randomUUID()}`;
++  return `${stamp}-${String(seq).padStart(4, '0')}`;
+```
+
+`npx vitest run` → **924 passed (924)**. Nothing notices. And the mutation is not cosmetic: in
+the production path each `confess` process appends exactly once, so `seq` is `0001` in every
+process, and two processes in the same millisecond choose the **same filename** — the second
+`writeFileSync` overwrites the first:
+
+```
+confessions destroyed in 172/200 two-process runs (suite still green)
+```
+
+`SL-39`, fully restored, at 86%, invisible to the suite. `an append never touches an existing
+file` cannot see it because it runs one buffer in one process, where `seq` differs.
+
+**Mutation 2 — delete the atomic claim.**
+
+```ts
+-      const to = `${from}${TAKEN}`;
+-      try { renameSync(from, to); } catch { continue; }
++      const to = from; // no atomic claim: read then delete in place
+```
+
+`npx vitest run` → **924 passed (924)**. That is `SL-40` restored — two claimers read the same
+file before either deletes it, and the same confession goes into two batches — with the test
+named `a claimed confession cannot be claimed twice` still green.
+
+**Why that test cannot go red.** Read it: `one.drain()` runs to completion, *then*
+`two.drain()` runs. Both are synchronous. There is no interleaving of any kind, so it asserts
+"draining twice does not return the same text twice" — which line `:99` of the same file
+already asserts, in a test about something else. Its own comment says it "stand[s] in for two
+processes crossing the threshold together"; it does not. Any implementation that removes a file
+after reading it partitions two *sequential* drains perfectly, including every racy one.
+
+**Verified by.** Both mutations applied to `src/memory/proseBuffer.ts`, full suite run, both
+reverted (`git status` clean on that file); the 172/200 loss measured under mutation 1;
+`:224-242` read line by line.
+
+**Fix.** The two properties that matter cannot be observed from one process, so stop trying to
+observe them structurally and observe them for real: the spawned barrier race in this pass took
+40 lines, runs in seconds, and caught two live defects. If a spawned race is genuinely
+unwanted, then at minimum assert what a single process *can* see — that two `entryName()` calls
+with the same `seq` and the same clock differ, and that a claimed file no longer exists under
+its pending name — because both mutations above break exactly one of those.
+
+---
+
+## SL-53 · MEDIUM · four bare catches in forty lines, none of which logs, in the module that decides whether a confession still exists
+
+**Task:** `M20`. **File:** `src/memory/proseBuffer.ts:146`, `:169-171`, `:182-184`, `:190-192`.
+
+§1: "**No silent catch.** Either handle an error meaningfully or let it propagate. A degrade
+path is a handled error and **must log which flag it flipped**." The four catches in this file:
+
+| line | swallows | consequence |
+| --- | --- | --- |
+| `:146` | any `readdirSync` failure | `pending()` → `0`, which `SL-49` renders as **sent** |
+| `:169-171` | any `renameSync` failure | the confession is skipped, for ever, on `EACCES`/`EIO` as readily as on the intended `ENOENT` |
+| `:182-184` | any read or parse failure | the confession is **destroyed** — this is `SL-39`'s exit wound |
+| `:190-192` | any `rmSync` failure | raw confession text stays on disk after being sent |
+
+None writes a line. The module takes no logger — `ProseBufferOptions` is `{ path }` — so it
+cannot, and `SL-45`'s fix resolved the "the path is logged on first write" lie by **deleting
+the promise** rather than adding the line. The result is that the highest-value event in this
+subsystem, *a confession ceased to exist*, is unobservable: not in stdout, not in stderr, not
+on disk.
+
+**The precedent is one file over and in this PR's own diff.** `SL-46`'s fix in `user.ts:270`
+skips a malformed meal-log entry **with a line**: `user: skipping malformed meal-log entry #N
+for A`. The same author, the same commit, the same class of degrade, and the buffer's version
+of it is a comment: `// Unreadable or not JSON. One lost confession, which D-10 accepts.` A
+comment is not a log; nobody reads the source of a running install.
+
+`:169-171` deserves its own sentence. It is written for one cause — "Another process owns this
+one" — and catches every cause. A directory that has become unwritable, a filesystem returning
+`EIO`, a `.taken` name colliding: all become "someone else has it, they will send it", and
+nobody ever does.
+
+**Verified by.** The four ranges read at `9b18ddf`; `grep -n "logger\|console"
+src/memory/proseBuffer.ts` → no match; `ProseBufferOptions` at `:86-92`; the `user.ts:270`
+precedent in the same commit. The `readdirSync`-denied case is reasoned from `:146`, not
+measured — this container runs as root, where `chmod` does not bind.
+
+**Fix.** Give the buffer the `Logger` every other module in the lane takes, and log the drop —
+the profile, the entry name, the reason — at `:182`. One line there would have turned `SL-39`'s
+recurrence from a defect found by a reviewer with a barrier script into a defect found by the
+first operator who read stderr.
+
+---
+
+## SL-54 · LOW · `.taken` files hold raw confession text for ever, and `pending()` counts files rather than confessions
+
+**Task:** `M20`. **File:** `src/memory/proseBuffer.ts:47-48`, `:141-149`, `:253-255`.
+
+**The leak.** A process that dies between `renameSync` (`:168`) and `rmSync` (`:189`) leaves
+`<name>.json.taken`. `pendingNames()` filters on `.endsWith('.json')`, so a `.taken` file is
+never re-listed — correct, no duplicate send — and also never listed by anything else, because
+nothing else looks: `grep -rn "taken\|TAKEN" src` outside this module returns nothing. There is
+no cleaner, no age sweep, no `pass` command. The docblock at `:47-48` calls it sanctioned: "a
+process that dies mid-flush leaves `.taken` files that nothing will ever pick up. Both are the
+sanctioned cost."
+
+**They are not the same cost.** `D-10` sanctions *losing* the buffer. A `.taken` file is the
+opposite failure mode: the most sensitive text in the product **retained**, unencrypted, in a
+`.gitignore`d directory, past the point where any code path will ever look at it or delete it,
+on a machine that will accumulate one per unlucky crash for as long as the install lives. That
+is the distinction the author wrote into the DAG in `1c85dbc` — "a decision that accepts a
+failure mode is not a licence for a different failure mode that resembles it" — pointed at
+their own docblock. And it compounds `SL-50`: `forget` cannot reach a `.json` entry, and it
+certainly cannot reach a `.taken` one.
+
+A leaked `.taken` is also a receipt that will never come true. The diner was told
+`held (with 2 of yours — sent together, or on the next sweep)`. No sweep will ever take it, and
+`pending()` reports it as gone, so the count the next confession prints is quietly short.
+
+**And the count is a file count.** `pending()` is `pendingNames(profile).length` (`:253-255`),
+which reads no file. So the residue of `SL-46`: three shape-invalid entries plus one real one
+report `held (with 4 of yours)`, and the flush that follows carries **one** text — `drain`
+deletes the other three rather than sending them. `proseBuffer.test.ts:136` pins this
+(`expect(buf.pending('A')).toBe(3)` over one real entry and two junk ones) — the test asserts
+the wrong number is returned rather than noticing it is wrong. Low, because it needs corruption
+to reach; recorded because `SL-46`'s closure line says "one bad entry is now one lost
+confession" and one bad entry is also one over-reported pending count. Empty profile
+directories are the same shape and cost nothing: `drain()` re-lists and re-decodes every one on
+every sweep, for ever.
+
+**Verified by.** `grep -rn "taken\|TAKEN" src --include=*.ts` → one file; `:141-149` and
+`:253-255` read; `proseBuffer.test.ts:125-142` read.
+
+**Fix.** For the leak: on `drain()`, delete `.taken` files older than a bounded age, and say in
+the docblock that the bound exists — a spool with no cleaner is the one durability property
+this design cannot decline, because it is about retention rather than delivery. For the count:
+`pending()` returning a count that `drain()` will not deliver is a lie in the one number the
+receipt prints; parse-on-count or stop calling it a confession count.
+
+---
+
+## SL-55 · LOW · "sends confessions in the order they were made" is decided by a random uuid in the only path that matters
+
+**Task:** `M20`. **File:** `src/memory/proseBuffer.ts:120-128`, `:131-134`.
+
+**What the code claims.** `:120-123`: "Sortable so a flush sends confessions in the order they
+were made — the batch becomes one conversation, and a conversation out of order reads as a
+different conversation." And `:131-134`: `seq` "exists so two appends inside a single
+millisecond still sort in the order they were made, which `Date.now()` alone does not give."
+
+**Why the second sentence is false in production.** `seq` is a closure variable, per
+`ProseBuffer` instance, per process. Every confession arrives in its own CLI process — the
+premise of this entire module, stated at `:14-15` — and each process appends exactly **once**.
+So `seq` is `0001` in every production entry name, and never breaks a tie. The tie-break that
+actually runs is the third field: `randomUUID()`.
+
+**Measured.** Two buffers at one path standing in for two processes, `FIRST` appended before
+`SECOND`, 300 trials:
+
+```
+ordering: trials=300 same-millisecond=258 out-of-order=127
+```
+
+258 of 300 pairs landed in the same millisecond, and 127 came back to the caller in the wrong
+order — a coin flip, as designed, since a v4 uuid is where the comparison lands. The batch that
+becomes "one conversation" is shuffled, which the docblock itself says makes it a different
+conversation.
+
+**Scope.** Low: two humans confessing inside the same millisecond is not the demo. Two
+*processes* are, though — the author's own verification is "four CONCURRENT `confess`
+processes", and that run had a 50/50 order for any same-millisecond pair. The reason to fix it
+is not the frequency; it is that a comment explains a mechanism that does not operate, and the
+test that pins ordering (`:39-48`) runs one process, where `seq` does the work and the uuid
+never decides anything.
+
+**Verified by.** The 300-trial measurement above against the unmodified module; `:125-128` and
+`:131-134` read; `proseBuffer.test.ts:39-48` read.
+
+**Fix.** Either sort by something real — write `{"text":…, "at": Date.now()}` and order the
+claimed batch by `at`, with the entry name only needing uniqueness — or delete the ordering
+claim and the `seq` comment, and let the docblock say that within a millisecond the order is
+arbitrary. What is not tenable is a stated invariant whose stated mechanism is inert.
+
+---
+
+## SL-56 · LOW · SL-42 is fixed for humans; the machine receipts still say "written", and `pass sweep` says "0 sent" for four destroyed
+
+**Task:** `M20`. **Files:** `src/cli/confess.ts:191-199`, `src/ui/confess/ConfessScreen.tsx:53`,
+`:168`, `src/cli/sweep.ts:90-102`, `src/memory/user.ts:291-306`.
+
+**(a) `confit confess --json` cannot tell held from sent.** `render.ts:50-51` prints `data` and
+nothing else for `--json`, and confess's `data` is
+`{blocked, approved, read_id, chips, wrote, warnings, pooled}` — `proseBuffered` is not in it,
+though `writeRead` returns it and the human lines four lines above consume it. So the payload
+says `wrote.prose: true` for a confession sitting on local disk: the exact `SL-42` sentence
+("`wrote.prose` is `true` for a buffered confession as much as a sent one, so it cannot carry
+this on its own"), left standing in the surface `--json` exists for. DAG §5: "`--json` on every
+command for tests" — a test or script cannot assert the held/sent distinction this PR was
+written to create.
+
+**(b) `ConfessOutcome.proseBuffered` is optional and fails open.** `:53` declares
+`proseBuffered?: number`; `:168` renders `phase.outcome.proseBuffered ?? 0`; `memoryLine`
+renders `0` as `written`. So an outcome that omits the field renders the `SL-42` defect exactly.
+Compare the neighbour on the same line: `wrote?.prose === true` — also optional, and it fails
+**closed** to `not written`. The mirror of this type in `writeRead.ts:53` has
+`proseBuffered: number`, required. The only `UiBackend` in the repo is `NOT_CONNECTED`, whose
+`submit` rejects, so today nothing but tests supplies the field — which means the `?` exists to
+let call sites omit it, and the first real backend that does will re-ship `SL-42` and typecheck
+clean. Make it required and the compiler enforces the fix instead of the reviewer.
+
+**(c) `pass sweep` reports `confessions sent: 0` when a flush destroyed four.**
+`user.ts:291-306` swallows every `ingestBatch` failure and returns only `sent`, so a flush that
+claimed four confessions, deleted them and lost the POST returns `0`. `sweep.ts:118-119` prints
+`confessions sent:     0` and emits `confessions_sent: 0`, exit 0 — indistinguishable from an
+empty buffer. The only trace is a stderr `logger.line` from `user.ts`. `confess` does better: it
+surfaces the loss into its own receipt as `! prose write failed …`. Two receipts over one
+failure, one of which mentions it.
+
+The same asymmetry makes the sweep's own safety net decoration: because `flushProse` never
+rejects, `sweep.ts:92-101`'s catch cannot fire in production, and the test that covers it
+(`sweep.test.ts` — "`--once` still sweeps when the flush throws") stages a rejection the
+production wiring cannot produce. The `--watch` loop would also log that unreachable line once
+per pass for ever, which is only not a defect because it is unreachable.
+
+**Verified by.** `confess.ts:191-199` and `render.ts:49-55` read; `ConfessScreen.tsx:34-36`,
+`:53`, `:168` read; `grep -rn "UiBackend" src` → one implementation, `NOT_CONNECTED`;
+`user.ts:291-306` and `sweep.ts:90-119` read.
+
+**Fix.** Put `proseBuffered` in confess's `data`; make `ConfessOutcome.proseBuffered` required;
+have `flushProse` return `{sent, lost}` and print both, because a sweep that destroyed four
+confessions and a sweep that had nothing to do must not render identically.

@@ -5,14 +5,22 @@ import type { IngestJobStatus, MealLogEntry, MemoryRow, UsualProfile } from '../
 import { sampleUsual } from '../contracts/fixtures/index.js';
 import { StubSettingsStore } from '../contracts/stubs/index.js';
 import { createLogger } from '../config/logger.js';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createUserStore } from './user.js';
+import { BATCH_SIZE, createProseBuffer } from './proseBuffer.js';
+import { personalScope } from './scopes.js';
+import { EPISODE_ATTEMPTS } from './episodes.js';
 
 /** Fake XTrace: per-scope rows, per-job controllable status. Prose only, after M11. */
 function fakeSubstrate() {
   const rowsByScope = new Map<string, MemoryRow[]>();
   const jobStatuses = new Map<string, IngestJobStatus>();
   const ingests: Array<{ scope: string; payload: string; jobId: string }> = [];
+  const batches: Array<{ scope: string; payloads: string[]; convId: string }> = [];
   let seq = 0;
+  let batchesFail = false;
 
   const client: MemoryClient = {
     ingest(scope, payload) {
@@ -25,7 +33,19 @@ function fakeSubstrate() {
       jobStatuses.set(jobId, 'pending');
       return Promise.resolve({ jobId });
     },
-    ingestBatch: () => Promise.reject(new Error('the user tier writes one message at a time')),
+    ingestBatch(scope, payloads, convId) {
+      if (batchesFail) return Promise.reject(new Error('ingest 503'));
+      batches.push({ scope, payloads: [...payloads], convId });
+      for (const payload of payloads) {
+        seq += 1;
+        rowsByScope.set(scope, [
+          ...(rowsByScope.get(scope) ?? []),
+          { memoryId: `mem-${seq}`, kind: 'fact', content: payload },
+        ]);
+      }
+      seq += 1;
+      return Promise.resolve({ jobId: `batch-${seq}` });
+    },
     search(scope, _query) {
       // Every row in the scope, NOT a substring match. The substring filter modelled
       // `findTagged`'s tag lookup, which M11 deleted — and semantic search does not
@@ -40,56 +60,180 @@ function fakeSubstrate() {
     jobStatus(jobId) {
       return Promise.resolve(jobStatuses.get(jobId) ?? 'unknown');
     },
+    // M10's ledger is not what this suite is about; no handles is a valid job result.
+    jobResult: () => Promise.resolve([]),
   };
 
-  return { client, rowsByScope, jobStatuses, ingests };
+  return {
+    client,
+    rowsByScope,
+    jobStatuses,
+    ingests,
+    batches,
+    failBatches: () => {
+      batchesFail = true;
+    },
+  };
 }
 
 function harness(settings: SettingsStore = new StubSettingsStore()) {
   const lines: string[] = [];
   const logger = createLogger((m) => lines.push(m));
   const substrate = fakeSubstrate();
-  const store = createUserStore({ client: substrate.client, settings, logger });
-  return { store, lines, logger, settings, ...substrate };
+  // A real buffer over a temp file: batching is the behaviour under test, and a fake buffer
+  // would let a broken threshold pass.
+  const path = mkdtempSync(join(tmpdir(), 'confit-prose-'));
+  const buffer = createProseBuffer({ path, logger });
+  const store = createUserStore({ client: substrate.client, settings, buffer, logger });
+  return { store, lines, logger, settings, buffer, ...substrate };
 }
 
-describe('M3 writeProse — the EXPERIENCES half stays in XTrace (D-8)', () => {
-  it('ingests the prose byte-identical to the input — raw, unmodified', async () => {
+describe('M3 writeProse — batched into XTrace, not one at a time (M20)', () => {
+  it('holds a confession rather than ingesting it immediately', async () => {
+    // The change. XTrace generates an episode per ingest CALL, so one-at-a-time ingests can
+    // only ever produce per-confession paraphrases — measured, 8 confessions gave 8 episodes
+    // across 8 conv_ids.
+    const h = harness();
+    const result = await h.store.writeProse('A', 'a true thing');
+    expect(result).toEqual({ buffered: 1 });
+    expect(h.ingests).toHaveLength(0);
+    expect(h.batches).toHaveLength(0);
+  });
+
+  it('sends the batch as ONE call once the threshold is reached', async () => {
+    const h = harness();
+    for (let i = 1; i < BATCH_SIZE; i++) await h.store.writeProse('A', `thing ${String(i)}`);
+    expect(h.batches).toHaveLength(0);
+
+    const last = await h.store.writeProse('A', 'the last one');
+    expect(last.buffered).toBe(0);
+    expect(last.jobId).toBeTruthy();
+    // ONE call carrying all of them — not BATCH_SIZE calls sharing a conv_id, which was
+    // measured NOT to merge into a single episode.
+    expect(h.batches).toHaveLength(1);
+    expect(h.batches[0]?.payloads).toHaveLength(BATCH_SIZE);
+    expect(h.ingests).toHaveLength(0);
+  });
+
+  it('sends the text byte-identical — [E11] survives buffering', async () => {
+    // Buffering changes WHEN a confession is ingested, never WHAT.
     const h = harness();
     const text = "  I ALWAYS get the pho, and honestly?? it's fine.  ";
     await h.store.writeProse('A', text);
-    expect(h.ingests).toHaveLength(1);
-    expect(h.ingests[0]?.payload).toBe(text); // [E11]: no trim, no clean, no wrapper
-    expect(h.ingests[0]?.scope).toBe('A');
+    for (let i = 1; i < BATCH_SIZE; i++) await h.store.writeProse('A', `filler ${String(i)}`);
+    expect(h.batches[0]?.payloads[0]).toBe(text); // no trim, no clean, no wrapper
   });
 
-  it('the unconfirmed-drop warning fires for prose the substrate never confirmed', async () => {
+  it('scopes the batch to the profile, and keeps profiles apart', async () => {
     const h = harness();
-    await h.store.writeProse('A', 'a true thing');
-    expect(h.store.dropUnconfirmedProse()).toBe(1);
-    expect(h.lines.some((l) => l.includes('unconfirmed'))).toBe(true);
+    for (let i = 0; i < BATCH_SIZE; i++) await h.store.writeProse('A', `a${String(i)}`);
+    await h.store.writeProse('B', 'b0');
+    expect(h.batches).toHaveLength(1);
+    expect(h.batches[0]?.scope).toBe(personalScope('A'));
+    expect(h.buffer.pending('B')).toBe(1);
+    expect(h.buffer.pending('A')).toBe(0);
   });
 
-  it('confirmed prose is released — no warning, nothing to drop', async () => {
+  it('flushProse sends what is waiting, whatever the count', async () => {
+    // The size threshold alone would leave a profile's last few confessions unsent forever.
+    // `pass sweep` calls this.
     const h = harness();
-    const handle = await h.store.writeProse('A', 'a true thing');
-    h.jobStatuses.set(handle.jobId, 'complete');
-    await h.store.verifyPendingProse();
-    expect(h.store.dropUnconfirmedProse()).toBe(0);
+    await h.store.writeProse('A', 'one');
+    await h.store.writeProse('B', 'two');
+    expect(await h.store.flushProse()).toBe(2);
+    expect(h.batches.map((b) => b.scope).sort()).toEqual(
+      [personalScope('A'), personalScope('B')].sort(),
+    );
+    expect(await h.store.flushProse()).toBe(0); // nothing left
   });
 
-  it('a failed ingest is retried once with the same raw text, then dropped with a warning', async () => {
+  it('each batch is its own conversation, so each gets its own episode', async () => {
     const h = harness();
-    const handle = await h.store.writeProse('A', 'the same words');
-    h.jobStatuses.set(handle.jobId, 'failed');
-    await h.store.verifyPendingProse();
-    expect(h.ingests).toHaveLength(2);
-    expect(h.ingests[1]?.payload).toBe('the same words');
+    await h.store.writeProse('A', 'first');
+    await h.store.flushProse();
+    await h.store.writeProse('A', 'second');
+    await h.store.flushProse();
+    const convIds = h.batches.map((b) => b.convId);
+    expect(new Set(convIds).size).toBe(2);
+  });
 
-    h.jobStatuses.set(h.ingests[1]?.jobId ?? '', 'failed');
-    await h.store.verifyPendingProse();
-    expect(h.ingests).toHaveLength(2); // one retry, not a loop
-    expect(h.lines.some((l) => l.includes('failed after retry'))).toBe(true);
+  it('a failed flush loses the batch, and says so — D-10 accepts that', async () => {
+    // The alternative is holding until confirmed, which is the delivery guarantee D-10
+    // declined. What must not happen is silence.
+    const h = harness();
+    h.failBatches();
+    await h.store.writeProse('A', 'one');
+    expect(await h.store.flushProse()).toBe(0);
+    expect(h.lines.join('\n')).toMatch(/flush FAILED for A/);
+    expect(h.lines.join('\n')).toMatch(/D-10 accepts/);
+    expect(h.buffer.pending('A')).toBe(0); // gone, not silently retried forever
+  });
+
+  it('a confession taken by a CONCURRENT batch is not reported as sent (SL-49)', async () => {
+    // Two `confess` processes cross the threshold together: one claims the batch, the other
+    // finds nothing left to hold. `buffered: 0` was read as "this call sent them" and printed
+    // `ok (your words, sent to your tier only)` from a process that sent nothing — measured 9
+    // times in 60. Not lost, but a receipt may only claim what this process actually did.
+    const h = harness();
+    const buffer = {
+      append: () => null, // the batch went to someone else
+      drain: () => [],
+      pending: () => 0, // and nothing is left waiting
+      forget: () => 0,
+    };
+    const store = createUserStore({
+      client: h.client,
+      settings: new StubSettingsStore(),
+      buffer,
+      logger: h.logger,
+    });
+    const result = await store.writeProse('A', 'mine');
+    expect(result).toEqual({ buffered: 0, handedOff: true });
+    expect(h.batches).toHaveLength(0); // this process really did send nothing
+    expect(h.lines.join('\n')).toMatch(/taken by a concurrent batch/);
+  });
+
+  it('a failed BATCH send says how many were lost, not "a confession" (SL-41)', async () => {
+    // The batch is out of the buffer before the ingest, so a 503 on the flushing confession
+    // destroys all four — while `writeRead`'s warning is about "this confession" and would
+    // report four lost as one write that did not happen. `writeProse` had no `try` at all
+    // here, so the count reached neither stream.
+    const h = harness();
+    h.failBatches();
+    for (let i = 0; i < BATCH_SIZE - 1; i++) await h.store.writeProse('A', `held ${String(i)}`);
+    await expect(h.store.writeProse('A', 'the one that triggers the send')).rejects.toThrow(
+      new RegExp(`batch of ${String(BATCH_SIZE)} confession`),
+    );
+    const logged = h.lines.join('\n');
+    expect(logged).toMatch(new RegExp(`LOST ${String(BATCH_SIZE)} buffered confession`));
+    expect(logged).toMatch(/not recoverable \(D-10\)/);
+    expect(logged).toContain('ingest 503');
+    // And they really are gone rather than silently retried for ever.
+    expect(h.buffer.pending('A')).toBe(0);
+  });
+
+  it('survives the process: a new store sees what an earlier one buffered', async () => {
+    // The reason it is a file at all. Every confession arrives in its own CLI process, so
+    // batching is impossible without holding the text across them. Two stores over one
+    // buffer file stand in for two `confit confess` invocations.
+    const buffer = createProseBuffer({
+      path: mkdtempSync(join(tmpdir(), 'confit-prose-')),
+      logger: createLogger(() => undefined),
+    });
+    const substrate = fakeSubstrate();
+    const store = () =>
+      createUserStore({
+        client: substrate.client,
+        settings: new StubSettingsStore(),
+        buffer,
+        logger: createLogger(() => undefined),
+      });
+
+    await store().writeProse('A', 'from process one');
+    await store().writeProse('A', 'from process two');
+    expect(await store().flushProse()).toBe(2);
+    expect(substrate.batches).toHaveLength(1);
+    expect(substrate.batches[0]?.payloads).toEqual(['from process one', 'from process two']);
   });
 });
 
@@ -261,7 +405,7 @@ describe('M3 personalClaim — D-8\'s second input (M16)', () => {
     // A fact is one sentence the extractor pulled from one confession. An episode is the
     // synthesis across several, which is the only thing worth putting on a card.
     const h = harness();
-    h.rowsByScope.set('A', [
+    h.rowsByScope.set(personalScope('A'), [
       { memoryId: 'f1', kind: 'fact', content: 'User regretted the pho.' },
       { memoryId: 'e1', kind: 'episode', content: 'You keep going back to places you complain about.' },
     ]);
@@ -272,7 +416,9 @@ describe('M3 personalClaim — D-8\'s second input (M16)', () => {
 
   it('no episode means no claim — \'\', never a fact standing in for one', async () => {
     const h = harness();
-    h.rowsByScope.set('A', [{ memoryId: 'f1', kind: 'fact', content: 'User ate pho once.' }]);
+    h.rowsByScope.set(personalScope('A'), [
+      { memoryId: 'f1', kind: 'fact', content: 'User ate pho once.' },
+    ]);
     expect(await h.store.personalClaim('A', 'anything')).toBe('');
   });
 
@@ -285,7 +431,7 @@ describe('M3 personalClaim — D-8\'s second input (M16)', () => {
     // What makes "let's see what happens" produce evidence rather than an absence. Without
     // this, a disappointing claim is indistinguishable from a broken query.
     const h = harness();
-    h.rowsByScope.set('A', [
+    h.rowsByScope.set(personalScope('A'), [
       { memoryId: 'f1', kind: 'fact', content: 'one' },
       { memoryId: 'f2', kind: 'fact', content: 'two' },
       { memoryId: 'e1', kind: 'episode', content: 'a pattern' },
@@ -300,29 +446,67 @@ describe('M3 personalClaim — D-8\'s second input (M16)', () => {
     expect(h.lines.join('\n')).toContain('none usable');
   });
 
-  it('reserves headroom for the episode, because facts sort first', async () => {
-    // Measured on the live API for the pool query: every fact comes before any episode, and
-    // the first episode landed at index 10. A personal scope is thick with prose facts — one
-    // confession yields several — so a small top-k returns facts only. M13: `episode_slots`
-    // is sent and cannot be relied on, so the headroom carries the guarantee.
+  it('retries when no episode comes back, because the search is non-deterministic (M13)', async () => {
+    // Replaces a test that asserted "the headroom carries the guarantee". M13 measured that to
+    // be false: `top_k` is inert — `top_k=1` returns thirteen rows — so there is no truncation
+    // to have headroom against. What IS true is that the identical request returns 13/3E,
+    // 11/2E, 13/3E across six calls, so an empty first answer is not an empty scope.
     const h = harness();
-    const seen: Array<{ topK: number; episodeSlots: number }> = [];
+    let call = 0;
     const spy = {
       ...h.client,
-      search: (_s: string, _q: string, opts: { topK: number; episodeSlots: number }) => {
-        seen.push(opts);
-        return Promise.resolve([]);
+      search: () => {
+        call += 1;
+        // Facts only on the first attempt; the episode surfaces on the second.
+        return Promise.resolve(
+          call === 1
+            ? [{ memoryId: 'f1', kind: 'fact' as const, content: 'one fact' }]
+            : [
+                { memoryId: 'f1', kind: 'fact' as const, content: 'one fact' },
+                { memoryId: 'e1', kind: 'episode' as const, content: 'the pattern across them' },
+              ],
+        );
       },
     };
     const store = createUserStore({
       client: spy,
       settings: new StubSettingsStore(),
-      logger: createLogger(() => undefined),
+      buffer: createProseBuffer({
+        path: mkdtempSync(join(tmpdir(), 'confit-prose-')),
+        logger: createLogger(() => undefined),
+      }),
+      logger: h.logger,
     });
-    await store.personalClaim('A', 'q');
-    expect(seen).toHaveLength(1);
-    expect(seen[0]?.topK ?? 0).toBeGreaterThanOrEqual(40);
-    expect(seen[0]?.episodeSlots ?? 0).toBeGreaterThan(0);
+    expect(await store.personalClaim('A', 'q')).toBe('the pattern across them');
+    expect(call).toBe(2); // it asked again rather than reporting nothing
+    expect(h.lines.join('\n')).toMatch(/attempt 2 of 3/);
+  });
+
+  it('stops after a bounded number of attempts and says so', async () => {
+    // A scope with facts and no episode is a real state — one confession cannot be synthesised
+    // across anything — and by the owner's ruling there is no floor to reach. So the retry is
+    // bounded, and the absence is reported rather than chased.
+    const h = harness();
+    let call = 0;
+    const spy = {
+      ...h.client,
+      search: () => {
+        call += 1;
+        return Promise.resolve([{ memoryId: 'f1', kind: 'fact' as const, content: 'a fact' }]);
+      },
+    };
+    const store = createUserStore({
+      client: spy,
+      settings: new StubSettingsStore(),
+      buffer: createProseBuffer({
+        path: mkdtempSync(join(tmpdir(), 'confit-prose-')),
+        logger: createLogger(() => undefined),
+      }),
+      logger: h.logger,
+    });
+    expect(await store.personalClaim('A', 'q')).toBe('');
+    expect(call).toBe(EPISODE_ATTEMPTS);
+    expect(h.lines.join('\n')).toMatch(/no episode after 3 attempts/);
   });
 
   it('queries the user\'s OWN scope, never the pool', async () => {
@@ -337,9 +521,15 @@ describe('M3 personalClaim — D-8\'s second input (M16)', () => {
     const store = createUserStore({
       client: spy,
       settings: new StubSettingsStore(),
+      buffer: createProseBuffer({
+        path: mkdtempSync(join(tmpdir(), 'confit-prose-')),
+        logger: createLogger(() => undefined),
+      }),
       logger: createLogger(() => undefined),
     });
     await store.personalClaim('profile-B', 'q');
-    expect(scopes).toEqual(['profile-B']);
+    // Every attempt goes to the same scope; the retry must not wander to the pool.
+    expect(new Set(scopes)).toEqual(new Set([personalScope('profile-B')]));
+    expect(scopes).toHaveLength(EPISODE_ATTEMPTS);
   });
 });

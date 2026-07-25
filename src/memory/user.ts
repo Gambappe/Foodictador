@@ -1,15 +1,20 @@
 /**
- * UserStore (M3) — the per-profile personal tier at `user_id: <profile>`.
+ * UserStore (M3) — the per-profile personal tier, at the scope `personalScope(profile)`.
+ *
+ * The profile id used to BE the scope. It is namespaced and generation-marked now (M15): a
+ * pre-M20 per-confession paraphrase was measured RANKING ABOVE the batched episode that
+ * replaced it, so the scope had to be escapable. See `src/memory/scopes.ts`.
  *
  * Confession prose is ingested RAW and unmodified ([E11]): design v0.8 §14
  * measured an LLM pass that stripped conversational texture to "just the
  * signal" as the worst configuration of every one tested (2/10 vs 8/8 for raw
  * prose) — no pre-cleaning, no pre-structuring, the payload is the text.
  *
- * The prose has no relay copy by design (§6): its verify-and-retry holds the
- * text in memory until the substrate confirms it and dies with the process.
- * Acceptable for the personal tier — a lost confession is one user's data,
- * recoverable by re-confessing — and each unconfirmed drop logs a warning.
+ * The prose has no relay copy by design (§6), and no delivery guarantee of any kind (D-10):
+ * it is buffered locally until several confessions can share one ingest call, and a batch
+ * that fails to send is lost. Acceptable for the personal tier — a lost confession is one
+ * user's data, recoverable by re-confessing — and every loss logs its COUNT, because a lost
+ * batch is not a lost confession.
  *
  * **The Usual and the meal log are NOT here any more** (M11, DAG §4 D-8). They are declared
  * settings, not experiences, so they live in a durable keyed store and this module only
@@ -36,8 +41,11 @@
  * the failure D-8 exists to prevent.
  */
 
-import type { MemoryClient, SettingsStore, UserStore } from '../contracts/modules.js';
-import type { JobHandle, MealLogEntry, UsualProfile } from '../contracts/types.js';
+import type { MemoryClient, ProseWrite, SettingsStore, UserStore } from '../contracts/modules.js';
+import { BATCH_SIZE, type ProseBuffer } from './proseBuffer.js';
+import { personalScope } from './scopes.js';
+import { searchForEpisodes } from './episodes.js';
+import type { MealLogEntry, UsualProfile } from '../contracts/types.js';
 import type { Logger } from '../config/logger.js';
 
 /**
@@ -50,43 +58,34 @@ import type { Logger } from '../config/logger.js';
 const USUAL_KEY = 'usual';
 const MEAL_LOG_KEY = 'meal_log';
 
-/**
- * Reservation for the personal synthesis query (M16).
- *
- * Sized like M2's pool query and for the same measured reason: the API returns every fact
- * before any episode, so a top-k that is merely "enough rows" is a top-k that returns only
- * facts. A personal scope is thick with prose facts — one confession yields several — so the
- * episode sits further down than instinct suggests. `episode_slots` is sent and cannot be
- * relied on (M13: the API accepts a made-up parameter with 200), which is why the headroom
- * carries the guarantee.
+/*
+ * The personal query's sizing constants used to live here, with a note saying "the headroom
+ * carries the guarantee". M13 measured that to be false — `top_k` is inert, `top_k=1` returns
+ * thirteen rows — so there is no headroom and never was. The reservation is client-side now;
+ * see `src/memory/episodes.ts` for the measurements and the retry it justifies.
  */
-const PERSONAL_TOP_K = 40;
-const PERSONAL_EPISODE_SLOTS = 4;
-
-/** One verify-and-retry round per pending prose item, per §6. */
-const MAX_PROSE_RETRIES = 1;
-
-interface PendingProse {
-  profile: string;
-  text: string;
-  jobId: string;
-  retries: number;
-}
 
 export interface UserStoreDeps {
   /** XTrace, for the confession prose only — the EXPERIENCES half of D-8. */
   client: MemoryClient;
+  /** Holds confessions until several can share one ingest call (M20, D-10). */
+  buffer: ProseBuffer;
   /** The durable store, for what the user DECLARED. Not XTrace, and that is the point. */
   settings: SettingsStore;
   logger: Logger;
 }
 
-/** UserStore plus the process-lifetime prose bookkeeping the contract can't carry. */
+/**
+ * UserStore plus the flush the contract cannot carry.
+ *
+ * `verifyPendingProse` and `dropUnconfirmedProse` used to live here. They are gone: they
+ * implemented verify-and-retry against a delivery guarantee D-10 declined to make, and
+ * `grep` found **no caller anywhere outside their own tests** — so the retry never ran in
+ * production either. Deleting them is a simplification, not a regression.
+ */
 export interface UserStoreHandle extends UserStore {
-  /** Poll every pending prose job; re-ingest failures (once), keep the rest pending. */
-  verifyPendingProse(): Promise<void>;
-  /** Drop whatever is still unconfirmed — call at process end; warns per item. */
-  dropUnconfirmedProse(): number;
+  /** Send every buffered confession regardless of count. Returns how many were sent. */
+  flushProse(): Promise<number>;
 }
 
 /**
@@ -151,14 +150,60 @@ function parseMealLogEntry(value: unknown): MealLogEntry | null {
 }
 
 export function createUserStore(deps: UserStoreDeps): UserStoreHandle {
-  const pending: PendingProse[] = [];
 
   return {
-    async writeProse(profile: string, text: string): Promise<JobHandle> {
-      // [E11]: the payload IS the text — byte-identical, nothing added.
-      const handle = await deps.client.ingest(profile, text);
-      pending.push({ profile, text, jobId: handle.jobId, retries: 0 });
-      return handle;
+    /**
+     * Buffers the confession, and sends the batch once one has accumulated (M20).
+     *
+     * NOT ingested immediately, and that is the change: XTrace generates an episode per ingest
+     * call, so one-at-a-time ingests can only ever produce per-confession paraphrases —
+     * measured, 8 confessions gave 8 episodes across 8 conv_ids. [E11] is untouched: the text
+     * is buffered byte-identical and sent byte-identical, so buffering changes WHEN a
+     * confession is ingested, never WHAT.
+     */
+    async writeProse(profile: string, text: string, readId?: string): Promise<ProseWrite> {
+      const flush = deps.buffer.append(profile, text, readId);
+      if (flush === null) {
+        const held = deps.buffer.pending(profile);
+        if (held === 0) {
+          // Nothing held AND no flush: another `confess` running at the same time crossed the
+          // threshold first and took this confession in its batch. Not lost — but this process
+          // sent nothing, and reporting `buffered: 0` as "sent" is the false receipt SL-49
+          // measured 9 times in 60.
+          deps.logger.line(
+            `user: confession for ${profile} was taken by a concurrent batch — another process ` +
+              `is sending it, this one did not`,
+          );
+          return { buffered: 0, handedOff: true };
+        }
+        deps.logger.line(
+          `user: confession held for ${profile} — ${String(held)}/${String(BATCH_SIZE)} until the batch is sent`,
+        );
+        return { buffered: held };
+      }
+      // The batch is already out of the buffer, so a failure here loses ALL of it — not the
+      // one confession the caller just made. The count has to reach the operator, because
+      // `writeRead`'s warning is about "this confession" and would report a batch of four
+      // lost as a single write that did not happen (SL-41).
+      const count = flush.texts.length;
+      try {
+        const handle = await deps.client.ingestBatch(
+          personalScope(flush.profile),
+          flush.texts,
+          flush.convId,
+        );
+        deps.logger.line(
+          `user: sent ${String(count)} confession(s) for ${profile} as one conversation (${flush.convId})`,
+        );
+        return { buffered: 0, jobId: handle.jobId };
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        deps.logger.line(
+          `user: LOST ${String(count)} buffered confession(s) for ${profile} — the batch left the ` +
+            `buffer before the ingest and is not recoverable (D-10): ${reason}`,
+        );
+        throw new Error(`batch of ${String(count)} confession(s) lost: ${reason}`, { cause: error });
+      }
     },
 
     /**
@@ -184,16 +229,16 @@ export function createUserStore(deps: UserStoreDeps): UserStoreHandle {
      * an episode is the synthesis across several, which is the thing worth putting on a card.
      */
     async personalClaim(profile: string, query: string): Promise<string> {
-      const rows = await deps.client.search(profile, query, {
-        topK: PERSONAL_TOP_K,
-        episodeSlots: PERSONAL_EPISODE_SLOTS,
-      });
-      const episodes = rows.filter((row) => row.kind === 'episode' && row.content !== '');
-      const facts = rows.length - episodes.length;
-      const claim = episodes[0]?.content ?? '';
+      const result = await searchForEpisodes(
+        { ...deps, label: `user ${profile}` },
+        personalScope(profile),
+        query,
+      );
+      const claim = result.episodes[0]?.content ?? '';
       deps.logger.line(
-        `user: personal claim for ${profile} — ${String(episodes.length)} episode(s) over ` +
-          `${String(facts)} fact(s)${claim === '' ? '; none usable, card proceeds without it' : ''}`,
+        `user: personal claim for ${profile} — ${String(result.episodes.length)} episode(s) over ` +
+          `${String(result.facts)} fact(s) in ${String(result.attempts)} attempt(s)` +
+          `${claim === '' ? '; none usable, card proceeds without it' : ''}`,
       );
       return claim;
     },
@@ -249,39 +294,32 @@ export function createUserStore(deps: UserStoreDeps): UserStoreHandle {
       await deps.settings.put(profile, MEAL_LOG_KEY, entries);
     },
 
-    async verifyPendingProse(): Promise<void> {
-      for (let i = pending.length - 1; i >= 0; i--) {
-        const item = pending[i];
-        if (!item) continue;
-        const status = await deps.client.jobStatus(item.jobId);
-        if (status === 'complete') {
-          pending.splice(i, 1);
-        } else if (status === 'failed') {
-          if (item.retries >= MAX_PROSE_RETRIES) {
-            deps.logger.line(
-              `user: prose for profile ${item.profile} failed after retry — dropped unconfirmed`,
-            );
-            pending.splice(i, 1);
-          } else {
-            // The retry half of verify-and-retry: same raw text, new job.
-            const handle = await deps.client.ingest(item.profile, item.text);
-            item.jobId = handle.jobId;
-            item.retries += 1;
-          }
+    /**
+     * Sends every buffered confession, whatever the count — what `pass sweep` calls.
+     *
+     * One ingest call per profile per flush, which is the whole point (M20): XTrace generates
+     * an episode per call, so a batch is what gives the personal synthesis something to
+     * synthesise ACROSS. Failures are logged and the text is already gone from the buffer —
+     * D-10 sanctions that loss, and holding until confirmed is the delivery guarantee this
+     * design deliberately does not build.
+     */
+    async flushProse(): Promise<number> {
+      let sent = 0;
+      for (const flush of deps.buffer.drain()) {
+        try {
+          await deps.client.ingestBatch(personalScope(flush.profile), flush.texts, flush.convId);
+          sent += flush.texts.length;
+          deps.logger.line(
+            `user: sent ${String(flush.texts.length)} confession(s) for ${flush.profile} as one conversation (${flush.convId})`,
+          );
+        } catch (error) {
+          deps.logger.line(
+            `user: flush FAILED for ${flush.profile} — ${String(flush.texts.length)} confession(s) lost, ` +
+              `which D-10 accepts: ${error instanceof Error ? error.message : String(error)}`,
+          );
         }
-        // 'pending'/'unknown': keep holding the text — verified-drop, never TTL.
       }
-    },
-
-    dropUnconfirmedProse(): number {
-      const dropped = pending.length;
-      for (const item of pending) {
-        deps.logger.line(
-          `user: dropping unconfirmed prose for profile ${item.profile} — process ending before the substrate confirmed it`,
-        );
-      }
-      pending.length = 0;
-      return dropped;
+      return sent;
     },
   };
 }

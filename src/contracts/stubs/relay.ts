@@ -33,6 +33,13 @@ export class StubRelay implements Relay {
     return Promise.resolve();
   }
 
+  /** The ingest ledger (M10): records the pool handles so `forget` has something to delete. */
+  setPoolMemories(readId: string, memoryIds: readonly string[]): Promise<void> {
+    const entry = this.entries.find((e) => e.read.read_id === readId);
+    if (entry) entry.pool_memories = [...memoryIds];
+    return Promise.resolve();
+  }
+
   list(since?: string): Promise<RelayEntry[]> {
     const all = [...this.entries];
     return Promise.resolve(since === undefined ? all : all.filter((e) => e.received_at > since));

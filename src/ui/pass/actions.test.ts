@@ -178,6 +178,7 @@ describe('U5: the sweeper panel reads keys the sweep command actually emits', ()
     pooled: 5,
     reingested: 1,
     pending: 3,
+    ledgered: 4,
     stored: 220,
     oldestStoredAgeSeconds: 914,
   });

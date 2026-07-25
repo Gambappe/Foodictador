@@ -48,6 +48,7 @@ function recordingRelay() {
       return Promise.resolve(reads.length);
     },
     setJob: () => Promise.resolve(),
+    setPoolMemories: () => Promise.resolve(),
     list: () => Promise.resolve([]),
     drop: () => Promise.resolve(),
     stats: () => Promise.resolve({ count: 0, oldest_entry_age_seconds: 0 }),
@@ -158,7 +159,7 @@ describe('G1: the legitimate writeRead path passes through guarded stores', () =
     const { relay, puts } = recordingRelay();
     const user = {
       personalClaim: () => Promise.resolve(''),
-      writeProse: () => Promise.resolve({ jobId: 'p' }),
+      writeProse: () => Promise.resolve({ buffered: 0, jobId: 'j' }),
       usual: () => Promise.resolve(null),
       setUsual: () => Promise.resolve(),
       mealLog: () => Promise.resolve([]),

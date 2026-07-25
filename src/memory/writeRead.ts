@@ -12,8 +12,9 @@
  * relay write costs at worst a duplicate re-ingest, which K6 dedups on
  * read_id; a pool write that nothing tracks is silent loss. For the same
  * reason a FAILED relay write means the pool is not written either — the read
- * is reported not pooled. The prose is the personal tier with its own
- * durability story (M3's verify-and-retry), so it is still written.
+ * is reported not pooled. The prose is the personal tier, which has no
+ * durability story at all by D-10 — it is buffered and may be lost — so it is
+ * still written, and its failure never unwinds the pooled read.
  */
 
 import type { PoolStore, Relay, UserStore } from '../contracts/modules.js';
@@ -41,6 +42,23 @@ export interface WriteReadInput {
 export interface WriteReadReport {
   read_id: string;
   wrote: { relay: boolean; pool: boolean; job: boolean; prose: boolean };
+  /**
+   * Confessions now waiting to be sent, after this one (M20).
+   *
+   * `0` means this confession's batch went to XTrace; a positive number means it is HELD
+   * until the batch fills or `pass sweep` runs. `wrote.prose` alone cannot say which, and
+   * telling a user their words reached their memory while they sit in a buffer is a false
+   * receipt — deferral is not loss, but the receipt has to name which one it is.
+   */
+  proseBuffered: number;
+  /**
+   * `true` when a CONCURRENT `confess` claimed the batch this confession is in (SL-49).
+   *
+   * `proseBuffered === 0` has two causes — this process sent the batch, or another process
+   * took it — and only the first may be reported as "sent". The confession is not lost either
+   * way, but a receipt may only claim what this process actually did.
+   */
+  proseHandedOff: boolean;
   /** Honest per-target accounting for the caller to surface (X2). */
   warnings: string[];
 }
@@ -102,14 +120,23 @@ export async function writeRead(
     }
   }
 
-  // 4. Prose last — personal tier, raw and unmodified ([E11]).
+  // 4. Prose last — personal tier, raw and unmodified ([E11]). Buffered rather than sent
+  // immediately (M20): XTrace makes an episode per ingest CALL, so one-at-a-time ingests can
+  // only ever produce per-confession paraphrases.
+  let proseBuffered = 0;
+  let proseHandedOff = false;
   try {
-    await deps.user.writeProse(input.profile, input.text);
+    // The read_id travels with the prose so `forget` can delete the buffered copy before it is
+    // ever sent (SL-50) — otherwise `forget` reports success on three targets while a fourth
+    // copy waits on disk.
+    const written = await deps.user.writeProse(input.profile, input.text, read.read_id);
+    proseBuffered = written.buffered;
+    proseHandedOff = written.handedOff === true;
     wrote.prose = true;
   } catch (error) {
     warnings.push(`prose write failed — personal memory not recorded: ${message(error)}`);
     deps.logger.line(`writeRead: prose write failed for ${read.read_id}: ${message(error)}`);
   }
 
-  return { read_id: read.read_id, wrote, warnings };
+  return { read_id: read.read_id, wrote, proseBuffered, proseHandedOff, warnings };
 }

@@ -24,13 +24,13 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { MemoryClient, Relay } from '../../contracts/modules.js';
 import type { MemoryRow, ProposedRead, Read } from '../../contracts/types.js';
 import { sampleUsual } from '../../contracts/fixtures/index.js';
-import { StubSettingsStore } from '../../contracts/stubs/index.js';
+import { StubSettingsStore, StubProseBuffer } from '../../contracts/stubs/index.js';
 import { createLogger } from '../../config/logger.js';
-import { createPoolStore } from '../../memory/pool.js';
+import { createPoolStore, POOL_SCOPE } from '../../memory/pool.js';
 import { createUserStore } from '../../memory/user.js';
 import { writeRead } from '../../memory/writeRead.js';
 import { ConfessScreen } from './ConfessScreen.js';
-import { CHIP_LABELS, CONSENT, REFUSAL } from './copy.js';
+import { CHIP_LABELS, CONSENT, MEMORY_RECEIPT, REFUSAL } from './copy.js';
 
 afterEach(cleanup);
 
@@ -58,6 +58,8 @@ function substrate() {
     ingestBatch: () => Promise.reject(new Error('unused — single ingests only in this suite')),
     remove: () => Promise.resolve(),
     jobStatus: () => Promise.resolve('complete' as const),
+    // M10's ledger is not what this suite is about; no handles is a valid job result.
+    jobResult: () => Promise.resolve([]),
   };
   return { client, count: (scope: string) => (rows.get(scope) ?? []).length };
 }
@@ -70,6 +72,7 @@ function recordingRelay() {
       return Promise.resolve();
     },
     setJob: () => Promise.resolve(),
+    setPoolMemories: () => Promise.resolve(),
     list: () => Promise.resolve([]),
     drop: () => Promise.resolve(),
     stats: () => Promise.resolve({ count: 0, oldest_entry_age_seconds: 0 }),
@@ -83,7 +86,12 @@ function recordingRelay() {
 function realHarness(offLimits: string[]) {
   const s = substrate();
   const logger = createLogger(() => {});
-  const user = createUserStore({ client: s.client, settings: new StubSettingsStore(), logger });
+  const user = createUserStore({
+    client: s.client,
+    settings: new StubSettingsStore(),
+    buffer: new StubProseBuffer(),
+    logger,
+  });
   const pool = createPoolStore({ client: s.client, logger, placeName: (id: string) => id.replaceAll('_', ' ') });
   const { relay, entries } = recordingRelay();
 
@@ -98,7 +106,7 @@ function realHarness(offLimits: string[]) {
       }
     />,
   );
-  return { view, relayEntries: entries, poolCount: () => s.count('confit:pool'), userCount: () => s.count('A') };
+  return { view, relayEntries: entries, poolCount: () => s.count(POOL_SCOPE), userCount: () => s.count('A') };
 }
 
 async function reachChips() {
@@ -230,6 +238,67 @@ describe('U2: nothing is pooled without the press', () => {
     expect(report).toContain('pot: written');
     expect(report).toContain('relay: written');
     expect(screen.getByTestId('read-id').textContent).toMatch(/[0-9a-f-]{36}/);
+  });
+
+  it('a BUFFERED confession is not reported as written (SL-42)', async () => {
+    // D-10's one named consequence, and it was fixed in the CLI receipt only. `wrote.prose`
+    // is `true` for a buffered confession as much as a sent one, so rendering it as "written"
+    // told the diner their words were in XTrace while they sat on local disk. The same defect
+    // as `forget` printing "Deleted from Confit" over two skipped targets.
+    realHarness([]);
+    await reachChips();
+    await userEvent.click(screen.getByRole('button', { name: 'Add to the pot' }));
+    await waitFor(() => expect(screen.getByTestId('write-report')).toBeTruthy());
+
+    const report = screen.getByTestId('write-report').textContent ?? '';
+    expect(report).toContain(`your memory: ${MEMORY_RECEIPT.held}`);
+    expect(report).not.toContain(`your memory: ${MEMORY_RECEIPT.sent}`);
+    // And the held wording says where the words actually are, not merely that they are late.
+    expect(MEMORY_RECEIPT.held).toMatch(/this device/);
+  });
+
+  it('a SENT confession is reported as written — the buffered case is not blanket wording', async () => {
+    render(
+      <ConfessScreen
+        offLimits={[]}
+        propose={() => Promise.resolve(PROPOSAL)}
+        submit={() =>
+          Promise.resolve({
+            read_id: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+            wrote: { relay: true, pool: true, job: true, prose: true },
+            proseBuffered: 0,
+          })
+        }
+      />,
+    );
+    await reachChips();
+    await userEvent.click(screen.getByRole('button', { name: 'Add to the pot' }));
+    await waitFor(() => expect(screen.getByTestId('write-report')).toBeTruthy());
+    expect(screen.getByTestId('write-report').textContent ?? '').toContain(
+      `your memory: ${MEMORY_RECEIPT.sent}`,
+    );
+  });
+
+  it('a FAILED prose write is reported as not written', async () => {
+    render(
+      <ConfessScreen
+        offLimits={[]}
+        propose={() => Promise.resolve(PROPOSAL)}
+        submit={() =>
+          Promise.resolve({
+            read_id: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+            wrote: { relay: true, pool: true, job: true, prose: false },
+            proseBuffered: 0,
+          })
+        }
+      />,
+    );
+    await reachChips();
+    await userEvent.click(screen.getByRole('button', { name: 'Add to the pot' }));
+    await waitFor(() => expect(screen.getByTestId('write-report')).toBeTruthy());
+    expect(screen.getByTestId('write-report').textContent ?? '').toContain(
+      `your memory: ${MEMORY_RECEIPT.failed}`,
+    );
   });
 
   it('an edited chip is what gets pooled — the author is the last word', async () => {

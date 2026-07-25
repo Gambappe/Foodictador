@@ -31,6 +31,8 @@
 import type { MemoryClient, Relay } from '../contracts/modules.js';
 import type { Logger } from '../config/logger.js';
 import { POOL_SCOPE } from './pool.js';
+import { personalScope } from './scopes.js';
+import type { ProseBuffer } from './proseBuffer.js';
 
 
 export type ForgetTargetStatus = 'deleted' | 'nothing_to_delete' | 'skipped' | 'failed';
@@ -47,6 +49,15 @@ export interface ForgetReport {
   pool: ForgetTargetReport;
   relay: ForgetTargetReport;
   user: ForgetTargetReport;
+  /**
+   * The local confession buffer — the FOURTH target (SL-50).
+   *
+   * M20 gave the raw confession a fourth home and `forget` was not told. Executed: `forget`
+   * reported ok on all three targets, and the next flush ingested the confession it had just
+   * promised to delete. A deletion promise that a later batch quietly reverses is worse than
+   * one that admits it cannot reach something.
+   */
+  buffer: ForgetTargetReport;
   /** True unless some target FAILED. An unknown read_id everywhere is still ok. */
   ok: boolean;
 }
@@ -54,6 +65,14 @@ export interface ForgetReport {
 export interface ForgetDeps {
   client: MemoryClient;
   relay: Relay;
+  /**
+   * The confession buffer, so a forgotten confession is not sent by the next flush (SL-50).
+   *
+   * Optional so callers that predate the buffer still compile, and the report says `skipped`
+   * with a reason rather than silently claiming the target was clean — the same honesty rule
+   * the XTrace targets already follow.
+   */
+  buffer?: ProseBuffer;
   logger: Logger;
 }
 
@@ -64,22 +83,35 @@ export interface ForgetOptions {
   poolMemories?: string[];
 }
 
+/**
+ * Pool-scope deletion, now that there are handles to delete by (M10).
+ *
+ * The caller may pass handles, but normally does not have any: they come from the ingest
+ * job's RESULT, which does not exist until the job succeeds, long after `confess` returned.
+ * So the sweeper records them on the relay entry and this reads them back — the relay is the
+ * store of record (D-7), which makes it the right place for a ledger.
+ *
+ * A read whose sweep has not reached it yet has no handles, and that is reported as `skipped`
+ * with the reason rather than as a clean deletion. Which of the two it is matters: one is
+ * "there was nothing", the other is "come back after a sweep".
+ */
 async function forgetPool(
   deps: ForgetDeps,
-  poolMemories: ForgetOptions['poolMemories'],
+  handles: readonly string[],
 ): Promise<ForgetTargetReport> {
-  if (poolMemories === undefined || poolMemories.length === 0) {
+  if (handles.length === 0) {
     return {
       status: 'skipped',
       detail:
-        'no pool-scope handles for this read — XTrace holds prose derived from it, not the read, and derived memories are not keyed by read_id (see src/memory/README.md, M10)',
+        'no pool handles recorded for this read — the ingest ledger is written by the sweeper when the job succeeds, so a read confessed moments ago has none yet; run `confit sweep` and forget again (M10)',
     };
   }
+  const poolMemoriesToDelete = handles;
   try {
-    for (const memoryId of poolMemories) {
+    for (const memoryId of poolMemoriesToDelete) {
       await deps.client.remove(POOL_SCOPE, memoryId);
     }
-    return { status: 'deleted', count: poolMemories.length };
+    return { status: 'deleted', count: poolMemoriesToDelete.length };
   } catch (error) {
     return {
       status: 'failed',
@@ -119,7 +151,7 @@ async function forgetUser(
   }
   try {
     for (const { profile, memoryId } of userMemories) {
-      await deps.client.remove(profile, memoryId);
+      await deps.client.remove(personalScope(profile), memoryId);
     }
     return { status: 'deleted', count: userMemories.length };
   } catch (error) {
@@ -136,16 +168,71 @@ async function forgetUser(
  * read_id is not an error: the relay reports nothing_to_delete and ok stays
  * true.
  */
+/**
+ * The buffered copy — deleted before it can be sent, not after (SL-50).
+ *
+ * Synchronous and local, so it is done first rather than in the `Promise.all`: every moment
+ * between the user asking and the entry going is a moment a concurrent flush could send it.
+ */
+function forgetBuffer(readId: string, deps: ForgetDeps): ForgetTargetReport {
+  if (deps.buffer === undefined) {
+    return {
+      status: 'skipped',
+      detail: 'no confession buffer wired into this caller — a buffered copy may still be sent',
+    };
+  }
+  try {
+    const removed = deps.buffer.forget(readId);
+    return removed === 0 ? { status: 'nothing_to_delete' } : { status: 'deleted', count: removed };
+  } catch (error) {
+    return { status: 'failed', detail: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+/**
+ * The ingest ledger, read BEFORE anything is deleted.
+ *
+ * Ordering is load-bearing: the handles live ON the relay entry, and `forgetRelay` deletes
+ * that entry. Reading them inside the same `Promise.all` was a race the deletion usually won
+ * — verified live, the ledger was present and `forget` still reported `skipped`, because the
+ * entry was gone by the time the read reached it. So the ledger is resolved first, in its own
+ * step, and only then does anything delete.
+ */
+async function poolHandles(
+  readId: string,
+  deps: ForgetDeps,
+  supplied: ForgetOptions['poolMemories'],
+): Promise<{ handles: readonly string[]; error?: string }> {
+  if (supplied !== undefined && supplied.length > 0) return { handles: supplied };
+  try {
+    const entry = (await deps.relay.list()).find((e) => e.read.read_id === readId);
+    return { handles: entry?.pool_memories ?? [] };
+  } catch (error) {
+    return {
+      handles: [],
+      error: `could not read the ingest ledger from the relay: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    };
+  }
+}
+
 export async function forget(
   readId: string,
   deps: ForgetDeps,
   options: ForgetOptions = {},
 ): Promise<ForgetReport> {
+  // The buffer first: it is the only target that can still SEND the thing being forgotten.
+  const buffer = forgetBuffer(readId, deps);
+  // Then the ledger, before any delete — see `poolHandles`.
+  const ledger = await poolHandles(readId, deps, options.poolMemories);
   const [pool, relay, user] = await Promise.all([
-    forgetPool(deps, options.poolMemories),
+    ledger.error === undefined
+      ? forgetPool(deps, ledger.handles)
+      : Promise.resolve<ForgetTargetReport>({ status: 'failed', detail: ledger.error }),
     forgetRelay(readId, deps),
     forgetUser(deps, options.userMemories),
   ]);
-  const ok = [pool, relay, user].every((target) => target.status !== 'failed');
-  return { read_id: readId, pool, relay, user, ok };
+  const ok = [pool, relay, user, buffer].every((target) => target.status !== 'failed');
+  return { read_id: readId, pool, relay, user, buffer, ok };
 }

@@ -17,6 +17,7 @@ function fakes(init: { relayReads?: Read[]; pool?: 'live' | 'relay-only' }) {
   const relay: Relay = {
     put: () => Promise.reject(new Error('unused')),
     setJob: () => Promise.reject(new Error('unused')),
+    setPoolMemories: () => Promise.resolve(),
     list: () => {
       listCalls += 1;
       return Promise.resolve(

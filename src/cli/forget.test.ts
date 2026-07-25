@@ -17,6 +17,7 @@ const CONFIG: AppConfig = {
   relayToken: 't',
   anthropicApiKey: null,
   settleWindowSeconds: 480,
+  proseBufferPath: '/tmp/confit-test-prose.json',
 };
 
 function context(readId: string): CommandContext {
@@ -38,6 +39,7 @@ function report(overrides: Partial<ForgetReport> = {}): ForgetReport {
     pool: { status: 'deleted', count: 2 },
     relay: { status: 'deleted', count: 1 },
     user: { status: 'skipped', detail: 'no user-scope handles for this read' },
+    buffer: { status: 'nothing_to_delete' },
     ok: true,
     ...overrides,
   };

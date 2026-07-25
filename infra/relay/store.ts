@@ -29,6 +29,14 @@ export interface StoredEntry {
   read: Read;
   received_at: string;
   ingest_job_id?: string;
+  /**
+   * XTrace memory ids the pool ingest of this read created — the ingest ledger (M10).
+   *
+   * Recorded by the sweeper on the transition to a succeeded job, because that is the first
+   * moment they exist: the handles come from the job RESULT, and at write time the job is
+   * still pending. Without them `forget` could delete the relay entry and nothing else.
+   */
+  pool_memories?: string[];
 }
 
 /**
@@ -113,6 +121,22 @@ export class RelayStore {
     if (!entry) return false;
     return this.mutate(() => {
       entry.ingest_job_id = jobId;
+      return true;
+    });
+  }
+
+  /**
+   * Records the XTrace memory ids this read's pool ingest created — the ingest ledger (M10).
+   *
+   * Replaces rather than appends: the handles come from one job result, so a second call for
+   * the same read is a re-read of the same truth, not more of it. Appending would grow the
+   * list on every sweep pass that saw the same succeeded job.
+   */
+  setPoolMemories(readId: string, memoryIds: readonly string[]): boolean {
+    const entry = this.entries.get(readId);
+    if (!entry) return false;
+    return this.mutate(() => {
+      entry.pool_memories = [...memoryIds];
       return true;
     });
   }

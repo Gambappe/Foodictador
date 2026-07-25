@@ -23,6 +23,7 @@ const CONFIG: AppConfig = {
   relayToken: 't',
   anthropicApiKey: null,
   settleWindowSeconds: 480,
+  proseBufferPath: '/tmp/confit-test-prose.json',
 };
 
 function context(args: string[]): CommandContext {

@@ -44,6 +44,7 @@ function fakes(init?: { poolFails?: boolean }) {
   const relay: Relay = {
     put: () => Promise.reject(new Error('unused')),
     setJob: () => Promise.reject(new Error('unused')),
+    setPoolMemories: () => Promise.resolve(),
     list: () => Promise.resolve(relayEntries.map((e) => ({ ...e }))),
     drop: () => Promise.reject(new Error('unused')),
     stats: () => Promise.resolve({ count: relayEntries.length, oldest_entry_age_seconds: 0 }),

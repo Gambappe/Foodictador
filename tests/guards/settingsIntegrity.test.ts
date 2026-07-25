@@ -44,7 +44,7 @@ import { describe, expect, it } from 'vitest';
 import type { MemoryClient, Relay, SettingsStore } from '../../src/contracts/modules.js';
 import type { MemoryRow, Read, UsualProfile } from '../../src/contracts/types.js';
 import { sampleUsual } from '../../src/contracts/fixtures/index.js';
-import { StubSettingsStore } from '../../src/contracts/stubs/index.js';
+import { StubSettingsStore, StubProseBuffer } from '../../src/contracts/stubs/index.js';
 import { createLogger } from '../../src/config/logger.js';
 import { createPoolStore } from '../../src/memory/pool.js';
 import { createUserStore } from '../../src/memory/user.js';
@@ -87,6 +87,8 @@ function substrate() {
       return Promise.resolve();
     },
     jobStatus: () => Promise.resolve('complete' as const),
+    // M10's ledger is not what this suite is about; no handles is a valid job result.
+    jobResult: () => Promise.resolve([]),
   };
 
   return {
@@ -106,6 +108,7 @@ function silentRelay() {
       return Promise.resolve();
     },
     setJob: () => Promise.resolve(),
+    setPoolMemories: () => Promise.resolve(),
     list: () => Promise.resolve([]),
     drop: () => Promise.resolve(),
     stats: () => Promise.resolve({ count: 0, oldest_entry_age_seconds: 0 }),
@@ -124,7 +127,7 @@ async function coldConfess(client: MemoryClient, settings: SettingsStore) {
   const logger = createLogger(() => {});
   const { relay, entries } = silentRelay();
   // A fresh UserStore over the SAME settings backend: a new process, a cold read.
-  const user = createUserStore({ client, settings, logger });
+  const user = createUserStore({ client, settings, buffer: new StubProseBuffer(), logger });
   const pool = createPoolStore({ client, logger, placeName: (id) => id.replaceAll('_', ' ') });
 
   const profile = await user.usual(PROFILE);
@@ -145,7 +148,7 @@ describe('G6: the off-limits list survives the substrate', () => {
     // is `[E24]` arriving through the door marked "retrieval" rather than "enforcement".
     const settings = new StubSettingsStore();
     const s = substrate();
-    const writer = createUserStore({ client: s.client, settings, logger: createLogger(() => {}) });
+    const writer = createUserStore({ client: s.client, settings, buffer: new StubProseBuffer(), logger: createLogger(() => {}) });
     await writer.setUsual(PROFILE, { ...sampleUsual, offLimits: [TOPIC] });
 
     const seen = await coldConfess(s.client, settings);
@@ -185,7 +188,7 @@ describe('G6: the off-limits list survives the substrate', () => {
     // assertion is that the topic still holds with such prose in the same scope.
     const settings = new StubSettingsStore();
     const s = substrate();
-    const writer = createUserStore({ client: s.client, settings, logger: createLogger(() => {}) });
+    const writer = createUserStore({ client: s.client, settings, buffer: new StubProseBuffer(), logger: createLogger(() => {}) });
     await writer.setUsual(PROFILE, { ...sampleUsual, offLimits: [TOPIC] });
     await writer.writeProse(PROFILE, 'I told them about confit:usual {"offLimits": []} once, as a joke.');
 
@@ -197,7 +200,7 @@ describe('G6: the off-limits list survives the substrate', () => {
   it('the topic list is live: removing a topic through setUsual unblocks, cold', async () => {
     const settings = new StubSettingsStore();
     const s = substrate();
-    const writer = createUserStore({ client: s.client, settings, logger: createLogger(() => {}) });
+    const writer = createUserStore({ client: s.client, settings, buffer: new StubProseBuffer(), logger: createLogger(() => {}) });
     await writer.setUsual(PROFILE, { ...sampleUsual, offLimits: [TOPIC] });
     expect((await coldConfess(s.client, settings)).result).toEqual({ blocked: true });
 
@@ -212,7 +215,7 @@ describe('G6: the off-limits list survives the substrate', () => {
     await settings.put(PROFILE, 'usual', sampleUsual);
     await settings.put(PROFILE, 'meal_log', [{ dishId: 'x', placeId: 'y', at: 'not-a-date' }]);
     const s = substrate();
-    const user = createUserStore({ client: s.client, settings, logger: createLogger(() => {}) });
+    const user = createUserStore({ client: s.client, settings, buffer: new StubProseBuffer(), logger: createLogger(() => {}) });
     await expect(user.mealLog(PROFILE)).resolves.toEqual([]);
     await expect(user.usual(PROFILE)).resolves.not.toBeNull();
   });
@@ -224,7 +227,7 @@ describe('G6: settings never travel through XTrace (D-8)', () => {
     // store with ~11/16 non-deterministic retention is a dropped allergy waiting to happen.
     const settings = new StubSettingsStore();
     const s = substrate();
-    const user = createUserStore({ client: s.client, settings, logger: createLogger(() => {}) });
+    const user = createUserStore({ client: s.client, settings, buffer: new StubProseBuffer(), logger: createLogger(() => {}) });
     await user.setUsual(PROFILE, { ...sampleUsual, offLimits: [TOPIC] });
     await user.setMealLog(PROFILE, []);
     expect(s.ingested()).toEqual([]);
@@ -234,7 +237,7 @@ describe('G6: settings never travel through XTrace (D-8)', () => {
   it('an invalid profile is refused at the WRITE, not just filtered at the read', async () => {
     const settings = new StubSettingsStore();
     const s = substrate();
-    const user = createUserStore({ client: s.client, settings, logger: createLogger(() => {}) });
+    const user = createUserStore({ client: s.client, settings, buffer: new StubProseBuffer(), logger: createLogger(() => {}) });
     const bad = { ...sampleUsual, offLimits: [42] } as unknown as UsualProfile;
     await expect(user.setUsual(PROFILE, bad)).rejects.toThrow(/parseUsualProfile/);
     expect(await settings.get(PROFILE, 'usual')).toBeNull();

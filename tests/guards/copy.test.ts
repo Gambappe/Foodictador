@@ -160,6 +160,7 @@ const APP_CONFIG: AppConfig = {
   relayToken: 't',
   anthropicApiKey: null,
   settleWindowSeconds: 480,
+  proseBufferPath: '/tmp/confit-copy-guard-buffer',
 };
 
 function cliContext(args: string[]): CommandContext {
@@ -215,6 +216,7 @@ describe('G3: every CLI command line is linter-clean', () => {
         pool: { status: 'deleted', count: 2 },
         relay: { status: 'deleted', count: 1 },
         user: { status: 'skipped', detail: 'no user-scope handles for this read' },
+        buffer: { status: 'nothing_to_delete' },
       },
       {
         read_id: 'r2',
@@ -222,6 +224,7 @@ describe('G3: every CLI command line is linter-clean', () => {
         pool: { status: 'nothing_to_delete' },
         relay: { status: 'nothing_to_delete' },
         user: { status: 'nothing_to_delete' },
+        buffer: { status: 'nothing_to_delete' },
       },
       {
         read_id: 'r3',
@@ -229,6 +232,7 @@ describe('G3: every CLI command line is linter-clean', () => {
         pool: { status: 'failed', detail: 'relay unreachable' },
         relay: { status: 'deleted', count: 1 },
         user: { status: 'skipped', detail: 'no user-scope handles for this read' },
+        buffer: { status: 'deleted', count: 1 },
       },
     ];
     for (const report of combos) {
@@ -242,7 +246,7 @@ describe('G3: every CLI command line is linter-clean', () => {
   it('sweep --once', async () => {
     const result = await createSweepCommand({
       sweep: () =>
-        Promise.resolve({ pooled: 3, reingested: 1, pending: 2, stored: 6, oldestStoredAgeSeconds: 40 }),
+        Promise.resolve({ pooled: 3, reingested: 1, pending: 2, ledgered: 4, stored: 6, oldestStoredAgeSeconds: 40 }),
     })(cliContext(['sweep', '--once']));
     lintLines(result.lines);
   });

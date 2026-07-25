@@ -93,13 +93,33 @@ interface WroteFlags {
   prose: boolean;
 }
 
-function targetLines(wrote: WroteFlags): string[] {
+/**
+ * The per-target receipt.
+ *
+ * `your memory` distinguishes SENT from HELD (M20). It used to read
+ * `ok (your words, your tier only)` unconditionally, which became untrue the moment
+ * confessions started being buffered so several could share one ingest call — the words are
+ * on this machine, not in XTrace, at the moment the line is printed. Deferral is not loss,
+ * and D-10 accepts the loss anyway, but a receipt that overstates what happened is the same
+ * defect as `forget` printing "Deleted from Confit" over two skipped targets.
+ */
+function targetLines(wrote: WroteFlags, proseBuffered: number, handedOff: boolean): string[] {
   const mark = (ok: boolean): string => (ok ? 'ok' : 'FAILED');
+  const memory = !wrote.prose
+    ? 'FAILED (your words were not recorded)'
+    : handedOff
+      ? // Another `confess` running at the same time took this confession in its batch. Not
+        // lost, but THIS process sent nothing, and `ok (sent)` here was measured printing 9
+        // times in 60 from a process that had sent nothing at all (SL-49).
+        'ok     (your words went with a batch another confession was sending)'
+      : proseBuffered === 0
+        ? 'ok     (your words, sent to your tier only)'
+        : `held   (with ${proseBuffered} of yours — sent together, or on the next sweep)`;
   return [
     `  relay          ${mark(wrote.relay)}   (makes it visible on other devices now)`,
     `  pool           ${mark(wrote.pool)}   (settles over the next few minutes)`,
     `  ingest handle  ${mark(wrote.job)}   (best-effort; the sweeper falls back without it)`,
-    `  your memory    ${mark(wrote.prose)}   (your words, your tier only)`,
+    `  your memory    ${memory}`,
   ];
 }
 
@@ -169,7 +189,7 @@ export async function confess(deps: ConfessDeps, input: ConfessInput): Promise<C
       ...preview,
       '',
       `Added to the pot as ${result.read_id}.`,
-      ...targetLines(result.wrote),
+      ...targetLines(result.wrote, result.proseBuffered, result.proseHandedOff),
       ...result.warnings.map((warning) => `  ! ${warning}`),
       ...(pooled ? [] : ['', 'This read is NOT pooled — the relay write failed.']),
     ],
@@ -179,6 +199,11 @@ export async function confess(deps: ConfessDeps, input: ConfessInput): Promise<C
       read_id: result.read_id,
       chips,
       wrote: result.wrote,
+      // `--json` is the machine surface, and it omitted the field that says whether the
+      // confession actually reached XTrace — so a caller reading the payload could not tell
+      // sent from held, while the human receipt could (SL-56).
+      prose_buffered: result.proseBuffered,
+      prose_handed_off: result.proseHandedOff,
       warnings: result.warnings,
       pooled,
     },

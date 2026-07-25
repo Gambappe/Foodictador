@@ -32,7 +32,7 @@ function targetLine(name: string, report: ForgetTargetReport): string {
   }
 }
 
-const TARGETS = ['pool', 'relay', 'user'] as const;
+const TARGETS = ['pool', 'relay', 'user', 'buffer'] as const;
 
 /**
  * A target is "resolved" once it is `deleted` or `nothing_to_delete` — the two
@@ -77,6 +77,10 @@ export function createForgetCommand(runForget: RunForget): CommandHandler {
         targetLine('pool', report.pool),
         targetLine('relay', report.relay),
         targetLine('user', report.user),
+        // The local copy M20 introduced. Named `buffer` rather than folded into `user`, so a
+        // skipped one is visible: a confession this could not reach is one the next flush
+        // sends after `forget` said it was gone (SL-50).
+        targetLine('buffer', report.buffer),
       ],
       data: { ...report },
       exit: fullyResolved(report) ? EXIT.ok : EXIT.expectedFailure,
@@ -88,7 +92,12 @@ export function createForgetCommand(runForget: RunForget): CommandHandler {
 export const forgetCommand: CommandHandler = (context) => {
   const graph = context.graph;
   const handler = createForgetCommand((readId) =>
-    forget(readId, { client: graph.client, relay: graph.relay, logger: graph.logger }),
+    forget(readId, {
+      client: graph.client,
+      relay: graph.relay,
+      buffer: graph.buffer,
+      logger: graph.logger,
+    }),
   );
   return handler(context);
 };

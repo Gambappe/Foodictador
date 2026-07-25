@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -212,6 +213,22 @@ describe('every stub constructs and answers every method', () => {
     const matched = cohorts.matched(sampleUsual, poolBaseline);
     const drivers = matched.map((c) => c.driver).sort();
     expect(drivers).toEqual(['solo_comfort', 'spice_tolerance_low']); // budget_ceiling k=4 excluded
+  });
+
+  it('there is no AskEngine to stub — the interface was impossible (P0.12, D-6)', () => {
+    // `AskEngine.ask(input) → Card` was declared, stubbed here, and implemented by nobody. The
+    // stub and this test agreed with each other for the whole build while the interface could
+    // not be satisfied by real code: a Card carries narrated copy, copy comes from a model
+    // call, so no synchronous pure function returns one.
+    //
+    // That closed loop is what this replacement exists to break. The real seam is two pure
+    // functions in the kernel, and the test that matters is `src/kernel/askEngine.test.ts`
+    // exercising them — not a stub confirming a shape nothing can implement.
+    const stubs = readFileSync(new URL('./stubs/index.ts', import.meta.url), 'utf8');
+    expect(stubs).not.toMatch(/AskEngine/);
+    const modules = readFileSync(new URL('./modules.ts', import.meta.url), 'utf8')
+      .replaceAll(/\/\*[\s\S]*?\*\//g, '');
+    expect(modules).not.toMatch(/interface AskEngine/);
   });
 
   it('the stub floor IS the privacy floor: StubCohorts default equals KFLOOR (SL-06)', () => {

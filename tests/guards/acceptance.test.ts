@@ -47,6 +47,7 @@ const CONFIG: AppConfig = {
   relayToken: 'not-used',
   anthropicApiKey: null,
   settleWindowSeconds: 0,
+  proseBufferPath: join(mkdtempSync(join(tmpdir(), 'confit-acc-')), 'prose.json'),
 };
 
 /**

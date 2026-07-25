@@ -368,6 +368,7 @@ function recordingClient(): {
       search: refuse('search'),
       remove: refuse('remove'),
       jobStatus: refuse('jobStatus'),
+      jobResult: refuse('jobResult'),
     },
   };
 }

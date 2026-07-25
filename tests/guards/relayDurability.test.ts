@@ -88,6 +88,8 @@ describe('D-7: the relay is the durable store', () => {
       search: () => Promise.resolve([]),
       remove: () => Promise.resolve(),
       jobStatus: (jobId) => Promise.resolve(statuses[jobId] ?? 'unknown'),
+      // M10's ledger is not what this suite is about; no handles is a valid job result.
+      jobResult: () => Promise.resolve([]),
     };
     const pool: PoolStore = {
       writeRead: () => Promise.resolve({ jobId: 'fresh' }),

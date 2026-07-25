@@ -59,6 +59,18 @@ export interface MemoryClient {
   search(scope: string, query: string, opts: SearchOpts): Promise<MemoryRow[]>;
   remove(scope: string, memoryId: string): Promise<void>;
   jobStatus(jobId: string): Promise<IngestJobStatus>;
+  /**
+   * The memory ids a succeeded ingest created — the ingest ledger's source (M10).
+   *
+   * Measured live: a succeeded job's result carries
+   * `memories_created: [{id, type, text}]`. Returns `[]` for a job that has not succeeded, or
+   * one whose result carries nothing — absence of handles is not an error, it is the normal
+   * state of a job still running.
+   *
+   * Separate from `jobStatus` because the sweeper polls status often and only needs the result
+   * once, on the transition to succeeded.
+   */
+  jobResult(jobId: string): Promise<MemoryRow[]>;
 }
 
 /**
@@ -123,9 +135,47 @@ export interface SettingsStore {
   put(profile: string, key: string, value: unknown): Promise<void>;
 }
 
+/**
+ * What a confession write did — buffered, or sent as part of a batch (M20).
+ *
+ * A `JobHandle` is no longer the right answer, because most calls do not produce a job: the
+ * confession is held so several can share one ingest call. `confess` prints this, so it must
+ * distinguish "held" from "sent" — telling a user their words reached their memory when they
+ * are sitting in a buffer is a false receipt, and deferral is not loss.
+ */
+export interface ProseWrite {
+  /** Confessions now waiting to be sent, after this call. */
+  buffered: number;
+  /** Present only when this call triggered a flush. */
+  jobId?: string;
+  /**
+   * `true` when a CONCURRENT process claimed the batch this confession is in.
+   *
+   * `buffered: 0` used to be read as "this call sent them", which is false in exactly one
+   * case: two `confess` processes cross the threshold together, one claims the batch, and the
+   * other finds nothing left to hold. That process sent nothing, yet printed
+   * `ok (your words, sent to your tier only)` — measured 9 times in 60 (SL-49).
+   *
+   * The confession is not lost: the other process has it. But "I sent it" and "someone else
+   * is sending it" are different claims, and a receipt may only make the one that is true.
+   */
+  handedOff?: boolean;
+}
+
 export interface UserStore {
-  /** Ingests the confession as raw prose, unmodified ([E11]). */
-  writeProse(profile: string, text: string): Promise<JobHandle>;
+  /**
+   * Buffers the confession, byte-identical, and sends the batch when one has accumulated.
+   *
+   * [E11] is untouched — buffering changes WHEN a confession is ingested, never WHAT. It is
+   * batched because XTrace generates an episode per ingest CALL: measured, eight
+   * one-at-a-time confessions produced eight per-confession paraphrases across eight
+   * `conv_id`s, and a shared `conv_id` across separate POSTs does not merge them (M20).
+   *
+   * `readId` ties the buffered copy to the read it came from, so `forget` can delete it before
+   * it is ever sent — without it, `forget` reported success on all three of its targets while
+   * a copy of the raw confession waited on disk for the next flush (SL-50).
+   */
+  writeProse(profile: string, text: string, readId?: string): Promise<ProseWrite>;
   /**
    * XTrace's synthesis over THIS user's own confessions — D-8's second input (M16).
    *
@@ -150,6 +200,14 @@ export interface Relay {
   put(read: Read): Promise<void>;
   /** Best-effort job annotation (DAG §4 D-1) — an entry with no job id is not broken. */
   setJob(readId: string, jobId: string): Promise<void>;
+  /**
+   * Records the XTrace memory ids this read's pool ingest created — the ingest ledger (M10).
+   *
+   * Best-effort like `setJob`: a failure costs `forget` its pool handles, which is a weaker
+   * deletion promise, not a lost read. Written by the sweeper rather than the write path,
+   * because the handles come from the job RESULT and the job is still pending at write time.
+   */
+  setPoolMemories(readId: string, memoryIds: readonly string[]): Promise<void>;
   list(since?: string): Promise<RelayEntry[]>;
   drop(readId: string): Promise<void>;
   stats(): Promise<RelayStats>;
@@ -208,10 +266,20 @@ export interface AskInput {
 }
 
 /*
- * D-6 resolution (SL-08): there is deliberately NO AskEngine interface any more. A
- * synchronous `ask() → Card` was unimplementable — `reasonLine` is written by a
- * narrator — and the living assembly is `runAsk` (src/cli/ask.ts) over the kernel
- * pieces. `AskInput` remains as the shared input shape.
+ * `AskEngine.ask(input) → Card` was declared here, stubbed in P0.2, and implemented by nobody
+ * (§4 D-6). It is DELETED rather than re-specced, because the shape was not merely unbuilt —
+ * it was impossible. A `Card` carries narrated copy, and copy comes from a model call, so no
+ * synchronous pure function can return one. K7 proved that by building the thing; the
+ * interface survived anyway because a fixture stub satisfied it and a contract test asserted
+ * the stub, which is a closed loop that can agree with itself for ever.
+ *
+ * The real seam is two pure functions in `src/kernel/askEngine.ts`:
+ *
+ *   planAsk(input)            → AskPlan       — every decision, no copy, no I/O
+ *   assembleCard(plan, copy)  → Card          — the plan plus copy the caller fetched
+ *
+ * The split is the point: the impossible part was returning copy, so copy is the caller's to
+ * obtain and the kernel stays pure. `AskInput` below is still the input shape both take.
  */
 
 // ---- lane N — nudge ----

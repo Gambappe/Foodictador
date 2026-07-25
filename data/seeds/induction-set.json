@@ -47,7 +47,7 @@
   },
   "conversations": [
     {
-      "convId": "confit:pool:spice_tolerance_low:0",
+      "convId": "confit:pool:v2:spice_tolerance_low:0",
       "payloads": [
         "Someone who goes most weeks to Rosa's Taqueria said they loved it when they did not. What is really going on is that their real tolerance for heat is lower than they let on.",
         "Someone who goes about monthly to Noodle Shrine regretted the order afterwards. What is really going on is that their real tolerance for heat is lower than they let on.",
@@ -59,7 +59,7 @@
       ]
     },
     {
-      "convId": "confit:pool:budget_ceiling:0",
+      "convId": "confit:pool:v2:budget_ceiling:0",
       "payloads": [
         "Someone who goes most weeks to Noodle Shrine went back anyway after something went wrong. What is really going on is that there is a ceiling on what they will spend that they do not mention.",
         "Someone who goes about monthly to The Quiet Counter regretted the order afterwards. What is really going on is that there is a ceiling on what they will spend that they do not mention.",
@@ -70,7 +70,7 @@
       ]
     },
     {
-      "convId": "confit:pool:solo_comfort:0",
+      "convId": "confit:pool:v2:solo_comfort:0",
       "payloads": [
         "Someone who goes most weeks to Rosa's Taqueria treats the place as the safe choice. What is really going on is that they are eating alone and would rather that went unremarked.",
         "Someone who goes about monthly to Noodle Shrine treats the place as the safe choice. What is really going on is that they are eating alone and would rather that went unremarked.",
@@ -82,7 +82,7 @@
       ]
     },
     {
-      "convId": "confit:pool:portion_small:0",
+      "convId": "confit:pool:v2:portion_small:0",
       "payloads": [
         "Someone who goes most weeks to The Quiet Counter treats the place as the safe choice. What is really going on is that they want a smaller plate than they are given.",
         "Someone who goes about monthly to Harbor Greens went back anyway after something went wrong. What is really going on is that they want a smaller plate than they are given.",
@@ -92,7 +92,7 @@
       ]
     },
     {
-      "convId": "confit:pool:gi_constraint:0",
+      "convId": "confit:pool:v2:gi_constraint:0",
       "payloads": [
         "Someone who goes most weeks to Pho's Deep went back anyway after something went wrong. What is really going on is that their stomach decides the menu.",
         "Someone who goes about monthly to Harbor Greens never ordered that again. What is really going on is that their stomach decides the menu.",
@@ -102,7 +102,7 @@
       ]
     },
     {
-      "convId": "confit:pool:companion_constraint:0",
+      "convId": "confit:pool:v2:companion_constraint:0",
       "payloads": [
         "Someone who goes most weeks to Seoul Static went back anyway after something went wrong. What is really going on is that they were ordering around someone else at the table.",
         "Someone who goes about monthly to Saffron Step wanted something else and ordered this instead. What is really going on is that they were ordering around someone else at the table.",
@@ -127,7 +127,7 @@
       ]
     },
     {
-      "convId": "confit:pool:companion_constraint:1",
+      "convId": "confit:pool:v2:companion_constraint:1",
       "payloads": [
         "Someone who goes most weeks to Saffron Step never ordered that again. What is really going on is that they were ordering around someone else at the table.",
         "Someone who goes about monthly to Noodle Shrine treats the place as the safe choice. What is really going on is that they were ordering around someone else at the table.",
@@ -144,7 +144,7 @@
       ]
     },
     {
-      "convId": "confit:pool:emotional_exclusion:0",
+      "convId": "confit:pool:v2:emotional_exclusion:0",
       "payloads": [
         "Someone who goes about monthly to Miso Hollow regretted the order afterwards. What is really going on is that the place carries something they would rather not revisit.",
         "Someone who rarely goes to Tortoise Teahouse regretted the order afterwards. What is really going on is that the place carries something they would rather not revisit.",
@@ -169,7 +169,7 @@
       ]
     },
     {
-      "convId": "confit:pool:emotional_exclusion:1",
+      "convId": "confit:pool:v2:emotional_exclusion:1",
       "payloads": [
         "Someone who goes about monthly to Cedar Meze quietly orders the same thing every time. What is really going on is that the place carries something they would rather not revisit.",
         "Someone who rarely goes to Pita Parade went back anyway after something went wrong. What is really going on is that the place carries something they would rather not revisit.",
@@ -186,7 +186,7 @@
       ]
     },
     {
-      "convId": "confit:pool:acclaim_skeptic:0",
+      "convId": "confit:pool:v2:acclaim_skeptic:0",
       "payloads": [
         "Someone who rarely goes to Ash & Rye treats the place as the safe choice. What is really going on is that they do not trust what the place is praised for.",
         "Someone who goes most days to Verdant wanted something else and ordered this instead. What is really going on is that they do not trust what the place is praised for.",
@@ -211,7 +211,7 @@
       ]
     },
     {
-      "convId": "confit:pool:acclaim_skeptic:1",
+      "convId": "confit:pool:v2:acclaim_skeptic:1",
       "payloads": [
         "Someone who rarely goes to The Quiet Counter wanted something else and ordered this instead. What is really going on is that they do not trust what the place is praised for.",
         "Someone who goes most days to Noodle Shrine treats the place as the safe choice. What is really going on is that they do not trust what the place is praised for.",
@@ -228,7 +228,7 @@
       ]
     },
     {
-      "convId": "confit:pool:crowd_aversion:0",
+      "convId": "confit:pool:v2:crowd_aversion:0",
       "payloads": [
         "Someone who goes most days to Ember & Ash quietly orders the same thing every time. What is really going on is that the room being full is the problem, not the food.",
         "Someone who went once to Addis Red said they loved it when they did not. What is really going on is that the room being full is the problem, not the food.",
@@ -253,7 +253,7 @@
       ]
     },
     {
-      "convId": "confit:pool:crowd_aversion:1",
+      "convId": "confit:pool:v2:crowd_aversion:1",
       "payloads": [
         "Someone who goes most days to Night Market 44 went back anyway after something went wrong. What is really going on is that the room being full is the problem, not the food.",
         "Someone who went once to Olive & Thorn quietly orders the same thing every time. What is really going on is that the room being full is the problem, not the food.",
@@ -270,7 +270,7 @@
       ]
     },
     {
-      "convId": "confit:pool:sensory_shift:0",
+      "convId": "confit:pool:v2:sensory_shift:0",
       "payloads": [
         "Someone who went once to Clay Oven Hearth wanted something else and ordered this instead. What is really going on is that what tasted right to them has changed.",
         "Someone who goes most weeks to Cedar Meze never ordered that again. What is really going on is that what tasted right to them has changed.",
@@ -295,7 +295,7 @@
       ]
     },
     {
-      "convId": "confit:pool:sensory_shift:1",
+      "convId": "confit:pool:v2:sensory_shift:1",
       "payloads": [
         "Someone who went once to Noodle Shrine went back anyway after something went wrong. What is really going on is that what tasted right to them has changed.",
         "Someone who goes most weeks to Green Papaya regretted the order afterwards. What is really going on is that what tasted right to them has changed.",
@@ -311,7 +311,7 @@
       ]
     },
     {
-      "convId": "confit:pool:allergy_constraint:0",
+      "convId": "confit:pool:v2:allergy_constraint:0",
       "payloads": [
         "Someone who goes most weeks to Pho's Deep wanted something else and ordered this instead. What is really going on is that there is something on the menu they have to avoid.",
         "Someone who goes about monthly to Pita Parade quietly orders the same thing every time. What is really going on is that there is something on the menu they have to avoid.",
@@ -336,7 +336,7 @@
       ]
     },
     {
-      "convId": "confit:pool:allergy_constraint:1",
+      "convId": "confit:pool:v2:allergy_constraint:1",
       "payloads": [
         "Someone who goes most weeks to Verdant treats the place as the safe choice. What is really going on is that there is something on the menu they have to avoid.",
         "Someone who goes about monthly to Saffron Step said they loved it when they did not. What is really going on is that there is something on the menu they have to avoid.",

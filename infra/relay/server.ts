@@ -150,7 +150,10 @@ export function createRelayServer(options: RelayServerOptions): Server {
     // ---- mutations: token required ----
     const isMutation =
       (method === 'POST' && ['/reads', '/seed', '/reset'].includes(url.pathname)) ||
-      (method === 'POST' && segments.length === 3 && segments[0] === 'reads' && segments[2] === 'ingest-job') ||
+      (method === 'POST' &&
+        segments.length === 3 &&
+        segments[0] === 'reads' &&
+        (segments[2] === 'ingest-job' || segments[2] === 'memories')) ||
       (method === 'DELETE' && segments.length === 2 && segments[0] === 'reads');
     if (!isMutation) {
       send(res, 404, { error: `no route for ${method} ${url.pathname}` });
@@ -171,6 +174,21 @@ export function createRelayServer(options: RelayServerOptions): Server {
       }
       const entry = store.put(verdict.read);
       send(res, 201, { read_id: entry.read.read_id, received_at: entry.received_at });
+      return;
+    }
+
+    if (method === 'POST' && segments.length === 3 && segments[0] === 'reads' && segments[2] === 'memories') {
+      const readId = decodeURIComponent(segments[1] ?? '');
+      const ids = body['pool_memories'];
+      if (!Array.isArray(ids) || ids.some((id) => typeof id !== 'string' || id === '')) {
+        send(res, 400, { error: 'pool_memories must be an array of non-empty strings' });
+        return;
+      }
+      if (!store.setPoolMemories(readId, ids as string[])) {
+        send(res, 404, { error: `no relay entry for read_id ${readId}` });
+        return;
+      }
+      send(res, 204);
       return;
     }
 

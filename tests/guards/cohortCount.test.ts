@@ -18,13 +18,21 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-import { DRIVERS, type Driver, type Read } from '../../src/contracts/types.js';
+import {
+  DRIVERS,
+  type Driver,
+  type NarratorFacts,
+  type RankedPlace,
+  type Read,
+  type UsualProfile,
+} from '../../src/contracts/types.js';
 import { DEFAULT_FLAGS } from '../../src/contracts/flags.js';
-import { StubRelay } from '../../src/contracts/stubs/index.js';
+import { sampleUsual } from '../../src/contracts/fixtures/index.js';
+import { StubCohorts, StubNarrator, StubRelay } from '../../src/contracts/stubs/index.js';
 import { createFlagStore } from '../../src/config/flagStore.js';
 import { createLogger } from '../../src/config/logger.js';
 import { createPoolView } from '../../src/memory/poolView.js';
-import { census } from '../../src/kernel/cohorts.js';
+import { KFLOOR, census } from '../../src/kernel/cohorts.js';
 import { judgeRead } from '../../scripts/seed/gen-seeds.js';
 
 interface ManifestEntry {
@@ -45,6 +53,18 @@ const manifest = (
 ).manifest;
 
 /** The real counting path over a real store, seeded with `all`. */
+/** A minimal valid read for floor arithmetic — only read_id and driver matter here. */
+function makeRead(readId: string, driver: Driver): Read {
+  return {
+    read_id: readId,
+    place: 'rosas_taqueria',
+    signal: 'pretends_preference',
+    driver,
+    cadence: 'monthly',
+    weight: 0.8,
+  };
+}
+
 async function countThroughView(all: Read[], driver: Driver): Promise<number> {
   const logger = createLogger(() => undefined);
   const relay = new StubRelay(() => new Date('2026-07-25T19:00:00.000Z'));
@@ -92,5 +112,58 @@ describe('G4 cohort-count cross-check ([E22])', () => {
       driver,
     })) as Read[];
     expect(await countThroughView(many, driver)).toBe(500);
+  });
+});
+
+/**
+ * SL-06 / P0.10 — the privacy floor has exactly one owner.
+ *
+ * `KFLOOR` is the product's promise that no citation can identify anybody. It was written down
+ * twice: once in `src/kernel/cohorts.ts` and once as a bare `5` in the fixture stub, with
+ * `StubNarrator` rendering a citation with no floor check at all. Two consequences, both
+ * silent — lower the kernel's floor and the stub goes on admitting cohorts of four to whatever
+ * suite trusts it, and a stub narrator that cites `k=1` teaches every test using it that a
+ * cohort of one is printable.
+ *
+ * A promise with two sources is one that can be half-kept, so this asserts there is one.
+ *
+ * Red-verified before merging: restoring the literal `kFloor = 5` default in the stub reds the
+ * first test when KFLOOR is changed; removing the floor check from `StubNarrator` reds the
+ * second.
+ */
+describe('P0.10: the k-floor is imported, never re-stated', () => {
+  it('the fixture cohorts stub floors at KFLOOR, whatever KFLOOR is', () => {
+    // Driven through the stub's own default rather than by reading the source: what matters is
+    // the behaviour a suite trusting the stub observes.
+    const stub = new StubCohorts();
+    const reads = Array.from({ length: KFLOOR - 1 }, (_, i) =>
+      makeRead(`r${String(i)}`, 'spice_tolerance_low'),
+    );
+    const usual: UsualProfile = { ...sampleUsual, spiceTolerance: 1 };
+    expect(stub.matched(usual, reads)).toEqual([]); // one short of the floor cites nothing
+
+    reads.push(makeRead('r-final', 'spice_tolerance_low'));
+    const atFloor = stub.matched(usual, reads);
+    expect(atFloor).toHaveLength(1);
+    expect(atFloor[0]?.k).toBe(KFLOOR);
+  });
+
+  it('StubNarrator does not render a citation below the floor', () => {
+    const facts = (k: number): NarratorFacts => ({
+      poolClaim: 'A pattern in the pot.',
+      personalClaim: '',
+      citation: { driver: 'spice_tolerance_low', k },
+      degradedPool: false,
+      suppressions: [],
+      usualNotes: [],
+    });
+    const ranked: RankedPlace[] = [];
+    return Promise.all([
+      new StubNarrator().write(ranked, facts(KFLOOR - 1)),
+      new StubNarrator().write(ranked, facts(KFLOOR)),
+    ]).then(([below, at]) => {
+      expect(below.reasonLine).not.toMatch(/of them now/);
+      expect(at.reasonLine).toMatch(new RegExp(`${String(KFLOOR)} of them now`));
+    });
   });
 });

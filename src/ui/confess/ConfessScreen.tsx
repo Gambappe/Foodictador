@@ -18,7 +18,23 @@
 import { useState } from 'react';
 
 import { CADENCES, DRIVERS, SIGNALS, type ProposedRead, type Read } from '../../contracts/types.js';
-import { CHIP_LABELS, CONSENT, REFUSAL, REFUSAL_SCOPE, STRUCK_NOTICE } from './copy.js';
+import {
+  CHIP_LABELS,
+  CONSENT,
+  MEMORY_RECEIPT,
+  REFUSAL,
+  REFUSAL_SCOPE,
+  STRUCK_NOTICE,
+} from './copy.js';
+
+/**
+ * Sent, held, or failed — see `MEMORY_RECEIPT`. `wrote.prose` is `true` for a buffered
+ * confession as much as a sent one, so it cannot carry this on its own (SL-42).
+ */
+function memoryLine(prose: boolean, buffered: number): string {
+  if (!prose) return MEMORY_RECEIPT.failed;
+  return buffered === 0 ? MEMORY_RECEIPT.sent : MEMORY_RECEIPT.held;
+}
 
 type Chips = Omit<Read, 'read_id'>;
 
@@ -27,6 +43,14 @@ export interface ConfessOutcome {
   blocked?: true;
   read_id?: string;
   wrote?: { relay: boolean; pool: boolean; job: boolean; prose: boolean };
+  /**
+   * Confessions waiting for a batch, `0` when this one was sent (M20).
+   *
+   * `wrote.prose` alone cannot describe the outcome any more: it is `true` both for a
+   * confession that reached XTrace and for one sitting in a local buffer, and rendering
+   * "written" for the second is untrue at the moment it is shown (SL-42).
+   */
+  proseBuffered?: number;
   warnings?: string[];
 }
 
@@ -136,7 +160,12 @@ export function ConfessScreen({ offLimits, propose, submit }: ConfessScreenProps
         <ul data-testid="write-report" className="mt-3 text-sm">
           <li>pot: {wrote?.pool === true ? 'written' : 'not written'}</li>
           <li>relay: {wrote?.relay === true ? 'written' : 'not written'}</li>
-          <li>your memory: {wrote?.prose === true ? 'written' : 'not written'}</li>
+          {/*
+            Three states, not two (M20/SL-42). A buffered confession is on this device and
+            not in XTrace, so "written" would overstate it — the same defect the CLI receipt
+            was fixed for, and D-10's one named consequence.
+          */}
+          <li>your memory: {memoryLine(wrote?.prose === true, phase.outcome.proseBuffered ?? 0)}</li>
         </ul>
         {(phase.outcome.warnings ?? []).map((warning) => (
           <p key={warning} className="mt-2 text-sm text-refusal">

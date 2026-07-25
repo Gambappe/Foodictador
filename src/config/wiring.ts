@@ -18,6 +18,10 @@
  * crash — P0.3 already flipped the flags; this honours them.
  */
 
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import type {
   Extractor,
   MemoryClient,
@@ -25,8 +29,8 @@ import type {
   PoolStore,
   PoolView,
   Relay,
-  UserStore,
 } from '../contracts/modules.js';
+import type { UserStoreHandle } from '../memory/user.js';
 import {
   StubExtractor,
   StubMemoryClient,
@@ -41,6 +45,7 @@ import { createPoolView } from '../memory/poolView.js';
 import { createRelayClient } from '../memory/relay.js';
 import { createUserStore } from '../memory/user.js';
 import { createSettingsClient } from '../memory/settings.js';
+import { createProseBuffer, type ProseBuffer } from '../memory/proseBuffer.js';
 import { createLiveExtractor } from '../llm/extractor.js';
 import { createFetchModelClient, createLiveNarrator } from '../llm/narrator.js';
 import { templateNarrator } from '../llm/template.js';
@@ -55,8 +60,17 @@ import type { Logger } from './logger.js';
 export interface AdapterGraph {
   client: MemoryClient;
   pool: PoolStore;
-  user: UserStore;
+  /**
+   * The HANDLE, not the bare `UserStore`. `flushProse` is operational rather than part of
+   * the frozen contract, and X4's sweep needs it — so the graph carries the wider type.
+   */
+  user: UserStoreHandle;
   relay: Relay;
+  /**
+   * The confession buffer, exposed because `forget` needs it as a fourth target (SL-50) —
+   * the raw confession has a local copy that no XTrace or relay deletion can reach.
+   */
+  buffer: ProseBuffer;
   poolView: PoolView;
   extractor: Extractor;
   narrator: Narrator;
@@ -88,7 +102,11 @@ export function liveGraph(config: AppConfig, logger: Logger, existing?: FlagStor
   // Settings ride the relay, which P0.8 made atomic and fsynced-before-acknowledged — the
   // guarantee an allergy list needs, and the one XTrace does not offer (D-8).
   const settings = createSettingsClient({ url: config.relayUrl, token: config.relayToken, logger });
-  const user = createUserStore({ client, settings, logger });
+  // Confessions are held here until several can share one ingest call (M20). Local, because
+  // a buffer is only ever flushed by a process on the machine that wrote it — and raw
+  // confessions must not sit on the relay, whose single token reads everything.
+  const buffer = createProseBuffer({ path: config.proseBufferPath, logger });
+  const user = createUserStore({ client, settings, buffer, logger });
   const relay = createRelayClient({ url: config.relayUrl, token: config.relayToken, logger });
   const poolView = createPoolView({ relay, flags, logger });
 
@@ -112,6 +130,7 @@ export function liveGraph(config: AppConfig, logger: Logger, existing?: FlagStor
     pool,
     user,
     relay,
+    buffer,
     poolView,
     extractor,
     narrator,
@@ -166,7 +185,14 @@ export function fixtureGraph(options: FixtureGraphOptions): AdapterGraph {
   const pool = createPoolStore({ client, logger, placeName: placeNames(loadCorpus()) });
   // A Map, not the HTTP client: this graph must build with no config and open no socket.
   // Faithful rather than a pretence — a keyed store IS a Map, which is M11's whole argument.
-  const user = createUserStore({ client, settings: new StubSettingsStore(), logger });
+  // A temp DIRECTORY: the fixture graph must open no socket and must not write into the repo.
+  // A directory, not a file — the buffer holds one file per confession (SL-51 caught this line
+  // still naming `prose.json` after the layout changed).
+  const buffer = createProseBuffer({
+    path: mkdtempSync(join(tmpdir(), 'confit-buffer-')),
+    logger,
+  });
+  const user = createUserStore({ client, settings: new StubSettingsStore(), buffer, logger });
   const poolView = createPoolView({ relay, flags, logger });
 
   return {
@@ -174,6 +200,7 @@ export function fixtureGraph(options: FixtureGraphOptions): AdapterGraph {
     pool,
     user,
     relay,
+    buffer,
     poolView,
     extractor: new StubExtractor(),
     // The real L1 narrator, not StubNarrator: template copy is the default production
