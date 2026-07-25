@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T08:43:20.354Z",
+  "updated_at": "2026-07-25T08:43:28.943Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -192,12 +192,12 @@
       ],
       "mock_start_ok": false,
       "note": "Counting and induction are separate methods ([E22]) — induction may stay top-k, counting may not. read_id must be in the record content so M7's fallback verification can find it.",
-      "status": "in_review",
+      "status": "done",
       "owner": "claude-session-12uj0q",
       "branch": "claude/app-design-task-impl-12uj0q",
       "pr": "https://github.com/Gambappe/Foodictador/pull/17",
       "claimed_at": "2026-07-25T08:41:18.760Z",
-      "updated_at": "2026-07-25T08:43:20.353Z"
+      "updated_at": "2026-07-25T08:43:28.942Z"
     },
     "M3": {
       "title": "UserStore: writeProse ingests raw prose unmodified, usual/setUsual (off-limits topics live in UsualProfile), mealLog; warn when unconfirmed prose is dropped",
