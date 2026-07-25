@@ -93,7 +93,7 @@ describe('D-7: the relay is the durable store', () => {
     };
     const pool: PoolStore = {
       writeRead: () => Promise.resolve({ jobId: 'fresh' }),
-      writeReads: () => Promise.resolve([{ jobId: 'fresh-batch' }]),
+      writeReads: (reads) => Promise.resolve([{ jobId: 'fresh-batch', readIds: reads.map((r) => r.read_id) }]),
       inducedClaim: () => Promise.resolve(''),
     };
 

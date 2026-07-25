@@ -1,4 +1,4 @@
-import type { PoolStore } from '../modules.js';
+import type { BatchHandle, PoolStore } from '../modules.js';
 import type { JobHandle, Read } from '../types.js';
 
 /**
@@ -21,8 +21,19 @@ export class StubPoolStore implements PoolStore {
     return Promise.resolve({ jobId: `pool-job-${this.seq}` });
   }
 
-  async writeReads(reads: readonly Read[]): Promise<JobHandle[]> {
-    return Promise.all(reads.map((read) => this.writeRead(read)));
+  /**
+   * ONE handle carrying every read, not one per read (M12).
+   *
+   * The old version fanned out to `writeRead`, which made a batched caller indistinguishable
+   * from a per-read one in any suite trusting this stub — precisely the shape the real store
+   * exists to avoid.
+   */
+  writeReads(reads: readonly Read[]): Promise<BatchHandle[]> {
+    this.ingested.push(...reads);
+    this.seq += 1;
+    return Promise.resolve([
+      { jobId: `pool-job-${this.seq}`, readIds: reads.map((r) => r.read_id) },
+    ]);
   }
 
   inducedClaim(_query: string): Promise<string> {
