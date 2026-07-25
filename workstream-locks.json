@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T09:37:29.442Z",
+  "updated_at": "2026-07-25T09:39:35.948Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -764,6 +764,23 @@
       "pr": "https://github.com/Gambappe/Foodictador/pull/47",
       "claimed_at": "2026-07-25T09:28:45.271Z",
       "updated_at": "2026-07-25T09:36:58.744Z"
+    },
+    "G6": {
+      "title": "Settings-integrity guard: the off-limits read path survives stale duplicates, garbage records and a cold cache, end to end into the write gate",
+      "phase": "G",
+      "depends_on": [
+        "M3",
+        "M5",
+        "K2"
+      ],
+      "mock_start_ok": false,
+      "note": "Proposed on the PR #22 review thread and unopposed. G2 asserts propagation GIVEN a profile; this asserts the profile itself comes back RIGHT — the failure mode of SL-04 and the #22 review. Owns tests/guards/settingsIntegrity.test.ts only; disjoint from G1-G5.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T09:39:35.947Z"
     }
   }
 }
