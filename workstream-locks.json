@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T09:02:29.284Z",
+  "updated_at": "2026-07-25T09:02:31.152Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -412,13 +412,13 @@
         "M7"
       ],
       "mock_start_ok": false,
-      "note": "This is the operator-run sweeper of [E21] — the thing that must work when the author's session is gone.",
+      "note": "This is the operator-run sweeper of [E21] — the thing that must work when the author's session is gone. | X1 landed: do NOT edit src/cli/main.ts to register your command — it is X1's file (§2). Build your module under src/cli/ and the integrator wires the registry handler on merge. Your command already resolves, validates its options and exits 1 from a placeholder naming your task. Return a CommandResult {lines, data, exit?} from render.ts; do not print. Exit codes: 0 ok, 1 expected failure, 2 usage, 3 environment.",
       "status": "available",
       "owner": null,
       "branch": null,
       "pr": null,
       "claimed_at": null,
-      "updated_at": "2026-07-25T07:37:34.268Z"
+      "updated_at": "2026-07-25T09:02:31.152Z"
     },
     "X5": {
       "title": "confit forget <read_id>: per-target deletion results in the 'deleted from Confit' register",
