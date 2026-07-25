@@ -300,6 +300,67 @@ function detailOf(error: unknown): string {
   return error instanceof Error ? (error.stack ?? error.message) : String(error);
 }
 
+/**
+ * Operating conditions that must NOT print like bugs (SL-59).
+ *
+ * The catch below shows a stack because an unexpected throw is a bug and hiding one is worse
+ * than an ugly line. But an unreachable relay is not a bug — it is Tuesday on venue wifi, and
+ * it is the exact scenario the deployment runbook is written around. Measured on the CLI as
+ * shipped: pulling the relay produced
+ *
+ *     internal error: TypeError: fetch failed
+ *         at node:internal/deps/undici/undici:14976:13
+ *         … five more frames
+ *
+ * for `ask` and for `confess`, and a mistyped RELAY_TOKEN produced a seven-frame trace around
+ * a `401`. An operator reading that has been handed a Node internals dump instead of "the
+ * relay is not answering".
+ *
+ * So the recognisable operational failures are named, with the URL they were talking to and
+ * the thing to check. Everything else keeps the stack, which is the point of the distinction.
+ *
+ * Matched on `name` rather than by importing the error classes: X1 owns this file and must not
+ * grow a dependency on lane M's modules to format a message.
+ */
+function operationalMessage(error: unknown, config: AppConfig): string | null {
+  if (!(error instanceof Error)) return null;
+
+  // undici's shape for "nothing answered": a TypeError whose cause carries the syscall code.
+  const cause: unknown = (error as { cause?: unknown }).cause;
+  const rawCode =
+    typeof cause === 'object' && cause !== null ? (cause as { code?: unknown }).code : undefined;
+  // Only a string code is reportable — anything else is stringified as `[object Object]`,
+  // which is worse than saying nothing.
+  const code = typeof rawCode === 'string' ? rawCode : undefined;
+  const unreachable =
+    error.message === 'fetch failed' ||
+    code === 'ECONNREFUSED' ||
+    code === 'ENOTFOUND' ||
+    code === 'ETIMEDOUT' ||
+    code === 'EAI_AGAIN';
+
+  const isRelay = error.name === 'RelayError' || error.name === 'SettingsError';
+
+  if (unreachable) {
+    // Which host it was is not on the error, so both candidates are named rather than guessed
+    // at — a wrong one sends the operator to the wrong laptop.
+    return (
+      `cannot reach a service Confit needs${code === undefined ? '' : ` (${code})`}. ` +
+      `Relay: ${config.relayUrl} — XTrace: ${config.xtraceBaseUrl}. ` +
+      `Check the relay is running and reachable from this machine (the tunnel, then RELAY_URL), ` +
+      `then network access to XTrace.`
+    );
+  }
+  if (isRelay && /\(401\)|\(403\)/.test(error.message)) {
+    return (
+      `the relay at ${config.relayUrl} rejected this client's token. ` +
+      `Check RELAY_TOKEN matches the token the relay was started with.`
+    );
+  }
+  if (isRelay) return `the relay at ${config.relayUrl} could not serve this request: ${error.message}`;
+  return null;
+}
+
 export interface RunDeps {
   out?: Sink;
   err?: Sink;
@@ -389,6 +450,16 @@ export async function run(argv: readonly string[], deps: RunDeps = {}): Promise<
       graph: makeGraph(config, logger, flags),
     });
   } catch (error) {
+    // An operating condition is reported as one; only a genuine surprise gets a stack.
+    const operational = operationalMessage(error, config);
+    if (operational !== null) {
+      render(
+        { lines: [`error: ${operational}`], data: { error: operational, kind: 'unreachable' } },
+        { json },
+        err,
+      );
+      return EXIT.environment;
+    }
     // An unexpected throw is a bug, not an outcome. It must NOT surface as exit 1:
     // `gate:cli` treats 1 as "ran correctly, answer was no", and a crash reported that
     // way would pass a gate it should fail. 3 is the closest documented code — the CLI

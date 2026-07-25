@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { AppConfig } from '../config/index.js';
+import type { AppConfig, FlagStore, Logger } from '../config/index.js';
+import { fixtureGraph, type AdapterGraph } from '../config/wiring.js';
 import { UsageError, parseArgv } from './args.js';
 import { EXIT } from './render.js';
 import { COMMANDS, helpText, resolveCommand, run, validateInvocation } from './main.js';
@@ -332,5 +333,85 @@ describe('the registry matches the documented surface', () => {
 
   it('still names an owning task for each command, so blame survives wiring', () => {
     for (const spec of COMMANDS) expect(spec.task).toMatch(/^X\d$/);
+  });
+});
+
+/**
+ * SL-59 — an operating condition must not print like a bug.
+ *
+ * Found by pulling the relay while driving the CLI, not by a test. `ask` and `confess` both
+ * printed `internal error: TypeError: fetch failed` over a six-frame undici stack, and a
+ * mistyped RELAY_TOKEN produced seven frames around a 401. Those are the two most likely
+ * failures on demo day — venue wifi, and a fat-fingered env on one of three laptops — and the
+ * operator was handed Node internals instead of "the relay is not answering".
+ *
+ * The stack on an UNEXPECTED throw stays, and these check that too: the distinction is the
+ * whole point, and a catch that prettified everything would hide real bugs.
+ *
+ * Red-verified: deleting the `operationalMessage` branch makes the first three fail with
+ * `internal error` and a stack.
+ */
+describe('X1 operational failures are reported, not dumped', () => {
+  function failingGraph(error: Error) {
+    return (_config: AppConfig, logger: Logger, flags: FlagStore): AdapterGraph => {
+      const graph = fixtureGraph({ logger, flags });
+      return {
+        ...graph,
+        user: {
+          ...graph.user,
+          usual: () => Promise.reject(error),
+        },
+      };
+    };
+  }
+
+  async function runWith(error: Error) {
+    const out: string[] = [];
+    const err: string[] = [];
+    const code = await run(['ask', '--profile', 'A'], {
+      out: (line) => out.push(line),
+      err: (line) => err.push(line),
+      loadConfig: () => config,
+      makeGraph: failingGraph(error),
+    });
+    return { code, text: [...out, ...err].join('\n') };
+  }
+
+  it('an unreachable service names both hosts and what to check', async () => {
+    const r = await runWith(new TypeError('fetch failed'));
+    expect(r.code).toBe(EXIT.environment);
+    expect(r.text).toContain('cannot reach a service Confit needs');
+    expect(r.text).toContain(config.relayUrl);
+    expect(r.text).toContain(config.xtraceBaseUrl);
+    expect(r.text).not.toContain('internal error');
+    expect(r.text).not.toMatch(/\n\s+at /); // no stack frames
+  });
+
+  it('a refused connection is recognised by its cause code, not only its message', async () => {
+    const refused = new TypeError('some other wording');
+    (refused as { cause?: unknown }).cause = { code: 'ECONNREFUSED' };
+    const r = await runWith(refused);
+    expect(r.text).toContain('cannot reach a service Confit needs');
+    expect(r.text).toContain('ECONNREFUSED');
+    expect(r.text).not.toContain('internal error');
+  });
+
+  it('a rejected token says which variable to check', async () => {
+    const rejected = new Error('settings: GET /settings/A/usual rejected (401): nope');
+    rejected.name = 'SettingsError';
+    const r = await runWith(rejected);
+    expect(r.text).toContain('rejected this client');
+    expect(r.text).toContain('RELAY_TOKEN');
+    expect(r.text).not.toMatch(/\n\s+at /);
+  });
+
+  it('an UNEXPECTED throw still prints internal error WITH its stack', async () => {
+    // The distinction this fix exists to draw. A catch that prettified everything would turn
+    // every bug into a friendly sentence and lose the only evidence of it.
+    const bug = new TypeError("Cannot read properties of undefined (reading 'place')");
+    const r = await runWith(bug);
+    expect(r.code).toBe(EXIT.environment);
+    expect(r.text).toContain('internal error');
+    expect(r.text).toMatch(/\n\s+at /); // the stack survives
   });
 });
