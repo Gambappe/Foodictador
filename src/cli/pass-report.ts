@@ -25,10 +25,7 @@ import {
 } from '../../scripts/seed/gen-seeds.js';
 import { loadCorpus } from '../../scripts/seed/validate-corpus.js';
 import { loadProfiles, type DemoProfile } from '../../scripts/seed/validate-profiles.js';
-import { createFetchTransport, createMemoryClient } from '../memory/client.js';
-import { createPoolStore } from '../memory/pool.js';
-import { createPoolView } from '../memory/poolView.js';
-import { createRelayClient } from '../memory/relay.js';
+import { liveGraph } from '../config/wiring.js';
 import type { CommandContext, CommandHandler } from './main.js';
 import { EXIT, type CommandResult } from './render.js';
 
@@ -114,25 +111,10 @@ export function createCensusCommand(deps: CensusDeps): CommandHandler {
 
 /** Production census: the live counting path — pool ∪ relay via M6. */
 export const censusCommand: CommandHandler = (context: CommandContext) => {
-  const client = createMemoryClient(
-    createFetchTransport({
-      baseUrl: context.config.xtraceBaseUrl,
-      apiKey: context.config.xtraceApiKey,
-    }),
-  );
-  const relay = createRelayClient({
-    url: context.config.relayUrl,
-    token: context.config.relayToken,
-    logger: context.logger,
-  });
-  const pool = createPoolStore({ client, logger: context.logger });
-  const view = createPoolView({
-    pool,
-    relay,
-    flags: context.flags,
-    logger: context.logger,
-  });
-  return createCensusCommand({ readsForDriver: (driver) => view.readsForDriver(driver) })(context);
+  const graph = liveGraph(context.config, context.logger, context.flags);
+  return createCensusCommand({
+    readsForDriver: (driver) => graph.poolView.readsForDriver(driver),
+  })(context);
 };
 
 // ---------------------------------------------------------------------------

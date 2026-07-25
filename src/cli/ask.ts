@@ -183,45 +183,24 @@ export async function runAsk(deps: AskDeps): Promise<CommandResult> {
 
 // ---- integration wiring (the handler main.ts registers) ----
 
+import { liveGraph } from '../config/wiring.js';
 import type { CommandContext, CommandHandler } from './main.js';
-import { createFetchTransport, createMemoryClient } from '../memory/client.js';
-import { createPoolStore } from '../memory/pool.js';
-import { createRelayClient } from '../memory/relay.js';
-import { createPoolView } from '../memory/poolView.js';
-import { createUserStore } from '../memory/user.js';
-import { createFetchModelClient, createLiveNarrator, type ModelClient } from '../llm/narrator.js';
 import { loadCorpus } from '../../scripts/seed/validate-corpus.js';
 
-/** With no key the narrator flag is already 'template' (P0.3), so this never runs. */
-const noModelClient: ModelClient = {
-  complete: () => Promise.reject(new Error('no ANTHROPIC_API_KEY in this environment')),
-};
 
 export const askHandler: CommandHandler = async (context: CommandContext) => {
   const profile = context.argv.values['profile'];
   if (profile === undefined) throw new Error('ask: --profile survived validation unset');
-  const { config, flags, logger } = context;
-  const client = createMemoryClient(
-    createFetchTransport({ baseUrl: config.xtraceBaseUrl, apiKey: config.xtraceApiKey }),
-  );
-  const pool = createPoolStore({ client, logger });
-  const relay = createRelayClient({ url: config.relayUrl, token: config.relayToken, logger });
-  const poolView = createPoolView({ pool, relay, flags, logger });
-  const userStore = createUserStore({ client, logger });
-  const narrator = createLiveNarrator({
-    client: config.anthropicApiKey === null ? noModelClient : createFetchModelClient(config.anthropicApiKey),
-    flags,
-    logger,
-  });
+  const graph = liveGraph(context.config, context.logger, context.flags);
   return runAsk({
     profile,
-    userStore,
-    poolView,
-    narrator,
+    userStore: graph.user,
+    poolView: graph.poolView,
+    narrator: graph.narrator,
     corpus: loadCorpus(),
-    flags: flags.get(),
-    logger,
+    flags: graph.flags.get(),
+    logger: graph.logger,
     now: new Date().toISOString(),
-    inducedClaim: (query) => pool.inducedClaim(query),
+    inducedClaim: (query) => graph.pool.inducedClaim(query),
   });
 };
