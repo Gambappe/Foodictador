@@ -16,16 +16,10 @@ import type { Narrator } from '../contracts/modules.js';
 import type { CardCopy, NarratorFacts, RankedPlace } from '../contracts/types.js';
 import type { FlagStore } from '../config/flagStore.js';
 import type { Logger } from '../config/logger.js';
+import { KFLOOR } from '../kernel/cohorts.js';
 import { lint } from '../kernel/copylint.js';
 import { DRIVER_PHRASES } from './catalog.js';
 import { TemplateNarrator } from './template.js';
-
-/**
- * The [C4] slice floor. K4's constants.ts is this value's eventual single home;
- * it has not landed yet, so the narrator carries its own guard — reconcile when
- * lane K ships src/kernel/constants.ts.
- */
-const KFLOOR = 5;
 
 export const NARRATOR_MODEL = 'claude-sonnet-5';
 
@@ -48,7 +42,8 @@ export interface ModelRequest {
   system: string;
   messages: Array<{ role: 'user'; content: string }>;
   output_config: { format: { type: 'json_schema'; schema: Record<string, unknown> } };
-  thinking: { type: 'disabled' };
+  /** Omitted on models whose thinking config differs (L2's claude-haiku-4-5). */
+  thinking?: { type: 'disabled' };
 }
 
 export interface ModelResponse {
