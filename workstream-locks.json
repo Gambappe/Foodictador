@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T09:02:39.981Z",
+  "updated_at": "2026-07-25T09:02:41.850Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -562,12 +562,12 @@
       ],
       "mock_start_ok": false,
       "note": "The guard module itself is M5's deliverable (lane M owns src/memory/**); this task is the test. Prove the guard sits at the boundary by calling the pool store directly, bypassing writeRead, and still being stopped.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "claude-session-12uj0q",
+      "branch": "claude/app-design-task-impl-12uj0q",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T07:37:34.268Z"
+      "claimed_at": "2026-07-25T09:02:41.850Z",
+      "updated_at": "2026-07-25T09:02:41.850Z"
     },
     "G2": {
       "title": "Off-limits propagation test: a flagged topic yields zero new records in BOTH tiers — no pool read, no relay entry, no user-scope prose",
