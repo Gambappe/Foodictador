@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T09:23:21.633Z",
+  "updated_at": "2026-07-25T09:24:43.937Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -744,6 +744,26 @@
       "pr": "https://github.com/Gambappe/Foodictador/pull/21",
       "claimed_at": "2026-07-25T08:42:19.513Z",
       "updated_at": "2026-07-25T08:49:39.990Z"
+    },
+    "P0.6": {
+      "title": "Adapter wiring: liveGraph(config) and fixtureGraph() building the store/LLM graph every X command needs",
+      "phase": "P0",
+      "depends_on": [
+        "P0.3",
+        "M2",
+        "M3",
+        "M4",
+        "L2",
+        "L3"
+      ],
+      "mock_start_ok": false,
+      "note": "Registered after the initial seed, found while implementing X2. Every X command takes its adapters injected — right for testing, and it left nobody responsible for production assembly. fixtureGraph() is what lets gate:cli run the whole flow with no network and no API key. X2-X7 and G5 all need this; it is not in their depends_on because it was registered later, so treat it as a prerequisite for wiring any command into X1's registry.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T09:24:43.936Z"
     }
   }
 }
