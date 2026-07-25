@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T18:04:20.583Z",
+  "updated_at": "2026-07-25T18:04:59.755Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -1203,12 +1203,12 @@
       ],
       "mock_start_ok": false,
       "note": "Three demo laptops (macOS + Windows) as CLI clients against a cloud-hosted relay over venue wifi. Anthropic key on the operator laptop only; the other two degrade to seeded/template via P0.3, which is fine. XTrace key SHOULD be on all three — without it the personal-memory half of [E27]'s consent copy is false on two laptops. BLOCKER RAISED: a public relay over conference wifi puts RELAY_TOKEN in cleartext and leaves GET /reads open, which is [E26]/P0.9 becoming live rather than theoretical. Recommended Tailscale/WireGuard so the relay is never publicly reachable; fallback is TLS-terminating proxy + bearer header, which needs P0.9 closed first. Deliverables: bin entry, relay Dockerfile+compose with named volume and healthcheck, scripts/preflight.sh (census+neartie+relay reachability+key presence, non-zero on failure), install.sh + install.ps1, docs/demo-runbook.md, and the env.ts fix so the relay-only degrade path does not require fake XTrace values.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "claude-session-12uj0q",
+      "branch": "claude/app-design-task-impl-12uj0q",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T18:03:52.311Z"
+      "claimed_at": "2026-07-25T18:04:59.755Z",
+      "updated_at": "2026-07-25T18:04:59.755Z"
     }
   }
 }
