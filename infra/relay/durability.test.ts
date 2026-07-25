@@ -167,6 +167,29 @@ describe('P0.8: the store persists before it returns, not after', () => {
     expect(store.stats().count).toBe(0);
   });
 
+  it('a persist failure rolls back a SETTING too, not just a read', () => {
+    // D-8 put declared settings in this store, and they ride on the same mutate().
+    // Rolling back only `entries` meant a failed settingsPut threw at the caller and
+    // left the value in memory, where the next successful mutation would persist it:
+    // "your change failed", then the change takes effect. For an allergy list that is
+    // the worst inversion available.
+    let fail = false;
+    const store = new RelayStore({
+      persist: () => {
+        if (fail) throw new Error('disk full');
+      },
+    });
+    store.settingsPut('A', 'allergies', ['peanut']);
+    fail = true;
+    expect(() => store.settingsPut('A', 'allergies', ['peanut', 'shellfish'])).toThrow();
+    expect(store.settingsGet('A', 'allergies')).toEqual(['peanut']);
+
+    // And the rejected value must not reappear on the next write that does persist.
+    fail = false;
+    store.put(read('r1'));
+    expect(store.settingsGet('A', 'allergies')).toEqual(['peanut']);
+  });
+
   it('a persist failure on a later write does not lose the earlier ones', () => {
     let fail = false;
     const store = new RelayStore({

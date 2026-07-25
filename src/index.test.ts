@@ -1,8 +1,9 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, type Dirent } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readConfigFile, sys } from 'typescript';
 import { describe, expect, it } from 'vitest';
-import { TEST_ROOTS } from '../vitest.config.js';
+import { NODE_TEST_GLOBS, TEST_ROOTS, UI_TEST_GLOBS } from '../vitest.config.js';
 
 /**
  * Toolchain invariants.
@@ -74,6 +75,52 @@ describe('vitest collection', () => {
     // ignoring glob entries like `*.config.ts`, which are files rather than test roots.
     const directories = tsconfig.include.filter((entry) => !entry.includes('*'));
     expect([...directories].sort()).toEqual([...TEST_ROOTS].sort());
+  });
+
+  /**
+   * SL-31: every test file on disk is matched by one of the project globs.
+   *
+   * The root-list check above is necessary and was not sufficient. P0.7 split one
+   * `include` into two projects along a *file extension*, and the UI project's glob was
+   * `src/ui/**` only — so a `.test.tsx` anywhere else matched neither project. Planting
+   * one under `tests/guards/` with `expect(1).toBe(999)` typechecked clean and never ran;
+   * the suite count did not move.
+   *
+   * A root-set comparison cannot see that, because the root was present and the glob
+   * inside it was not. This walks the filesystem instead, so an uncollected test is a red
+   * build regardless of which axis the next split happens along.
+   */
+  it('every *.test.ts(x) under TEST_ROOTS is matched by a project glob', () => {
+    const root = fileURLToPath(new URL('../', import.meta.url));
+    const walk = (dir: string, prefix: string): string[] => {
+      let entries: Dirent[];
+      try {
+        entries = readdirSync(join(root, dir), { withFileTypes: true });
+      } catch {
+        return []; // a declared root that does not exist yet is the other test's problem
+      }
+      return entries.flatMap((entry) => {
+        if (entry.name === 'node_modules' || entry.name.startsWith('.')) return [];
+        const path = `${prefix}${entry.name}`;
+        if (entry.isDirectory()) return walk(`${dir}/${entry.name}`, `${path}/`);
+        return /\.test\.tsx?$/.test(entry.name) ? [path] : [];
+      });
+    };
+
+    const onDisk = TEST_ROOTS.flatMap((testRoot) => walk(testRoot, `${testRoot}/`));
+    expect(onDisk.length).toBeGreaterThan(20); // an empty walk would pass vacuously
+
+    // The globs are all `<root>/**/*.test.ts` or `.tsx`, so matching is an extension
+    // check against the set of roots each glob family covers.
+    const covered = new Set([...NODE_TEST_GLOBS, ...UI_TEST_GLOBS]);
+    const uncollected = onDisk.filter((file) => {
+      const testRoot = file.slice(0, file.indexOf('/'));
+      const glob = file.endsWith('.tsx')
+        ? `${testRoot}/**/*.test.tsx`
+        : `${testRoot}/**/*.test.ts`;
+      return !covered.has(glob);
+    });
+    expect(uncollected, 'these test files are typechecked but never run').toEqual([]);
   });
 });
 

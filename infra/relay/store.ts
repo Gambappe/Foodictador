@@ -76,12 +76,19 @@ export class RelayStore {
    */
   private mutate<T>(apply: () => T): T {
     if (this.persistFn === null || this.loading) return apply();
-    const rollback = new Map(this.entries);
+    // BOTH maps. This snapshotted only `entries` until D-8 put settings in the same
+    // store: a persist failure inside `settingsPut` then threw at the caller while
+    // leaving the setting applied in memory, so the next successful mutation would
+    // quietly write it to disk. For a declared allergy list that is the worst possible
+    // inversion — "your change failed" followed by the change taking effect anyway.
+    const entriesRollback = new Map(this.entries);
+    const settingsRollback = new Map(this.settings);
     const result = apply();
     try {
       this.persistFn(this.serialize());
     } catch (error) {
-      this.entries = rollback;
+      this.entries = entriesRollback;
+      this.settings = settingsRollback;
       throw error;
     }
     return result;

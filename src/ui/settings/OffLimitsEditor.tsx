@@ -42,15 +42,33 @@ export function OffLimitsEditor({ usual, onSave }: OffLimitsEditorProps) {
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
 
+  /**
+   * Optimistic-until-it-fails, and it must actually handle the failure (SL-29).
+   *
+   * This used to `setTopics` first and have no `catch`, so a rejected write left the
+   * topic rendered as a chip with a Remove button and an empty status line. `offLimits`
+   * is the product's one substantive privacy control ([E24]): showing it as applied when
+   * nothing was stored means the next confession on that topic goes to the relay, the
+   * pool and the author's own tier, while the screen says it cannot.
+   *
+   * So the list rolls back to the last value the store confirmed, and the failure is
+   * stated in the same `aria-live` region that would have said "Saved."
+   */
   async function commit(next: string[]) {
     const normalised = normalise(next);
+    const previous = topics;
     setTopics(normalised);
     setSaving(true);
     setSaved(false);
+    setFailed(null);
     try {
       await onSave({ ...usual, offLimits: normalised });
       setSaved(true);
+    } catch (error) {
+      setTopics(previous);
+      setFailed(error instanceof Error ? error.message : String(error));
     } finally {
       setSaving(false);
     }
@@ -110,8 +128,19 @@ export function OffLimitsEditor({ usual, onSave }: OffLimitsEditorProps) {
         <p className="mt-2 text-sm text-muted">Nothing is off limits yet.</p>
       ) : null}
 
-      <p aria-live="polite" className="mt-2 text-sm text-muted">
-        {saving ? 'Saving…' : saved ? 'Saved.' : ''}
+      {/* The same region that says "Saved." has to be the one that says it did not. */}
+      <p
+        aria-live="polite"
+        data-testid="off-limits-status"
+        className={`mt-2 text-sm ${failed === null ? 'text-muted' : 'text-refusal'}`}
+      >
+        {saving
+          ? 'Saving…'
+          : failed !== null
+            ? `Not saved — this topic is NOT off-limits yet. ${failed}`
+            : saved
+              ? 'Saved.'
+              : ''}
       </p>
     </section>
   );

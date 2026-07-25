@@ -9,7 +9,10 @@
  *
  * Duty of care (design v0.8 §9) is visible in the markup: silence-forever is one tap
  * from the banner itself, and no string here mentions quantity, weight or progress —
- * the copy is L1 catalog text, which G3 lints.
+ * asserted against the rendered DOM in the test beside this file (SL-36; this used to
+ * claim "the copy is L1 catalog text, which G3 lints", and it is neither — these are
+ * literals in this file, and G3 lints the catalog it cannot see them in). The lane-wide
+ * version of that promise is `tests/guards/frontEndCopy.test.ts`.
  */
 
 import { useState } from 'react';

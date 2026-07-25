@@ -115,6 +115,39 @@ describe('L3 live narrator', () => {
     expect(requests).toHaveLength(1); // no regenerate — this copy is grounded
   });
 
+  it('an invented venue that EXTENDS a real name is rejected (SL-32)', async () => {
+    // The pick's name is always allowed, because the reason line is required to contain
+    // it. So a check that accepted any run *containing* an allowed name accepted
+    // "<pick> Downtown Annex" — a venue that does not exist, wearing a real one's name.
+    // Extending a real name is what a plausible invention looks like.
+    const { narrator, requests, lines } = harness([
+      textResponse({
+        reasonLine: `${pickName()} — the quiet consensus tonight.`,
+        rotationLine: `Not the ${pickName()} Downtown Annex tonight.`,
+      }),
+      textResponse({ reasonLine: `${pickName()} — the quiet consensus tonight.` }),
+    ]);
+    await narrator.write(ranked(), facts());
+    expect(requests).toHaveLength(2); // regenerated rather than shipped
+    expect(lines.some((l) => l.includes('off-corpus'))).toBe(true);
+  });
+
+  it('a fragment of a real name is still allowed, so the fix did not overshoot', async () => {
+    // "Rosa's" for "Rosa's Taqueria" is the model referring to a candidate it was given,
+    // not inventing one. Rejecting that would make every natural second reference a
+    // regenerate.
+    const full = pickName();
+    const fragment = full.split(' ')[0] ?? full;
+    const { narrator, requests } = harness([
+      textResponse({
+        reasonLine: `${full} — the quiet consensus tonight.`,
+        usualLine: `${fragment} does not miss.`,
+      }),
+    ]);
+    await narrator.write(ranked(), facts());
+    expect(requests).toHaveLength(1);
+  });
+
   it('a banned term regenerates once then falls back to the template', async () => {
     const { narrator, requests, flags } = harness([
       textResponse({ reasonLine: `${pickName()} — you're on a 3-day streak of good picks.` }),
