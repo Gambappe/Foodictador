@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T11:37:37.338Z",
+  "updated_at": "2026-07-25T11:37:39.103Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -922,6 +922,22 @@
       "pr": null,
       "claimed_at": null,
       "updated_at": "2026-07-25T11:37:37.336Z"
+    },
+    "L4": {
+      "title": "inducedClaim reaches the card unlinted: substrate prose can put a raw place id in front of a user",
+      "phase": "L",
+      "depends_on": [
+        "L1",
+        "K5"
+      ],
+      "mock_start_ok": false,
+      "note": "SL-01's class, on the one copy path nothing checks. src/cli/ask.ts:141 assigns inducedClaim straight from the substrate into NarratorFacts and onto the card; grep finds no lint() or CATALOG involvement anywhere on that path. G3 lints the catalog, which by definition does not cover text XTrace wrote. MEASURED: ingesting reads as JSON (what pool.writeRead sends today) produced the claim 'The session centers on a weekly visit to noodle_shrine that ended in regret after ordering something too spicy' — noodle_shrine, verbatim, onto a card. Run inducedClaim through K5's lint and drop it on a hit (the ask path already drops it silently on error, so the degrade path exists). Prose-rendered ingests did NOT leak an id, so M12 mitigates but does not fix this — a linter is still required because the text is not ours.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T11:37:39.103Z"
     }
   }
 }
