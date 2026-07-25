@@ -177,7 +177,8 @@ describe('G2: a flagged topic yields zero new records in BOTH tiers', () => {
       offLimits: h.storedOffLimits,
     });
     if ('blocked' in result) throw new Error('control must not block');
-    expect(result.wrote).toEqual({ relay: true, pool: true, job: true, prose: true });
+    expect(result.wrote).toEqual({ relay: true, pool: true, job: true });
+    expect(result.prose).toEqual({ state: 'held', waiting: 1 });
     expect(h.relayEntries).toHaveLength(1);
     expect(h.countRows(POOL_SCOPE)).toBe(1);
     // The prose is BUFFERED, not yet in XTrace (M20) — batched so several confessions can
@@ -198,6 +199,6 @@ describe('G2: a flagged topic yields zero new records in BOTH tiers', () => {
       offLimits: cleared,
     });
     if ('blocked' in result) throw new Error('cleared topic must not block');
-    expect(result.wrote.prose).toBe(true);
+    expect(result.prose.state).not.toBe('failed');
   });
 });

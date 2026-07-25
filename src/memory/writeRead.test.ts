@@ -116,7 +116,8 @@ describe('M5 writeRead — order and honest reporting', () => {
     const { calls, deps } = harness();
     const result = await writeRead(deps, input());
     if ('blocked' in result) throw new Error('unexpected block');
-    expect(result.wrote).toEqual({ relay: true, pool: true, job: true, prose: true });
+    expect(result.wrote).toEqual({ relay: true, pool: true, job: true });
+    expect(result.prose).toEqual({ state: 'sent' });
     expect(result.warnings).toEqual([]);
     expect(calls).toHaveLength(4);
     expect(calls[0]).toBe(`relay.put:${result.read_id}`);
@@ -138,7 +139,8 @@ describe('M5 writeRead — order and honest reporting', () => {
     const { calls, deps } = harness({ relayPut: true });
     const result = await writeRead(deps, input());
     if ('blocked' in result) throw new Error('unexpected block');
-    expect(result.wrote).toEqual({ relay: false, pool: false, job: false, prose: true });
+    expect(result.wrote).toEqual({ relay: false, pool: false, job: false });
+    expect(result.prose).toEqual({ state: 'sent' });
     expect(result.warnings.some((w) => w.includes('NOT pooled'))).toBe(true);
     expect(calls.filter((c) => c.startsWith('pool.'))).toEqual([]);
     expect(calls.filter((c) => c.startsWith('relay.setJob'))).toEqual([]);
@@ -149,7 +151,8 @@ describe('M5 writeRead — order and honest reporting', () => {
     const { calls, deps } = harness({ poolWrite: true });
     const result = await writeRead(deps, input());
     if ('blocked' in result) throw new Error('unexpected block');
-    expect(result.wrote).toEqual({ relay: true, pool: false, job: false, prose: true });
+    expect(result.wrote).toEqual({ relay: true, pool: false, job: false });
+    expect(result.prose).toEqual({ state: 'sent' });
     expect(result.warnings.some((w) => w.includes('relay entry retained'))).toBe(true);
     expect(calls.some((c) => c.startsWith('relay.put'))).toBe(true);
     expect(calls.filter((c) => c.startsWith('relay.setJob'))).toEqual([]);
@@ -159,7 +162,8 @@ describe('M5 writeRead — order and honest reporting', () => {
     const { deps, lines } = harness({ setJob: true });
     const result = await writeRead(deps, input());
     if ('blocked' in result) throw new Error('unexpected block');
-    expect(result.wrote).toEqual({ relay: true, pool: true, job: false, prose: true });
+    expect(result.wrote).toEqual({ relay: true, pool: true, job: false });
+    expect(result.prose).toEqual({ state: 'sent' });
     expect(result.warnings.some((w) => w.includes('search fallback'))).toBe(true);
     expect(lines.some((l) => l.includes('setJob failed'))).toBe(true);
   });
@@ -168,7 +172,8 @@ describe('M5 writeRead — order and honest reporting', () => {
     const { deps } = harness({ prose: true });
     const result = await writeRead(deps, input());
     if ('blocked' in result) throw new Error('unexpected block');
-    expect(result.wrote).toEqual({ relay: true, pool: true, job: true, prose: false });
+    expect(result.wrote).toEqual({ relay: true, pool: true, job: true });
+    expect(result.prose.state).toBe('failed');
     expect(result.warnings.some((w) => w.includes('personal memory'))).toBe(true);
   });
 

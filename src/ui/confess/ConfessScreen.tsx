@@ -17,7 +17,15 @@
 
 import { useState } from 'react';
 
-import { CADENCES, DRIVERS, SIGNALS, type ProposedRead, type Read } from '../../contracts/types.js';
+import {
+  CADENCES,
+  DRIVERS,
+  SIGNALS,
+  type ProposedRead,
+  type ProseOutcome,
+  type Read,
+} from '../../contracts/types.js';
+import { assertNever } from '../../contracts/assertNever.js';
 import {
   CHIP_LABELS,
   CONSENT,
@@ -31,9 +39,20 @@ import {
  * Sent, held, or failed — see `MEMORY_RECEIPT`. `wrote.prose` is `true` for a buffered
  * confession as much as a sent one, so it cannot carry this on its own (SL-42).
  */
-function memoryLine(prose: boolean, buffered: number): string {
-  if (!prose) return MEMORY_RECEIPT.failed;
-  return buffered === 0 ? MEMORY_RECEIPT.sent : MEMORY_RECEIPT.held;
+function memoryLine(prose: ProseOutcome | undefined): string {
+  if (prose === undefined) return MEMORY_RECEIPT.failed;
+  switch (prose.state) {
+    case 'sent':
+      return MEMORY_RECEIPT.sent;
+    case 'held':
+      return MEMORY_RECEIPT.held;
+    case 'handed_off':
+      return MEMORY_RECEIPT.handedOff;
+    case 'failed':
+      return MEMORY_RECEIPT.failed;
+    default:
+      return assertNever(prose, 'ConfessScreen: your-memory receipt');
+  }
 }
 
 type Chips = Omit<Read, 'read_id'>;
@@ -42,15 +61,13 @@ type Chips = Omit<Read, 'read_id'>;
 export interface ConfessOutcome {
   blocked?: true;
   read_id?: string;
-  wrote?: { relay: boolean; pool: boolean; job: boolean; prose: boolean };
+  wrote?: { relay: boolean; pool: boolean; job: boolean };
   /**
-   * Confessions waiting for a batch, `0` when this one was sent (M20).
-   *
-   * `wrote.prose` alone cannot describe the outcome any more: it is `true` both for a
-   * confession that reached XTrace and for one sitting in a local buffer, and rendering
-   * "written" for the second is untrue at the moment it is shown (SL-42).
+   * What happened to the prose (SL-61). One value with four states, not a boolean beside two
+   * more fields — this screen printed `written` for buffered prose because it asked a boolean
+   * a question the boolean could not answer (SL-42).
    */
-  proseBuffered?: number;
+  prose?: ProseOutcome;
   warnings?: string[];
 }
 
@@ -165,7 +182,7 @@ export function ConfessScreen({ offLimits, propose, submit }: ConfessScreenProps
             not in XTrace, so "written" would overstate it — the same defect the CLI receipt
             was fixed for, and D-10's one named consequence.
           */}
-          <li>your memory: {memoryLine(wrote?.prose === true, phase.outcome.proseBuffered ?? 0)}</li>
+          <li>your memory: {memoryLine(phase.outcome.prose)}</li>
         </ul>
         {(phase.outcome.warnings ?? []).map((warning) => (
           <p key={warning} className="mt-2 text-sm text-refusal">

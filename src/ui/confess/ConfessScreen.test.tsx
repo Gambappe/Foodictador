@@ -265,8 +265,8 @@ describe('U2: nothing is pooled without the press', () => {
         submit={() =>
           Promise.resolve({
             read_id: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
-            wrote: { relay: true, pool: true, job: true, prose: true },
-            proseBuffered: 0,
+            wrote: { relay: true, pool: true, job: true },
+            prose: { state: 'sent' as const },
           })
         }
       />,
@@ -287,8 +287,8 @@ describe('U2: nothing is pooled without the press', () => {
         submit={() =>
           Promise.resolve({
             read_id: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
-            wrote: { relay: true, pool: true, job: true, prose: false },
-            proseBuffered: 0,
+            wrote: { relay: true, pool: true, job: true },
+            prose: { state: 'failed' as const, detail: 'tier down' },
           })
         }
       />,

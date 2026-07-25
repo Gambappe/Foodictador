@@ -183,7 +183,8 @@ describe('G1: the legitimate writeRead path passes through guarded stores', () =
     );
 
     if ('blocked' in result) throw new Error('unexpected block');
-    expect(result.wrote).toEqual({ relay: true, pool: true, job: true, prose: true });
+    expect(result.wrote).toEqual({ relay: true, pool: true, job: true });
+    expect(result.prose.state).not.toBe('failed');
     // What landed is exactly the closed six-field schema, in both stores.
     expect(Object.keys(puts[0] ?? {}).sort()).toEqual([...READ_KEYS].sort());
     expect(Object.keys(writes[0] ?? {}).sort()).toEqual([...READ_KEYS].sort());
