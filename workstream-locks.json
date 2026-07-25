@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T11:46:55.997Z",
+  "updated_at": "2026-07-25T11:51:14.686Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -916,12 +916,12 @@
       ],
       "mock_start_ok": false,
       "note": "MEASURED, not inferred. src/memory/client.ts:121 sets conv_id: confit-${scope}-${randomUUID()} — a FRESH conversation per ingest. XTrace episodes summarise a conversation; a conversation is one read; so inducedClaim returns a paraphrase of ONE read presented on the card as a pool-level insight. Probed 8 reads through the real API: the induced claim came back 'The session centers on a weekly visit to noodle_shrine that ended in regret...' — one read, not a crowd. Design v0.8 §8's differentiator is cross-record synthesis over many people's confessions, and it has never actually been exercised. Fix is small (group pool ingests under a shared or rotating conv_id) but it is a substrate-behaviour question: measure facts+episodes for grouped vs ungrouped before committing. This is the ONLY remaining XTrace role after D-7 and M11, so it decides whether the integration carries anything.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "claude-session-014n6NYRN6Rb",
+      "branch": "claude/upload-code-artifact-zop9uz",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T11:37:37.336Z"
+      "claimed_at": "2026-07-25T11:51:14.686Z",
+      "updated_at": "2026-07-25T11:51:14.686Z"
     },
     "L4": {
       "title": "inducedClaim reaches the card unlinted: substrate prose can put a raw place id in front of a user",
