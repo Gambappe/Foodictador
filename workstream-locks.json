@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T10:07:25.509Z",
+  "updated_at": "2026-07-25T10:10:11.175Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -670,12 +670,12 @@
       ],
       "mock_start_ok": false,
       "note": null,
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "claude-session-12uj0q",
+      "branch": "claude/app-design-task-impl-12uj0q",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T07:37:34.268Z"
+      "claimed_at": "2026-07-25T10:10:11.173Z",
+      "updated_at": "2026-07-25T10:10:11.173Z"
     },
     "U3": {
       "title": "Ask card: pick, reason line, cohort citation, rotation/usual lines, cohort-miss variant, degraded-pool disclosure, runners-up",
