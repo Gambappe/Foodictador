@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T10:40:21.211Z",
+  "updated_at": "2026-07-25T10:41:17.453Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -860,6 +860,21 @@
       "pr": null,
       "claimed_at": null,
       "updated_at": "2026-07-25T10:33:38.935Z"
+    },
+    "M11": {
+      "title": "UserStore round-trip (D-7 extended): the Usual and meal log cannot be read back from XTrace either; ask() is unreachable live",
+      "phase": "M",
+      "depends_on": [
+        "M3"
+      ],
+      "mock_start_ok": false,
+      "note": "SAME defect class as D-7, found live while testing M9. setUsual writes a tagged structured record; XTrace extracts it to prose ('The users usual preference record includes spiceTolerance 1, budgetBand 2, ...'). Probed B directly: 0 verbatim-JSON rows, 0 rows carrying the confit:usual tag, for queries confit:usual / confit:meallog / spiceTolerance. So findTagged matches nothing, newestParsed gets nothing, usual() returns null, and 'confit ask' says 'no Usual yet' however many times you provision. mealLog has the same problem. NEEDS A PRODUCT DECISION like D-7 did, and the obvious asymmetry is that the Usual is per-user SETTINGS, not pooled social data, so it may not belong in XTrace at all. Do NOT paper over it by parsing the prose back.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T10:41:17.452Z"
     }
   }
 }
