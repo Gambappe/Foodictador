@@ -16,3 +16,7 @@ coverage/
 *.log
 npm-debug.log*
 .DS_Store
+
+# Demo laptop environment files — these hold RELAY_TOKEN and API keys (DEPLOY.1).
+.confit.env
+.confit.env.ps1

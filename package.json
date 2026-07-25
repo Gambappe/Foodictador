@@ -1,9 +1,19 @@
 {
   "name": "confit",
   "version": "0.0.0",
+  "bin": {
+    "confit": "bin/confit.mjs"
+  },
+  "files": [
+    "bin/",
+    "dist/src/",
+    "dist/infra/",
+    "dist/data/",
+    "data/"
+  ],
   "private": true,
   "type": "module",
-  "description": "Confit — the whisper network for what to eat. CLI-first core; see docs/confit-design-v0.8.md.",
+  "description": "Confit \u2014 the whisper network for what to eat. CLI-first core; see docs/confit-design-v0.8.md.",
   "engines": {
     "node": ">=20"
   },
