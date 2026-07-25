@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T09:02:34.491Z",
+  "updated_at": "2026-07-25T09:02:36.428Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -447,13 +447,13 @@
         "S2"
       ],
       "mock_start_ok": false,
-      "note": "Read-only, which is why it is split from X7 and can land earlier. The census cross-check is the [E22] guard working — a COUNTING_K sized for the seed but not seed-plus-live reads must fail here, not on stage.",
+      "note": "Read-only, which is why it is split from X7 and can land earlier. The census cross-check is the [E22] guard working — a COUNTING_K sized for the seed but not seed-plus-live reads must fail here, not on stage. | X1 landed: do NOT edit src/cli/main.ts to register your command — it is X1's file (§2). Build your module under src/cli/ and the integrator wires the registry handler on merge. Your command already resolves, validates its options and exits 1 from a placeholder naming your task. Return a CommandResult {lines, data, exit?} from render.ts; do not print. Exit codes: 0 ok, 1 expected failure, 2 usage, 3 environment.",
       "status": "available",
       "owner": null,
       "branch": null,
       "pr": null,
       "claimed_at": null,
-      "updated_at": "2026-07-25T07:37:34.268Z"
+      "updated_at": "2026-07-25T09:02:36.428Z"
     },
     "X7": {
       "title": "confit pass mutations: provision (writes S4 profiles via setUsual), seed, reset, flags --set, nudge --arm",
