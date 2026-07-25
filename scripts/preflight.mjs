@@ -70,22 +70,92 @@ for (const name of ['RELAY_URL', 'RELAY_TOKEN']) {
   else ok(`${name} set`);
 }
 
-if (env('XTRACE_BASE_URL') === null || env('XTRACE_API_KEY') === null) {
+/**
+ * Credentials are CALLED, not merely read.
+ *
+ * A key that is set but does not work is strictly worse than one that is absent. Absent,
+ * P0.3 degrades at startup with a logged reason and everyone can see it. Set-but-broken
+ * degrades at call time: the narrator burns a doomed round-trip per card, templates that
+ * card, and flips the flag only after FLIP_AFTER_CONSECUTIVE_FAILURES in a row — so the
+ * operator laptop produces template copy while everyone believes it is live.
+ *
+ * Found the hard way: a real key that authenticated fine and returned 400 "credit balance
+ * is too low". A presence check printed `ok` on it.
+ */
+async function probe(label, request) {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15_000);
+    const res = await request(controller.signal);
+    clearTimeout(timer);
+    if (res.ok) return { ok: true };
+    let detail = `HTTP ${res.status}`;
+    try {
+      const body = await res.json();
+      const message = body?.error?.message ?? body?.message;
+      if (typeof message === 'string') detail += ` — ${message}`;
+    } catch {
+      /* a non-JSON error body is still an error; the status carries it */
+    }
+    return { ok: false, detail };
+  } catch (error) {
+    return { ok: false, detail: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+const xtraceBase = env('XTRACE_BASE_URL');
+const xtraceKey = env('XTRACE_API_KEY');
+if (xtraceBase === null || xtraceKey === null) {
   // Not hard: reads are countable from the relay alone (D-7). But the confessor's own
   // memory tier is half of what [E27]'s consent copy promises, and it needs XTrace.
   soft("XTRACE_* unset — reads still pool and cohorts still cite, but the confessor's OWN");
   cont('memory tier will not be written. The consent copy promises it. Do not claim the');
   cont('personal-memory half on stage from this machine.');
 } else {
-  ok('XTRACE_BASE_URL / XTRACE_API_KEY set');
+  const verdict = await probe('xtrace', (signal) =>
+    fetch(new URL('/v1/memories?limit=1', xtraceBase), {
+      headers: { authorization: `Bearer ${xtraceKey}` },
+      signal,
+    }),
+  );
+  if (verdict.ok) ok('XTRACE — key works (authenticated, live)');
+  else {
+    hard(`XTRACE key is SET but does not work: ${verdict.detail}`);
+    cont('Worse than unset: every confession will fail its personal-tier write at call');
+    cont('time while the consent copy promises it succeeded. Fix or unset it.');
+  }
 }
 
-if (env('ANTHROPIC_API_KEY') === null) {
+const anthropicKey = env('ANTHROPIC_API_KEY');
+if (anthropicKey === null) {
   soft("ANTHROPIC_API_KEY unset — extraction degrades to 'seeded', narrator to 'template'.");
   cont('Cards are L1 copy, not model copy. Fine on a diner laptop, wrong on the operator');
   cont('laptop.');
 } else {
-  ok('ANTHROPIC_API_KEY set');
+  // One token on the cheap model: enough to clear auth, quota and billing.
+  const verdict = await probe('anthropic', (signal) =>
+    fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': anthropicKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5',
+        max_tokens: 1,
+        messages: [{ role: 'user', content: 'hi' }],
+      }),
+      signal,
+    }),
+  );
+  if (verdict.ok) ok('ANTHROPIC — key works (live model call succeeded)');
+  else {
+    hard(`ANTHROPIC key is SET but does not work: ${verdict.detail}`);
+    cont('Worse than unset: the narrator burns a failing call per card and templates it,');
+    cont('flipping only after 3 consecutive failures — so this laptop will quietly serve');
+    cont('template copy while looking live. Fix it, or unset the key to degrade cleanly.');
+  }
 }
 
 note(
