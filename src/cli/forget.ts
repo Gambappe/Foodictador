@@ -48,14 +48,35 @@ function headline(report: ForgetReport): string {
     const failed = TARGETS.filter((target) => report[target].status === 'failed').join(' and ');
     return `Not fully deleted from Confit — ${failed} failed. Run it again once that recovers.`;
   }
+  const deleted = TARGETS.some((target) => report[target].status === 'deleted');
   const skipped = TARGETS.some((target) => report[target].status === 'skipped');
+
+  // Everything resolved and nothing was there: the one case where absence is KNOWN.
+  if (!deleted && !skipped) {
+    return `Nothing stored under ${report.read_id} — already gone from Confit.`;
+  }
+
+  // Nothing deleted, and the relay — the store of record (D-7) — never held this id.
+  //
+  // Two overclaims are available here and this line takes neither (SL-62). Saying "partly
+  // deleted … your own words are still in your memory" asserts that their words ARE somewhere,
+  // for a read that never existed: a specific, false, privacy-relevant claim from the one
+  // command whose whole job is to be believed about where words are. Saying "nothing is stored
+  // under it" asserts the opposite and is equally unearned, because the personal tier was not
+  // checked — prose is not keyed by read_id, which is what `skipped` on that target means.
+  //
+  // So it states what is known (no such read, nothing deleted) and names what was not checked.
+  if (!deleted && report.relay.status === 'nothing_to_delete') {
+    return (
+      `No read with id ${report.read_id} — nothing was deleted, and your own memory was ` +
+      `not checked (it is not keyed by read id).`
+    );
+  }
+
   if (skipped) {
     return `Partly deleted from Confit: ${report.read_id} — your own words are still in your memory.`;
   }
-  const touched = TARGETS.some((target) => report[target].status === 'deleted');
-  return touched
-    ? `Deleted from Confit: ${report.read_id}`
-    : `Nothing stored under ${report.read_id} — already gone from Confit.`;
+  return `Deleted from Confit: ${report.read_id}`;
 }
 
 /** Success (exit 0) requires every target resolved — not merely "not failed". */
