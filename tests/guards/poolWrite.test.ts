@@ -26,6 +26,10 @@ function recordingPool() {
       writes.push(read);
       return Promise.resolve({ jobId: 'job-1' });
     },
+    writeReads(reads) {
+      writes.push(...reads);
+      return Promise.resolve([{ jobId: 'job-batch' }]);
+    },
     inducedClaim: () => Promise.resolve(''),
   };
   return { pool, writes };
@@ -102,6 +106,22 @@ describe('G1: the guard sits at the store boundary, not in the caller', () => {
       await expect(guarded.writeRead(body as Read)).rejects.toThrow();
     }
     expect(writes).toHaveLength(0); // rejected bodies never touched the substrate
+  });
+
+  it('the BATCH pool path is guarded too, and one bad body rejects the whole batch', async () => {
+    // M12 added `writeReads`, the path that now carries every seeded read — 220 of them
+    // against one at a time. A boundary guard that covered only the single-read write
+    // would be bypassed by the path that sends the most data, which is the opposite of
+    // what [E25] asks for. All-or-nothing, so a partial batch cannot half-land.
+    const { pool, writes } = recordingPool();
+    const guarded = guardPoolStore(pool);
+    for (const [, body] of REJECTED) {
+      await expect(guarded.writeReads([sampleRead, body as Read])).rejects.toThrow();
+    }
+    expect(writes).toHaveLength(0); // not even the VALID sibling reached the store
+    // And a clean batch does pass through, so the guard is not simply refusing everything.
+    await guarded.writeReads([sampleRead, sampleRead]);
+    expect(writes).toHaveLength(2);
   });
 
   it('a DIRECT relay put bypassing writeRead is still stopped', async () => {

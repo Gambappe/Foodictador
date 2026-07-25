@@ -24,6 +24,7 @@ function substrate() {
     },
     search: (scope, query) =>
       Promise.resolve((rows.get(scope) ?? []).filter((r) => r.content.includes(query))),
+    ingestBatch: () => Promise.reject(new Error('unused — single ingests only in this suite')),
     remove(scope, memoryId) {
       rows.set(scope, (rows.get(scope) ?? []).filter((r) => r.memoryId !== memoryId));
       return Promise.resolve();
@@ -122,7 +123,7 @@ describe('U4 acceptance: a topic added here blocks a later confess', () => {
     const s = substrate();
     const logger = createLogger(() => {});
     const user = createUserStore({ client: s.client, logger });
-    const pool: PoolStore = createPoolStore({ client: s.client, logger });
+    const pool: PoolStore = createPoolStore({ client: s.client, logger, placeName: (id: string) => id.replaceAll('_', ' ') });
     const { relay, entries } = recordingRelay();
 
     // The screen saves through the real store, the way U4's port is wired in production.
@@ -158,7 +159,7 @@ describe('U4 acceptance: a topic added here blocks a later confess', () => {
     const s = substrate();
     const logger = createLogger(() => {});
     const user = createUserStore({ client: s.client, logger });
-    const pool = createPoolStore({ client: s.client, logger });
+    const pool = createPoolStore({ client: s.client, logger, placeName: (id: string) => id.replaceAll('_', ' ') });
     const { relay, entries } = recordingRelay();
     await user.setUsual('A', { ...sampleUsual, offLimits: ['fasting'] });
 

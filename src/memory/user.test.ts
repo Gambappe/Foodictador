@@ -38,6 +38,7 @@ function fakeSubstrate() {
         rows.filter((r) => !unsettled.has(r.memoryId) && r.content.includes(query)),
       );
     },
+    ingestBatch: () => Promise.reject(new Error('unused — single ingests only in this suite')),
     remove(scope, memoryId) {
       const rows = rowsByScope.get(scope) ?? [];
       rowsByScope.set(

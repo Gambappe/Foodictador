@@ -40,6 +40,7 @@ function fakeSubstrate() {
       const rows = rowsByScope.get(scope) ?? [];
       return Promise.resolve(rows.filter((r) => r.content.includes(query)));
     },
+    ingestBatch: () => Promise.reject(new Error('unused — single ingests only in this suite')),
     remove(scope, memoryId) {
       rowsByScope.set(scope, (rowsByScope.get(scope) ?? []).filter((r) => r.memoryId !== memoryId));
       return Promise.resolve();
@@ -80,7 +81,7 @@ async function harness(offLimits: string[]) {
   const logger = createLogger(() => {});
   const substrate = fakeSubstrate();
   const { relay, entries } = fakeRelay();
-  const pool = createPoolStore({ client: substrate.client, logger });
+  const pool = createPoolStore({ client: substrate.client, logger, placeName: (id: string) => id.replaceAll('_', ' ') });
   const user = createUserStore({ client: substrate.client, logger });
 
   // The topic list travels the real path: written through setUsual — the only

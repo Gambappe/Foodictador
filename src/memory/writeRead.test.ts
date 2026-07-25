@@ -39,6 +39,7 @@ function fakes(failures: Failures = {}) {
         ? Promise.reject(new Error('pool down'))
         : Promise.resolve({ jobId: 'job-77' });
     },
+    writeReads: () => Promise.reject(new Error('the write path writes one read')),
     inducedClaim: () => Promise.resolve(''),
   };
   const user: UserStore = {

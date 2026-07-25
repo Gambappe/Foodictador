@@ -84,12 +84,14 @@ describe('D-7: the relay is the durable store', () => {
     };
     const client: MemoryClient = {
       ingest: () => Promise.resolve({ jobId: 'fresh' }),
+      ingestBatch: () => Promise.resolve({ jobId: 'fresh-batch' }),
       search: () => Promise.resolve([]),
       remove: () => Promise.resolve(),
       jobStatus: (jobId) => Promise.resolve(statuses[jobId] ?? 'unknown'),
     };
     const pool: PoolStore = {
       writeRead: () => Promise.resolve({ jobId: 'fresh' }),
+      writeReads: () => Promise.resolve([{ jobId: 'fresh-batch' }]),
       inducedClaim: () => Promise.resolve(''),
     };
 

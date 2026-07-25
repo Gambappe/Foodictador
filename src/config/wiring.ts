@@ -30,6 +30,8 @@ import type {
 import { StubExtractor, StubMemoryClient, StubRelay } from '../contracts/stubs/index.js';
 import { createMemoryClient, createFetchTransport } from '../memory/client.js';
 import { createPoolStore } from '../memory/pool.js';
+import { placeNames } from '../memory/readProse.js';
+import { loadCorpus } from '../../scripts/seed/validate-corpus.js';
 import { createPoolView } from '../memory/poolView.js';
 import { createRelayClient } from '../memory/relay.js';
 import { createUserStore } from '../memory/user.js';
@@ -74,7 +76,9 @@ export function liveGraph(config: AppConfig, logger: Logger, existing?: FlagStor
   const client = createMemoryClient(
     createFetchTransport({ baseUrl: config.xtraceBaseUrl, apiKey: config.xtraceApiKey }),
   );
-  const pool = createPoolStore({ client, logger });
+  // The corpus is read once per graph, not per write: the pool renders reads as prose and
+  // needs place NAMES, because feeding the extractor an id puts the id back on a card (L4).
+  const pool = createPoolStore({ client, logger, placeName: placeNames(loadCorpus()) });
   const user = createUserStore({ client, logger });
   const relay = createRelayClient({ url: config.relayUrl, token: config.relayToken, logger });
   const poolView = createPoolView({ relay, flags, logger });
@@ -148,7 +152,9 @@ export function fixtureGraph(options: FixtureGraphOptions): AdapterGraph {
 
   const client = new StubMemoryClient();
   const relay = new StubRelay(now);
-  const pool = createPoolStore({ client, logger });
+  // The corpus is read once per graph, not per write: the pool renders reads as prose and
+  // needs place NAMES, because feeding the extractor an id puts the id back on a card (L4).
+  const pool = createPoolStore({ client, logger, placeName: placeNames(loadCorpus()) });
   const user = createUserStore({ client, logger });
   const poolView = createPoolView({ relay, flags, logger });
 

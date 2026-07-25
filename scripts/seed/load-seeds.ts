@@ -20,8 +20,8 @@ import type { PoolStore, Relay } from '../../src/contracts/modules.js';
 import type { Read } from '../../src/contracts/types.js';
 import type { Logger } from '../../src/config/logger.js';
 import { parseRead } from '../../src/kernel/read.js';
-
-const BATCH_SIZE = 25;
+import { placeNames } from '../../src/memory/readProse.js';
+import { loadCorpus } from './validate-corpus.js';
 
 export interface LoadSeedsDeps {
   pool: PoolStore;
@@ -60,25 +60,27 @@ export async function loadSeeds(reads: Read[], deps: LoadSeedsDeps): Promise<Loa
   const relaySeeded = await deps.relay.seed(reads);
   deps.logger.line(`load-seeds: relay seeded with ${relaySeeded} read(s)`);
 
+  // ONE call per chunk of reads, not one per read (M12). The chunking and the grouping are
+  // M2's policy, not this script's — the pool knows that a conversation is what an episode
+  // spans and that reads sharing a driver belong in one. Sending 220 individual ingests, as
+  // this used to, produced 220 episodes each paraphrasing a single read.
   const failed: string[] = [];
   let poolLoaded = 0;
-  for (let start = 0; start < reads.length; start += BATCH_SIZE) {
-    const batch = reads.slice(start, start + BATCH_SIZE);
-    for (const read of batch) {
-      try {
-        await deps.pool.writeRead(read);
-        poolLoaded += 1;
-      } catch (error) {
-        failed.push(read.read_id);
-        deps.logger.line(
-          `load-seeds: pool write failed for ${read.read_id} (relay copy remains; sweeper will re-ingest): ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
-      }
-    }
+  try {
+    const handles = await deps.pool.writeReads(reads);
+    poolLoaded = reads.length;
     deps.logger.line(
-      `load-seeds: batch ${Math.floor(start / BATCH_SIZE) + 1}/${Math.ceil(reads.length / BATCH_SIZE)} — ${poolLoaded}/${reads.length} pooled`,
+      `load-seeds: pool fed as ${handles.length} conversation(s) — episodes can span reads now`,
+    );
+  } catch (error) {
+    // All-or-nothing on purpose: a partial batch would leave some drivers with a coherent
+    // conversation and others with nothing, and the relay copy already holds every read, so
+    // the sweeper's backfill is the recovery path (it re-ingests per read, which is worse
+    // for induction but never loses data).
+    failed.push(...reads.map((read) => read.read_id));
+    deps.logger.line(
+      `load-seeds: pool feed failed — all ${reads.length} read(s) are on the relay and countable; ` +
+        `induction is degraded until a re-seed: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 
@@ -116,7 +118,7 @@ async function main(): Promise<void> {
     clientModule.createFetchTransport({ baseUrl: config.xtraceBaseUrl, apiKey: config.xtraceApiKey }),
   );
   const report = await loadSeeds(readSeedArtifact(), {
-    pool: poolModule.createPoolStore({ client, logger }),
+    pool: poolModule.createPoolStore({ client, logger, placeName: placeNames(loadCorpus()) }),
     relay: relayModule.createRelayClient({ url: config.relayUrl, token: config.relayToken, logger }),
     logger,
     settleWindowSeconds: config.settleWindowSeconds,

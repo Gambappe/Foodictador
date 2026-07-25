@@ -46,6 +46,17 @@ import type { Flags } from './flags.js';
  */
 export interface MemoryClient {
   ingest(scope: string, payload: string): Promise<JobHandle>;
+  /**
+   * Several messages in ONE conversation, under a caller-chosen `convId`.
+   *
+   * Not a convenience wrapper. XTrace's episodes are conversation summaries, so an isolated
+   * one-message ingest can only ever produce a paraphrase of that one message — measured:
+   * ungrouped reads yielded *"The session consisted of a single structured signal about
+   * Harbor Greens"*, while the same twelve reads in one conversation yielded a claim spanning
+   * four places. Cross-record synthesis is the one job XTrace kept after D-7, and grouping is
+   * the precondition for it (M12; operational guide R4).
+   */
+  ingestBatch(scope: string, payloads: readonly string[], convId: string): Promise<JobHandle>;
   search(scope: string, query: string, opts: SearchOpts): Promise<MemoryRow[]>;
   remove(scope: string, memoryId: string): Promise<void>;
   jobStatus(jobId: string): Promise<IngestJobStatus>;
@@ -62,8 +73,21 @@ export interface MemoryClient {
  * synthesis over the prose it derived.
  */
 export interface PoolStore {
-  /** Feeds the induction index. The returned job is what the sweeper confirms against. */
+  /**
+   * Feeds the induction index with ONE read. The returned job is what the sweeper confirms
+   * against.
+   *
+   * A single read is its own conversation, so this path cannot produce cross-record
+   * synthesis — that is a property of the substrate, not a bug here. It is the live-confession
+   * path and it exists so a confession is fed at all; `writeReads` is what induction is
+   * actually built on, and the guide's R5 says to seed ahead of time rather than ingest live.
+   */
   writeRead(read: Read): Promise<JobHandle>;
+  /**
+   * Many reads, grouped into conversations so episodes can span them (M12/M14).
+   * Returns one handle per conversation, not per read.
+   */
+  writeReads(reads: readonly Read[]): Promise<JobHandle[]>;
   /** The INDUCTION query. The only read path XTrace can actually serve. */
   inducedClaim(query: string): Promise<string>;
 }
