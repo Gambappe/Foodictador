@@ -25,8 +25,8 @@
  * read look like N reads) rather than improving it.
  */
 
-import type { MemoryClient, PoolStore, Relay } from '../contracts/modules.js';
-import type { IngestJobStatus, SweepReport } from '../contracts/types.js';
+import type { BatchHandle, MemoryClient, PoolStore, Relay } from '../contracts/modules.js';
+import type { IngestJobStatus, Read, SweepReport } from '../contracts/types.js';
 import type { Logger } from '../config/logger.js';
 
 export interface SweeperDeps {
@@ -76,6 +76,8 @@ export function createSweeper(deps: SweeperDeps) {
       // Handles recorded this pass (M10). Counted so an operator can see the ledger filling —
       // a `forget` that reports `skipped` for the pool is explained by this being 0.
       let ledgered = 0;
+      /** Reads needing re-ingest, sent as ONE grouped call after the loop (M12). */
+      const backfill: Read[] = [];
 
       for (const entry of entries) {
         const ageSeconds = (nowMs - Date.parse(entry.received_at)) / 1000;
@@ -141,42 +143,57 @@ export function createSweeper(deps: SweeperDeps) {
           // 'reingest' falls through to the backfill below.
         }
 
-        // Either the ingest failed, or the entry was never annotated at all
-        // (setJob is best-effort, D-1). Re-ingest from the entry's own six
-        // fields and re-annotate so the next pass polls the fresh job.
-        //
-        // Guarded like the status check above, and for the same reason (SL-58): a backfill is
-        // per-entry work, so one entry's rejection is not a reason to abandon the others. It
-        // was — `ingest failed with status 429` threw out of the pass after six successful
-        // re-ingests, discarding those six from the report as well. Counted `pending` because
-        // that is what it is: still unconfirmed, and a later pass will try again.
-        let handle;
+        // Not re-ingested here — collected, and sent as grouped conversations after the loop.
+        // One call per read is the pre-M12 defect, and the sweeper is where it hurts most: a
+        // pass measured re-ingesting 219 reads made 219 single-read conversations, each
+        // yielding an episode that can only paraphrase itself — the exact register M15 had to
+        // abandon a whole scope to escape — and the burst is what tripped the 429 in SL-58.
+        backfill.push(entry.read);
+      }
+
+      // One `writeReads` for the whole pass. Grouping is M2's (by driver, chunked at 20), so
+      // a conversation is one cohort's worth of related reads rather than an arbitrary pile —
+      // which is the objection the old per-read design was defending against, already answered.
+      if (backfill.length > 0) {
+        let handles: BatchHandle[] = [];
         try {
-          handle = await deps.pool.writeRead(entry.read);
+          handles = await deps.pool.writeReads(backfill);
+          reingested = backfill.reduce((n) => n + 1, 0);
         } catch (error) {
-          pending += 1;
+          // Per-entry guarding was the SL-58 fix and it still holds, one level up: the whole
+          // backfill failing is not a reason to lose the confirmations this pass already made.
+          pending += backfill.length;
           deps.logger.line(
-            `sweeper: could not re-ingest ${entry.read.read_id} — counted unconfirmed, sweep ` +
-              `continues: ${error instanceof Error ? error.message : String(error)}`,
+            `sweeper: could not re-ingest ${String(backfill.length)} read(s) — counted ` +
+              `unconfirmed, sweep continues: ${
+                error instanceof Error ? error.message : String(error)
+              }`,
           );
-          continue;
         }
-        reingested += 1;
         deps.logger.line(
-          `sweeper: re-ingested ${entry.read.read_id} (job ${handle.jobId}) — unpooled after ${Math.round(ageSeconds)}s`,
+          `sweeper: re-ingested ${String(reingested)} read(s) as ${String(handles.length)} ` +
+            `conversation(s) — batched so an episode can span them (M12)`,
         );
-        try {
-          await deps.relay.setJob(entry.read.read_id, handle.jobId);
-        } catch (error) {
-          // Annotation is best-effort, but a relay that persistently rejects it
-          // makes this entry re-ingest once per pass. The signature is visible:
-          // `reingested` stays non-zero while `pending` never falls. Say so here
-          // rather than let it look like progress.
-          deps.logger.line(
-            `sweeper: job annotation failed for ${entry.read.read_id} — it will re-ingest again next pass: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
-          );
+        // Every read in a conversation is annotated with that conversation's job. The job DID
+        // ingest it, so the next pass's `jobStatus` check is exactly as valid as before.
+        //
+        // What is NOT recorded is M10's per-read ledger: `memories_created` for a batched job
+        // covers every read in it and says which read produced which memory nowhere. Attributing
+        // them by matching text would be the fuzzy deletion M10's own note forbids, so `forget`
+        // reports `skipped` for these — the same as seeded reads, and said out loud here rather
+        // than discovered later.
+        for (const handle of handles) {
+          for (const readId of handle.readIds) {
+            try {
+              await deps.relay.setJob(readId, handle.jobId);
+            } catch (error) {
+              deps.logger.line(
+                `sweeper: job annotation failed for ${readId} — it will re-ingest again next pass: ${
+                  error instanceof Error ? error.message : String(error)
+                }`,
+              );
+            }
+          }
         }
       }
 

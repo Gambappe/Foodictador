@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { MemoryClient, PoolStore, Relay } from '../contracts/modules.js';
+import type { BatchHandle, MemoryClient, PoolStore, Relay } from '../contracts/modules.js';
 import type { IngestJobStatus, JobHandle, MemoryRow, Read, RelayEntry, RelayStats } from '../contracts/types.js';
 import { createLogger } from '../config/logger.js';
 import { sampleRead } from '../contracts/fixtures/index.js';
@@ -29,6 +29,8 @@ function fakes(init: {
   jobStatusThrowsFor?: string[];
   /** Read ids whose backfill ingest throws — the other half of SL-58. */
   writeReadThrowsFor?: string[];
+  /** The whole batched backfill fails — one call, so it is all-or-nothing (M12). */
+  writeReadsThrows?: boolean;
   /** M10: what a succeeded job's result carries, per job id. */
   jobResults?: Record<string, MemoryRow[]>;
   setPoolMemoriesFails?: boolean;
@@ -38,6 +40,7 @@ function fakes(init: {
   const jobs = { ...(init.jobs ?? {}) };
   const log: string[] = [];
   const calls = {
+    writeReads: 0,
     writeRead: 0,
     setJob: 0,
     drop: [] as string[],
@@ -92,10 +95,32 @@ function fakes(init: {
       jobs[jobId] = 'pending';
       return Promise.resolve({ jobId });
     },
-    // The sweeper backfills ONE read at a time by design — it recovers individual
-    // entries, and a batch path here would group unrelated reads that happened to fail
-    // together. Rejecting proves it is never called.
-    writeReads: () => Promise.reject(new Error('the sweeper must backfill per read')),
+    /**
+     * The backfill is BATCHED (M12). The old fake rejected this and asserted the opposite,
+     * on the reasoning that batching "would group unrelated reads that happened to fail
+     * together" — but grouping is M2's, by driver and chunked, so a conversation is already
+     * one cohort's worth of related reads. What the per-read shape actually bought was 219
+     * single-read conversations in one measured pass, each yielding an episode that can only
+     * paraphrase itself, and the burst that tripped SL-58's 429.
+     */
+    writeReads(reads): Promise<BatchHandle[]> {
+      if (init.writeReadsThrows === true) {
+        return Promise.reject(new Error('xtrace: ingest failed with status 429'));
+      }
+      calls.writeReads += 1;
+      ingested.push(...reads);
+      const byDriver = new Map<string, string[]>();
+      for (const r of reads) byDriver.set(r.driver, [...(byDriver.get(r.driver) ?? []), r.read_id]);
+      return Promise.resolve(
+        [...byDriver.entries()].map(([driver, readIds]) => {
+          jobSeq += 1;
+          const jobId = `fresh-job-${jobSeq}`;
+          jobs[jobId] = 'pending';
+          void driver;
+          return { jobId, readIds };
+        }),
+      );
+    },
     inducedClaim: () => Promise.reject(new Error('unused')),
   };
 
@@ -275,7 +300,7 @@ describe('M7 confirmation and backfill', () => {
 
     const second = await f.sweeper.sweepOnce(NOW);
     expect(second).toMatchObject({ reingested: 0, pending: 1 }); // fresh job is pending
-    expect(f.calls.writeRead).toBe(1);
+    expect(f.calls.writeReads).toBe(1); // one BATCHED call, not one per read (M12)
 
     const freshJob = f.entries[0]?.ingest_job_id;
     expect(freshJob).toBeDefined();
@@ -405,19 +430,62 @@ describe('M7 a failing job check does not end the sweep', () => {
 });
 
 describe('M7 a failing BACKFILL does not end the sweep either (SL-58)', () => {
-  it('counts the un-ingestable entry as pending and backfills the rest', async () => {
-    // The second half, found by re-running the crashed command after fixing the first: the
-    // status check was guarded, and then `ingest failed with status 429` threw out of the
-    // backfill — after six successful re-ingests, which the thrown pass discarded too.
+  it('a failing batched backfill counts them all pending and never ends the pass', async () => {
+    // SL-58's point still holds and is what this asserts: a substrate failure must not abort
+    // the pass or discard the confirmations it already made.
+    //
+    // What CHANGED with batching (M12) is the granularity, and it is a real trade. The
+    // backfill is now one call, so a 429 loses the whole batch rather than one read — there
+    // is no "backfill the rest" left to do. That is acceptable because the sweeper re-ingests
+    // every unconfirmed read on every pass, so a lost batch is retried in minutes; the old
+    // per-read isolation bought partial progress at the cost of 219 single-read conversations.
     const f = fakes({
-      entries: [settled('r-bad', 'job-bad'), settled('r-ok', 'job-ok')],
-      jobs: { 'job-bad': 'failed', 'job-ok': 'failed' },
-      writeReadThrowsFor: ['r-bad'],
+      entries: [settled('r-bad', 'job-bad'), settled('r-ok', 'job-ok'), settled('r-fine', 'job-fine')],
+      jobs: { 'job-bad': 'failed', 'job-ok': 'failed', 'job-fine': 'complete' },
+      writeReadsThrows: true,
     });
     const report = await f.sweeper.sweepOnce(NOW);
-    expect(report.reingested).toBe(1); // the healthy one still went
-    expect(report.pending).toBe(1); // the failure is counted, not swallowed
-    expect(f.calls.drop).toEqual([]);
-    expect(f.log.some((l) => /could not re-ingest r-bad/.test(l))).toBe(true);
+    expect(report.pooled).toBe(1); // the confirmation this pass made SURVIVES the failure
+    expect(report.reingested).toBe(0);
+    expect(report.pending).toBe(2); // both backfill candidates counted, not swallowed
+    expect(f.calls.drop).toEqual([]); // D-7: nothing is ever dropped
+    expect(f.log.some((l) => /could not re-ingest 2 read\(s\)/.test(l))).toBe(true);
+    expect(f.log.some((l) => /sweep continues/.test(l))).toBe(true);
+  });
+});
+
+/**
+ * M12 in the sweeper — the backfill is ONE grouped call, not one per read.
+ *
+ * This is the property the old design explicitly asserted the opposite of. Its stated reason
+ * was that batching "would group unrelated reads that happened to fail together", but grouping
+ * is M2's — by driver, chunked at 20 — so a conversation is already one cohort's worth of
+ * related reads. What per-read actually produced, measured on a live pass: 219 separate
+ * ingests, 219 single-read conversations, 219 episodes that could only paraphrase themselves —
+ * the exact register M15 had to abandon a whole scope to escape — and the burst that tripped
+ * the 429 in SL-58.
+ */
+describe('M7 the backfill is batched (M12)', () => {
+  it('re-ingests many reads in ONE call, not one call per read', async () => {
+    const entries = Array.from({ length: 12 }, (_, i) => settled(`r${String(i)}`, `job-${String(i)}`));
+    const jobs = Object.fromEntries(entries.map((e) => [e.ingest_job_id ?? '', 'failed' as const]));
+    const f = fakes({ entries, jobs });
+    const report = await f.sweeper.sweepOnce(NOW);
+    expect(report.reingested).toBe(12);
+    expect(f.calls.writeReads).toBe(1); // the whole pass, one call
+    expect(f.calls.writeRead).toBe(0); // and the per-read path is not used at all
+  });
+
+  it('annotates EVERY read with the job of the conversation that carried it', async () => {
+    // Batching only works if the next pass can still confirm each read. One job now serves
+    // several reads, which is correct — that job really did ingest each of them — but every
+    // read still has to be annotated or it re-ingests for ever and the pass never converges.
+    const entries = [settled('a1', 'j1'), settled('a2', 'j2'), settled('a3', 'j3')];
+    const f = fakes({ entries, jobs: { j1: 'failed', j2: 'failed', j3: 'failed' } });
+    await f.sweeper.sweepOnce(NOW);
+    const annotated = f.entries.map((e) => e.ingest_job_id);
+    expect(annotated.every((j) => j !== undefined)).toBe(true);
+    expect(new Set(annotated).size).toBe(1); // one shared job — they were one conversation
+    expect(annotated[0]).toMatch(/^fresh-job-/);
   });
 });

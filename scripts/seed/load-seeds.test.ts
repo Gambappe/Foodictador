@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import type { PoolStore, Relay } from '../../src/contracts/modules.js';
-import type { JobHandle, Read, RelayEntry } from '../../src/contracts/types.js';
+import type { Read, RelayEntry } from '../../src/contracts/types.js';
+import type { BatchHandle } from '../../src/contracts/modules.js';
 import { createLogger } from '../../src/config/logger.js';
 import { loadSeeds, readSeedArtifact } from './load-seeds.js';
 
@@ -25,16 +26,19 @@ function fakes(init?: { poolFails?: boolean }) {
   const pool: PoolStore = {
     writeRead: () =>
       Promise.reject(new Error('the loader must batch — one ingest per read is the M12 defect')),
-    writeReads(reads): Promise<JobHandle[]> {
+    writeReads(reads): Promise<BatchHandle[]> {
       if (init?.poolFails === true) return Promise.reject(new Error('ingest 503'));
       // Grouping policy is M2's, so this fake does not model it; it records what it was
       // given and returns one handle per driver, which is the shape the real store returns.
       batches.push([...reads]);
       const drivers = new Set(reads.map((read) => read.driver));
       return Promise.resolve(
-        [...drivers].map(() => {
+        [...drivers].map((driver) => {
           jobSeq += 1;
-          return { jobId: `job-${String(jobSeq)}` };
+          return {
+            jobId: `job-${String(jobSeq)}`,
+            readIds: reads.filter((r) => r.driver === driver).map((r) => r.read_id),
+          };
         }),
       );
     },

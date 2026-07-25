@@ -23,6 +23,7 @@ import type { Driver, JobHandle, Read } from '../contracts/types.js';
 import type { Logger } from '../config/logger.js';
 import { readToProse, type PlaceName } from './readProse.js';
 import { POOL_SCOPE } from './scopes.js';
+import type { BatchHandle } from '../contracts/modules.js';
 import { searchForEpisodes } from './episodes.js';
 
 // Re-exported because every importer of the pool scope already imports it from here, and
@@ -91,19 +92,18 @@ function conversations(reads: readonly Read[]): Array<{ convId: string; reads: R
 
 export function createPoolStore(deps: PoolStoreDeps): PoolStore {
   /** Prose or nothing: an unresolvable place is skipped and named, never sent as an id. */
-  function render(reads: readonly Read[]): string[] {
-    const out: string[] = [];
-    for (const read of reads) {
-      const sentence = readToProse(read, deps.placeName);
-      if (sentence === null) {
-        deps.logger.line(
-          `pool: skipping ${read.read_id} — place "${read.place}" is not in the corpus, and sending the id would put it on a card`,
-        );
-        continue;
-      }
-      out.push(sentence);
+  function renderOne(read: Read): string | null {
+    const sentence = readToProse(read, deps.placeName);
+    if (sentence === null) {
+      deps.logger.line(
+        `pool: skipping ${read.read_id} — place "${read.place}" is not in the corpus, and sending the id would put it on a card`,
+      );
     }
-    return out;
+    return sentence;
+  }
+
+  function render(reads: readonly Read[]): string[] {
+    return reads.map(renderOne).filter((s): s is string => s !== null);
   }
 
   return {
@@ -120,12 +120,22 @@ export function createPoolStore(deps: PoolStoreDeps): PoolStore {
       return deps.client.ingest(POOL_SCOPE, sentence);
     },
 
-    async writeReads(reads: readonly Read[]): Promise<JobHandle[]> {
-      const handles: JobHandle[] = [];
+    async writeReads(reads: readonly Read[]): Promise<BatchHandle[]> {
+      const handles: BatchHandle[] = [];
       for (const { convId, reads: chunk } of conversations(reads)) {
-        const payloads = render(chunk);
-        if (payloads.length === 0) continue;
-        handles.push(await deps.client.ingestBatch(POOL_SCOPE, payloads, convId));
+        // `render` drops a read it cannot name a place for, so the ids are taken from what
+        // actually went into the payload rather than from the chunk — otherwise a dropped
+        // read would be annotated with a job that never carried it.
+        const rendered = chunk
+          .map((read) => ({ read, prose: renderOne(read) }))
+          .filter((r): r is { read: Read; prose: string } => r.prose !== null);
+        if (rendered.length === 0) continue;
+        const handle = await deps.client.ingestBatch(
+          POOL_SCOPE,
+          rendered.map((r) => r.prose),
+          convId,
+        );
+        handles.push({ jobId: handle.jobId, readIds: rendered.map((r) => r.read.read_id) });
       }
       deps.logger.line(
         `pool: fed ${String(reads.length)} read(s) as ${String(handles.length)} conversation(s) for induction`,

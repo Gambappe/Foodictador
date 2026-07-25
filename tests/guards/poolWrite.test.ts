@@ -28,7 +28,7 @@ function recordingPool() {
     },
     writeReads(reads) {
       writes.push(...reads);
-      return Promise.resolve([{ jobId: 'job-batch' }]);
+      return Promise.resolve([{ jobId: 'job-batch', readIds: reads.map((r) => r.read_id) }]);
     },
     inducedClaim: () => Promise.resolve(''),
   };

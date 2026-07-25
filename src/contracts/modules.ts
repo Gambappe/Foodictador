@@ -83,6 +83,19 @@ export interface MemoryClient {
  * only the job XTrace is measurably good at (design v0.8 §8) — cross-record
  * synthesis over the prose it derived.
  */
+/**
+ * One ingested conversation: the job, and which reads it carried (M12).
+ *
+ * `memories_created` for such a job covers EVERY read in it and says which read produced
+ * which memory nowhere — so a batched ingest cannot feed M10's per-read ledger. That is a
+ * real cost of batching, recorded here rather than discovered by a `forget` that reports
+ * `skipped` with no explanation.
+ */
+export interface BatchHandle {
+  jobId: string;
+  readIds: string[];
+}
+
 export interface PoolStore {
   /**
    * Feeds the induction index with ONE read. The returned job is what the sweeper confirms
@@ -96,9 +109,13 @@ export interface PoolStore {
   writeRead(read: Read): Promise<JobHandle>;
   /**
    * Many reads, grouped into conversations so episodes can span them (M12/M14).
-   * Returns one handle per conversation, not per read.
+   *
+   * Returns one handle per CONVERSATION with the reads that went into it. The `readIds` are
+   * not decoration: a caller that must annotate each read with the job that ingested it —
+   * the sweeper does, so its next pass can confirm them — cannot recover the grouping from a
+   * bare handle list, and guessing it would re-derive a private policy of this store.
    */
-  writeReads(reads: readonly Read[]): Promise<JobHandle[]>;
+  writeReads(reads: readonly Read[]): Promise<BatchHandle[]>;
   /** The INDUCTION query. The only read path XTrace can actually serve. */
   inducedClaim(query: string): Promise<string>;
 }
