@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T08:27:26.290Z",
+  "updated_at": "2026-07-25T08:27:28.067Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -513,13 +513,13 @@
         "K4"
       ],
       "mock_start_ok": false,
-      "note": "Near-tie target: score(top1)-score(top3) <= 0.04 and a judge read (weight >= 0.7) shifts >= 0.05, evaluated with K4 against S4's profile B. No unseeded Math.random anywhere.",
+      "note": "Blocked on a decision, not code: DAG §4 D-5. Six of eleven drivers cannot be matched to a UsualProfile, so reads carrying them can never be cited. Near-tie tuning depends on which way that resolves. Read D-5 before claiming.",
       "status": "available",
       "owner": null,
       "branch": null,
       "pr": null,
       "claimed_at": null,
-      "updated_at": "2026-07-25T07:37:34.268Z"
+      "updated_at": "2026-07-25T08:27:28.066Z"
     },
     "S3": {
       "title": "Seed loader: push generated reads to the pool scope and relay, reporting any that did not land and closing with the settle window",
