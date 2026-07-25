@@ -48,9 +48,18 @@ each confession arrived.
 
 ---
 
-## Deploying the relay (Tailscale)
+## Deploying the relay
 
-On the cloud box, once — needs Docker and nothing else.
+**On fly.io — the chosen path — follow `docs/deploy-flyio.md`.** It is a step-by-step list
+an agent can execute top to bottom. fly's private network replaces the Tailscale sidecar
+entirely: the app gets no public IP and laptops reach it with `fly proxy`, which is the
+same security property with far less setup and no second account.
+
+The Tailscale + Docker Compose path below remains valid for a generic cloud box.
+
+### Generic cloud box (Tailscale + Docker Compose)
+
+Needs Docker and nothing else.
 
 **1. Make a Tailscale auth key** in the admin console (Settings → Keys). Tick *Ephemeral*
 off (you want the node to survive a restart) and *Reusable* on if you may redeploy. If you

@@ -1,0 +1,38 @@
+# The relay on fly.io (DEPLOY.1).
+#
+# NOTE THE ABSENCE: there is no [http_service] and no [[services]] block, so this app is
+# never given a public IP and nothing on the internet can reach it. Laptops connect over
+# fly's private WireGuard network with `fly proxy` — see docs/deploy-flyio.md.
+#
+# That replaces the Tailscale sidecar in infra/relay/docker-compose.yml. Same property,
+# far less setup, and no second account: fly's 6PN private network is already there.
+#
+# If you ever run `fly ips allocate-v4`, stop — that puts the store of record on the
+# public internet, and the operator token travels as a header on every request.
+
+app = "confit-relay"
+primary_region = "lhr" # change to the region nearest the venue
+
+[build]
+  dockerfile = "infra/relay/Dockerfile"
+
+[env]
+  RELAY_PORT = "8787"
+  RELAY_DUMP_PATH = "/data/relay.json"
+
+# THE store of record (D-7). A read exists verbatim here and nowhere else — XTrace
+# extracts prose rather than storing objects. Destroying this volume destroys every
+# confession, permanently.
+[mounts]
+  source = "relay_data"
+  destination = "/data"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+
+# One machine, never zero. auto_stop would suspend the relay between commands and the
+# first request after a stop would fail rather than wake it — not something to discover
+# on stage.
+[[vm.processes]]
+  name = "app"
