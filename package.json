@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Confit \u2014 the whisper network for what to eat. CLI-first core; see docs/confit-design-v0.8.md.",
+  "description": "Confit — the whisper network for what to eat. CLI-first core; see docs/confit-design-v0.8.md.",
   "engines": {
     "node": ">=20"
   },
@@ -22,6 +22,7 @@
     "@eslint/js": "^10.0.1",
     "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^14.3.1",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^26.1.1",
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
