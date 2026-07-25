@@ -21,7 +21,7 @@
  * `client.search` in `personalClaim` reds "the personal tier never uses the bare profile
  * id"; reintroducing the literal in `pool.ts` reds the source-level check.
  */
-import { globSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -35,6 +35,17 @@ import { SCOPE_GENERATION, personalScope } from '../../src/memory/scopes.js';
 import { createUserStore } from '../../src/memory/user.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..');
+
+/** Every .ts/.tsx under a directory, recursively. See the note in the source-level test. */
+function sourceFiles(dir: string): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...sourceFiles(full));
+    else if (full.endsWith('.ts') || full.endsWith('.tsx')) out.push(full);
+  }
+  return out;
+}
 
 /** Records the scope of every call, which is the only thing this suite cares about. */
 function scopeSpy() {
@@ -111,17 +122,20 @@ describe('M15: nothing reaches the substrate outside the generation', () => {
     // Source-level, because a call site that hardcodes `'confit:pool'` is invisible to every
     // behavioural test that imports the constant — both would agree, and both would be wrong.
     // `scopes.ts` is exempt: it is where the old names are documented as the thing being left.
-    // Globbed, not listed: a hardcoded list cannot catch the module that does not exist yet,
+    // Walked, not listed: a hardcoded list cannot catch the module that does not exist yet,
     // which is the one most likely to reintroduce this. `scopes.ts` is exempt — it is where
     // the abandoned names are documented as the thing being left behind.
-    const files = globSync('src/**/*.{ts,tsx}', { cwd: ROOT }).filter(
+    //
+    // A hand-rolled walk rather than `fs.globSync`, which arrived in Node 22 while
+    // package.json says `>=20` and CI runs 20 — it passed locally and failed there.
+    const files = sourceFiles(join(ROOT, 'src')).filter(
       (f) => !f.endsWith('scopes.ts') && !f.endsWith('.test.ts') && !f.endsWith('.test.tsx'),
     );
     expect(files.length).toBeGreaterThan(20); // the glob found the tree, not nothing
     for (const file of files) {
       // Comments are stripped first: a docblock explaining which era is being left behind
       // SHOULD be able to name it, and this must catch code rather than prose.
-      const code = readFileSync(join(ROOT, file), 'utf8')
+      const code = readFileSync(file, 'utf8') // absolute, from the walk above
         .replaceAll(/\/\*[\s\S]*?\*\//g, '')
         .replaceAll(/(^|\s)\/\/.*$/gm, '');
       expect(code, `${file} builds the pre-M15 pool scope by hand`).not.toMatch(
