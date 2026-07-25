@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T11:51:43.553Z",
+  "updated_at": "2026-07-25T12:08:57.546Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -968,6 +968,21 @@
       "pr": null,
       "claimed_at": "2026-07-25T11:51:43.553Z",
       "updated_at": "2026-07-25T11:51:43.553Z"
+    },
+    "M15": {
+      "title": "Adopting M12/M14 needs a clean pool scope: pre-M12 per-read episodes outrank the new cross-record ones",
+      "phase": "M",
+      "depends_on": [
+        "M12"
+      ],
+      "mock_start_ok": false,
+      "note": "MEASURED on the live substrate, and it is an OPERATIONAL step, not a code change. confit:pool holds episodes from both eras after M12/M14 land. The old per-read JSON ingests produced episodes like 'The session contains a single structured event rather than a back-and-forth conversation: a regret-after-order signal at Bao Bar Micro... moderate weight' — and those RANK ABOVE the new batched-prose episodes for the exact query confit ask issues. Same query against a CLEAN scope returned the real thing: a claim spanning 17 named places, no raw ids, no single-read framing. So the query was never the problem and does not need changing; the scope does. Decide with the integrator: purge confit:pool (DELETE per memory id — there is no bulk delete, see pass reset's copy) or move to a new POOL_SCOPE constant and abandon the old one. A new scope is cheaper and auditable; the old records keep costing storage quota (GET /v1/usage).",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T12:08:57.546Z"
     }
   }
 }
