@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T11:51:14.686Z",
+  "updated_at": "2026-07-25T11:51:40.366Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -953,21 +953,6 @@
       "pr": null,
       "claimed_at": null,
       "updated_at": "2026-07-25T11:46:52.304Z"
-    },
-    "M14": {
-      "title": "Pool ingests should be prose, not JSON (R4), and should batch several reads per conv_id (M12) — the two halves of making induction possible",
-      "phase": "M",
-      "depends_on": [
-        "M12"
-      ],
-      "mock_start_ok": false,
-      "note": "R4: 'Prose, not notation. Structured notation extracted 0 facts from 8 complete records. Render structured data to sentences first.' src/memory/pool.ts:39 sends JSON.stringify(read). Before D-7 that JSON had to stay verbatim because readsForDriver parsed it back; D-7 deleted that path, so the ingest payload is now FREE and nothing depends on its shape. My own probe got 19 facts from JSON vs 9 from prose, so raw fact count is not the argument — the argument is quality: the JSON-derived induced claim came back containing 'noodle_shrine' verbatim (see L4), the prose-derived one said \"Rosa's Taqueria\". Pair with M12's conv_id batching; neither alone is enough, since an episode needs multiple messages in one conversation to synthesise across.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
-      "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T11:46:54.455Z"
     }
   }
 }
