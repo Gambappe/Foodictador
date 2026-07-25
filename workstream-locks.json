@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T13:04:47.722Z",
+  "updated_at": "2026-07-25T13:04:49.925Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -1140,13 +1140,13 @@
         "M11"
       ],
       "mock_start_ok": false,
-      "note": "D-8 names allergies as the reason declared settings must be durable, and M11 built that home — but there is nothing to store. UsualProfile (frozen at P0.2) has NO allergy field; src/kernel/score.ts's own docblock admits it ('allergy is not implemented, and cannot be'), and allergy_constraint is one of D-5's six unmatchable drivers. Meanwhile offLimits is a free-text TOPIC list that blocks writing a confession containing a word — grep finds it used NOWHERE in the ask path, so it does not filter recommendations at all. Consequence: a user who declared a shellfish allergy can be recommended a shellfish restaurant. Needs a CONTRACT CHANGE (an allergy field on UsualProfile, integrator-only) plus a hard filter in exclusionsFor alongside giConstraint, plus corpus tags to filter against — check data/places.json actually carries allergen tags before designing the filter, because gi_safe_options is the only safety tag today.",
-      "status": "claimed",
+      "note": "CLOSED BY DECISION D-9, not built — the product owner chose option (c): do not claim allergy filtering, and say so. The premise check is why: data/places.json carries SIX place tags across 40 records and none is an allergen; Place has no ingredient field (signatureDishes is spiceLevel only); PlaceTag is a closed union enforced by the type AND validate-corpus.ts. So there was nothing to filter on. Shipped instead: the disclaimer in the two places a user forms a belief (the editor where they type 'shellfish', the refusal where they learn the feature exists), a safety claim REMOVED from M14's pool prose ('genuinely unsafe' was measured coming back out of the live API as a card-bound induced claim), and tests/guards/safetyClaims.test.ts which asserts the tag set so adding an allergen tag later reopens this decision. If option (a) is ever wanted: UsualProfile contract change + PlaceTag contract change + re-audit of all 40 corpus records, where a place mistagged as allergen-free is the exact failure the feature would exist to prevent and no test can catch it.",
+      "status": "done",
       "owner": "claude-session-014n6NYRN6Rb",
       "branch": "claude/upload-code-artifact-zop9uz",
       "pr": null,
       "claimed_at": "2026-07-25T13:04:47.722Z",
-      "updated_at": "2026-07-25T13:04:47.722Z"
+      "updated_at": "2026-07-25T13:04:49.924Z"
     },
     "K8": {
       "title": "budgetBand is both a hard veto and a soft fit — inconsistent with D-8's 'soft preferences on similar footing to evidence'",
