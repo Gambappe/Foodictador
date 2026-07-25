@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T08:14:00.035Z",
+  "updated_at": "2026-07-25T08:14:01.970Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -38,12 +38,12 @@
       ],
       "mock_start_ok": false,
       "note": "The optional-key rule is load-bearing: G5 requires a green acceptance run with no API key and no network, so a fail-fast on the model key would make the gate unpassable.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "fable-session-0dd9z8",
+      "branch": "claude/upload-artifact-docs-0dd9z8",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T07:37:34.268Z"
+      "claimed_at": "2026-07-25T08:14:01.969Z",
+      "updated_at": "2026-07-25T08:14:01.969Z"
     },
     "P0.4": {
       "title": "Relay service: seven routes incl. POST /reads/{read_id}/ingest-job, write token, exact READ_KEYS validation, server-assigned received_at, oldest_entry_age_seconds in /stats",
