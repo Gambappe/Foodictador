@@ -1,0 +1,20 @@
+{
+  "comment": "Fixture pool for stubs and X3's acceptance: spice_tolerance_low has k=5 (citable at KFLOOR=5), budget_ceiling has k=4 (cohort-miss), solo_comfort has k=6. Distinct read_ids throughout; contracts.test.ts asserts this structure so it cannot drift silently.",
+  "reads": [
+    { "read_id": "00000000-0000-4000-8000-000000000001", "place": "ember_and_ash", "signal": "regret_after_order", "driver": "spice_tolerance_low", "cadence": "monthly", "weight": 0.82 },
+    { "read_id": "00000000-0000-4000-8000-000000000002", "place": "noodle_shrine", "signal": "never_ordered_again", "driver": "spice_tolerance_low", "cadence": "once", "weight": 0.75 },
+    { "read_id": "00000000-0000-4000-8000-000000000003", "place": "rosas_taqueria", "signal": "pretends_preference", "driver": "spice_tolerance_low", "cadence": "weekly", "weight": 0.68 },
+    { "read_id": "00000000-0000-4000-8000-000000000004", "place": "phos_deep", "signal": "regret_after_order", "driver": "spice_tolerance_low", "cadence": "rarely", "weight": 0.9 },
+    { "read_id": "00000000-0000-4000-8000-000000000005", "place": "harbor_greens", "signal": "wanted_something_else", "driver": "spice_tolerance_low", "cadence": "monthly", "weight": 0.71 },
+    { "read_id": "00000000-0000-4000-8000-000000000011", "place": "noodle_shrine", "signal": "wanted_something_else", "driver": "budget_ceiling", "cadence": "weekly", "weight": 0.77 },
+    { "read_id": "00000000-0000-4000-8000-000000000012", "place": "ember_and_ash", "signal": "regret_after_order", "driver": "budget_ceiling", "cadence": "monthly", "weight": 0.8 },
+    { "read_id": "00000000-0000-4000-8000-000000000013", "place": "quiet_counter", "signal": "secret_default", "driver": "budget_ceiling", "cadence": "weekly", "weight": 0.66 },
+    { "read_id": "00000000-0000-4000-8000-000000000014", "place": "harbor_greens", "signal": "never_ordered_again", "driver": "budget_ceiling", "cadence": "once", "weight": 0.73 },
+    { "read_id": "00000000-0000-4000-8000-000000000021", "place": "quiet_counter", "signal": "secret_default", "driver": "solo_comfort", "cadence": "weekly", "weight": 0.85 },
+    { "read_id": "00000000-0000-4000-8000-000000000022", "place": "quiet_counter", "signal": "trusted_safe_place", "driver": "solo_comfort", "cadence": "weekly", "weight": 0.88 },
+    { "read_id": "00000000-0000-4000-8000-000000000023", "place": "noodle_shrine", "signal": "secret_default", "driver": "solo_comfort", "cadence": "daily", "weight": 0.7 },
+    { "read_id": "00000000-0000-4000-8000-000000000024", "place": "phos_deep", "signal": "trusted_safe_place", "driver": "solo_comfort", "cadence": "monthly", "weight": 0.74 },
+    { "read_id": "00000000-0000-4000-8000-000000000025", "place": "harbor_greens", "signal": "returns_despite_incident", "driver": "solo_comfort", "cadence": "weekly", "weight": 0.62 },
+    { "read_id": "00000000-0000-4000-8000-000000000026", "place": "rosas_taqueria", "signal": "secret_default", "driver": "solo_comfort", "cadence": "rarely", "weight": 0.79 }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "comment": "Six canned confessions the stub Extractor keyword-matches, and the seeded-extraction fallback set (flags.extraction = 'seeded'). Keywords are matched case-insensitively against the confession text.",
+  "confessions": [
+    {
+      "keyword": "spicy",
+      "text": "I order the spicy one every time we go out because everyone expects me to, and I regret it every time.",
+      "chips": { "place": "ember_and_ash", "signal": "pretends_preference", "driver": "spice_tolerance_low", "cadence": "monthly", "weight": 0.8 },
+      "confidence": 0.9
+    },
+    {
+      "keyword": "alone",
+      "text": "When I eat alone I go to the counter place and order the same thing and it is the best meal of my week.",
+      "chips": { "place": "quiet_counter", "signal": "secret_default", "driver": "solo_comfort", "cadence": "weekly", "weight": 0.75 },
+      "confidence": 0.85
+    },
+    {
+      "keyword": "afford",
+      "text": "I always say I'm not hungry at the nice place because I can't really afford anything past the lunch menu.",
+      "chips": { "place": "noodle_shrine", "signal": "wanted_something_else", "driver": "budget_ceiling", "cadence": "weekly", "weight": 0.78 },
+      "confidence": 0.88
+    },
+    {
+      "keyword": "stomach",
+      "text": "The bun bo hue wrecks my stomach every single time. I never ordered it again and never told anyone why.",
+      "chips": { "place": "phos_deep", "signal": "never_ordered_again", "driver": "gi_constraint", "cadence": "once", "weight": 0.9 },
+      "confidence": 0.92
+    },
+    {
+      "keyword": "breakup",
+      "text": "The taqueria was our place before the breakup. It's the best food in the neighborhood and I can't go back.",
+      "chips": { "place": "rosas_taqueria", "signal": "never_ordered_again", "driver": "emotional_exclusion", "cadence": "rarely", "weight": 0.85 },
+      "confidence": 0.87
+    },
+    {
+      "keyword": "keep going back",
+      "text": "Everyone raves about the famous spot but I keep going back to the little grain bowl place nobody reviews.",
+      "chips": { "place": "harbor_greens", "signal": "returns_despite_incident", "driver": "acclaim_skeptic", "cadence": "weekly", "weight": 0.65 },
+      "confidence": 0.8
+    }
+  ]
+}

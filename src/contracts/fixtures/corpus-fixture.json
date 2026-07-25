@@ -1,0 +1,71 @@
+{
+  "comment": "Six-place fixture corpus for stub-level tests only. The real 40-place corpus is S1's data/places.json; nothing outside src/contracts may depend on this file.",
+  "places": [
+    {
+      "id": "rosas_taqueria",
+      "name": "Rosa's Taqueria",
+      "cuisine": "mexican",
+      "priceBand": 1,
+      "tags": ["late_night", "counter_seating", "solo_friendly"],
+      "signatureDishes": [
+        { "dishId": "al_pastor", "name": "Tacos al pastor", "spiceLevel": 2 },
+        { "dishId": "quesabirria", "name": "Quesabirria", "spiceLevel": 1 }
+      ]
+    },
+    {
+      "id": "noodle_shrine",
+      "name": "Noodle Shrine",
+      "cuisine": "japanese",
+      "priceBand": 2,
+      "tags": ["counter_seating", "solo_friendly", "quiet"],
+      "signatureDishes": [
+        { "dishId": "shoyu_ramen", "name": "Shoyu ramen", "spiceLevel": 0 },
+        { "dishId": "tantanmen", "name": "Tantanmen", "spiceLevel": 3 }
+      ]
+    },
+    {
+      "id": "quiet_counter",
+      "name": "The Quiet Counter",
+      "cuisine": "korean",
+      "priceBand": 2,
+      "tags": ["quiet", "solo_friendly", "counter_seating", "small_plates"],
+      "signatureDishes": [
+        { "dishId": "bibimbap", "name": "Stone-pot bibimbap", "spiceLevel": 1 },
+        { "dishId": "kimchi_jjigae", "name": "Kimchi jjigae", "spiceLevel": 2 }
+      ]
+    },
+    {
+      "id": "phos_deep",
+      "name": "Pho's Deep",
+      "cuisine": "vietnamese",
+      "priceBand": 1,
+      "tags": ["gi_safe_options", "solo_friendly"],
+      "signatureDishes": [
+        { "dishId": "pho_ga", "name": "Pho ga", "spiceLevel": 0 },
+        { "dishId": "bun_bo_hue", "name": "Bun bo hue", "spiceLevel": 3 }
+      ]
+    },
+    {
+      "id": "ember_and_ash",
+      "name": "Ember & Ash",
+      "cuisine": "thai",
+      "priceBand": 3,
+      "tags": ["late_night"],
+      "signatureDishes": [
+        { "dishId": "pad_kra_pao", "name": "Pad kra pao", "spiceLevel": 3 },
+        { "dishId": "khao_soi", "name": "Khao soi", "spiceLevel": 2 }
+      ]
+    },
+    {
+      "id": "harbor_greens",
+      "name": "Harbor Greens",
+      "cuisine": "mediterranean",
+      "priceBand": 2,
+      "tags": ["gi_safe_options", "quiet", "small_plates"],
+      "signatureDishes": [
+        { "dishId": "grain_bowl", "name": "Charred grain bowl", "spiceLevel": 0 },
+        { "dishId": "grilled_octopus", "name": "Grilled octopus", "spiceLevel": 1 }
+      ]
+    }
+  ]
+}
