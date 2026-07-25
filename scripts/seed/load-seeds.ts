@@ -14,7 +14,7 @@
  */
 
 import { readFileSync } from 'node:fs';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import type { PoolStore, Relay } from '../../src/contracts/modules.js';
 import type { Read } from '../../src/contracts/types.js';
@@ -42,7 +42,9 @@ export interface LoadReport {
 }
 
 export function readSeedArtifact(path?: string): Read[] {
-  const url = path ?? new URL('../../data/seeds/reads.json', import.meta.url).pathname;
+  // SL-14: `.pathname` URL-encodes spaces as `%20`, which is not a valid fs
+  // path — `fileURLToPath` decodes it back to a real path on any checkout.
+  const url = path ?? fileURLToPath(new URL('../../data/seeds/reads.json', import.meta.url));
   const raw = JSON.parse(readFileSync(url, 'utf8')) as { reads?: unknown[] };
   return (raw.reads ?? []).map((candidate) => parseRead(candidate));
 }

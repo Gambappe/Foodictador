@@ -8,8 +8,21 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { DEFAULT_FLAGS } from '../../src/contracts/flags.js';
 import { corpusFixture } from '../../src/contracts/fixtures/index.js';
-import type { NarratorFacts, RankedPlace } from '../../src/contracts/types.js';
+import type { Driver, NarratorFacts, RankedPlace } from '../../src/contracts/types.js';
+import { createFlagStore, createLogger } from '../../src/config/index.js';
+import type { AppConfig } from '../../src/config/index.js';
+import { fixtureGraph } from '../../src/config/wiring.js';
+import { parseArgv } from '../../src/cli/args.js';
+import type { CommandContext } from '../../src/cli/main.js';
+import { createCensusCommand, createNeartieCommand } from '../../src/cli/pass-report.js';
+import { createForgetCommand } from '../../src/cli/forget.js';
+import { createSweepCommand } from '../../src/cli/sweep.js';
+import { runFlags, runNudgeArm, runProvision, runReset } from '../../src/cli/pass-ops.js';
+import { createNudge } from '../../src/nudge/nudge.js';
+import type { ForgetReport } from '../../src/memory/forget.js';
+import { StubRelay, StubUserStore } from '../../src/contracts/stubs/index.js';
 import { lint } from '../../src/kernel/copylint.js';
 import { BANNED_LEXICON } from '../../src/kernel/lexicon.js';
 import {
@@ -129,5 +142,131 @@ describe('G3: the acceptance cases', () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('unreachable');
     expect(result.hits).toEqual(expect.arrayContaining(['progress', 'guilt', 'diet']));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SL-20: exactly one command module (X2's confess.test.ts) linted its own
+// output; nothing cross-cutting linted the rest, so `pass-report.ts` shipped
+// "weight" and "score" on the operator's screen unnoticed. This sweeps every
+// CommandResult.lines[] the other six command modules can produce through the
+// same K5 linter G3 already runs over cards, so a future banned-lexicon slip
+// in ANY CLI line fails here rather than needing a fresh probe to find it.
+
+const APP_CONFIG: AppConfig = {
+  xtraceBaseUrl: 'http://localhost:1',
+  xtraceApiKey: 'k',
+  relayUrl: 'http://localhost:2',
+  relayToken: 't',
+  anthropicApiKey: null,
+  settleWindowSeconds: 480,
+};
+
+function cliContext(args: string[]): CommandContext {
+  const logger = createLogger(() => {});
+  return {
+    argv: parseArgv(args),
+    config: APP_CONFIG,
+    flags: createFlagStore({ ...DEFAULT_FLAGS }, logger),
+    logger,
+    graph: fixtureGraph({ logger }),
+  };
+}
+
+function lintLines(lines: string[]): void {
+  for (const line of lines) {
+    expect(lint(line), line).toEqual({ ok: true });
+  }
+}
+
+describe('G3: every CLI command line is linter-clean', () => {
+  it('pass census', async () => {
+    const reads = (driver: Driver) =>
+      Promise.resolve({
+        reads:
+          driver === 'spice_tolerance_low'
+            ? [
+                {
+                  read_id: '00000000-0000-4000-8000-000000000000',
+                  place: 'place_0',
+                  signal: 'secret_default' as const,
+                  driver,
+                  cadence: 'weekly' as const,
+                  weight: 0.7,
+                },
+              ]
+            : [],
+        degraded: false,
+      });
+    const result = await createCensusCommand({ readsForDriver: reads })(cliContext(['pass', 'census']));
+    lintLines(result.lines);
+  });
+
+  it('pass neartie', async () => {
+    const result = await createNeartieCommand()(cliContext(['pass', 'neartie']));
+    lintLines(result.lines);
+  });
+
+  it('forget: every target status combination', async () => {
+    const combos: Array<ForgetReport> = [
+      {
+        read_id: 'r1',
+        ok: true,
+        pool: { status: 'deleted', count: 2 },
+        relay: { status: 'deleted', count: 1 },
+        user: { status: 'skipped', detail: 'no user-scope handles for this read' },
+      },
+      {
+        read_id: 'r2',
+        ok: true,
+        pool: { status: 'nothing_to_delete' },
+        relay: { status: 'nothing_to_delete' },
+        user: { status: 'nothing_to_delete' },
+      },
+      {
+        read_id: 'r3',
+        ok: false,
+        pool: { status: 'failed', detail: 'relay unreachable' },
+        relay: { status: 'deleted', count: 1 },
+        user: { status: 'skipped', detail: 'no user-scope handles for this read' },
+      },
+    ];
+    for (const report of combos) {
+      const result = await createForgetCommand(() => Promise.resolve(report))(
+        cliContext(['forget', report.read_id]),
+      );
+      lintLines(result.lines);
+    }
+  });
+
+  it('sweep --once', async () => {
+    const result = await createSweepCommand({
+      sweep: () =>
+        Promise.resolve({ pooled: 3, reingested: 1, pending: 2, stored: 6, oldestStoredAgeSeconds: 40 }),
+    })(cliContext(['sweep', '--once']));
+    lintLines(result.lines);
+  });
+
+  it('pass provision, reset, flags, nudge', async () => {
+    const logger = createLogger(() => {});
+    const userStore = new StubUserStore();
+    lintLines((await runProvision('all', { userStore, logger })).lines);
+    lintLines((await runProvision('nonsense', { userStore, logger })).lines);
+
+    const relay = new StubRelay();
+    lintLines((await runReset({ relay, confirm: () => Promise.resolve(false) })).lines);
+    lintLines((await runReset({ relay, yes: true })).lines);
+
+    const flags = createFlagStore({ ...DEFAULT_FLAGS }, logger);
+    lintLines(runFlags(undefined, flags).lines);
+    lintLines(runFlags('narrator=live', flags).lines);
+    lintLines(runFlags('narrator=live', flags).lines); // no-op branch: "already ... — no change"
+    lintLines(runFlags('nope=x', flags).lines);
+    lintLines(runFlags('narrator=nope', flags).lines);
+    lintLines(runFlags('badformat', flags).lines);
+
+    const nudge = createNudge();
+    lintLines(runNudgeArm(nudge, false).lines);
+    lintLines(runNudgeArm(nudge, true).lines);
   });
 });

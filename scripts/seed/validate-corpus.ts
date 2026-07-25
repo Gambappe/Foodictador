@@ -7,7 +7,7 @@
  */
 
 import { readFileSync } from 'node:fs';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import type { Place, PlaceTag } from '../../src/contracts/types.js';
 
@@ -96,7 +96,9 @@ export function loadCorpus(path: string = defaultCorpusPath()): Place[] {
 }
 
 export function defaultCorpusPath(): string {
-  return new URL('../../data/places.json', import.meta.url).pathname;
+  // SL-14: `.pathname` URL-encodes spaces as `%20`, which is not a valid fs
+  // path — `fileURLToPath` decodes it back to a real path on any checkout.
+  return fileURLToPath(new URL('../../data/places.json', import.meta.url));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

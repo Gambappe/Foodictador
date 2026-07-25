@@ -13,7 +13,7 @@
 
 import { readFileSync } from 'node:fs';
 import { DEMO_CONTEXT, DRIVERS, type Driver, type Read } from '../contracts/types.js';
-import { KFLOOR } from '../kernel/cohorts.js';
+import { KFLOOR, UNMATCHABLE_DRIVERS } from '../kernel/cohorts.js';
 import { scorePlaces } from '../kernel/score.js';
 import type { Place } from '../contracts/types.js';
 import {
@@ -78,7 +78,11 @@ export function createCensusCommand(deps: CensusDeps): CommandHandler {
       // Undercounting the seed is the [E22] failure; counting MORE than the
       // manifest just means live reads joined — expected, and disclosed.
       const crosscheck: CrossCheck = k === manifestK ? 'ok' : k > manifestK ? 'over' : 'MISMATCH';
-      rows.push({ driver, k, citable: k >= KFLOOR, manifest: manifestK, crosscheck });
+      // SL-16: a driver with no field on UsualProfile can never be matched to a
+      // user (see UNMATCHABLE_DRIVERS's docblock) and so can never actually be
+      // cited on a card, no matter how large its cohort is.
+      const citable = k >= KFLOOR && !UNMATCHABLE_DRIVERS.includes(driver);
+      rows.push({ driver, k, citable, manifest: manifestK, crosscheck });
     }
 
     const mismatches = rows.filter((row) => row.crosscheck === 'MISMATCH').map((r) => r.driver);
@@ -88,11 +92,17 @@ export function createCensusCommand(deps: CensusDeps): CommandHandler {
       // when degraded. Saying "counts may be incomplete" here would tell an
       // operator to distrust the one number on this screen that is reliable.
       `Census (KFLOOR=${KFLOOR}${degraded ? ', induction unavailable — counts still exact' : ''}):`,
-      ...rows.map(
-        (row) =>
+      ...rows.map((row) => {
+        const status = row.citable
+          ? 'citable'
+          : UNMATCHABLE_DRIVERS.includes(row.driver)
+            ? 'unmatchable'
+            : 'below floor';
+        return (
           `  ${row.driver.padEnd(width)}  k=${String(row.k).padStart(3)}  ` +
-          `${row.citable ? 'citable' : 'below floor'}  manifest=${String(row.manifest).padStart(3)}  ${row.crosscheck}`,
-      ),
+          `${status.padEnd(11)}  manifest=${String(row.manifest).padStart(3)}  ${row.crosscheck}`
+        );
+      }),
       mismatches.length === 0
         ? 'Cross-check clean: no driver counted below its manifest total.'
         : `CROSS-CHECK MISMATCH — counted below manifest for: ${mismatches.join(', ')}. Do not start the demo ([E22]).`,
@@ -169,9 +179,12 @@ export function createNeartieCommand(deps: NeartieDeps = {}): CommandHandler {
       spread <= NEAR_TIE_GAP_MAX && shifts.length > 0 && shifts.every((s) => s.shift >= JUDGE_SHIFT_MIN);
 
     const lines = [
-      `Near-tie spread: score(top1) − score(top3) = ${spread.toFixed(4)} (max ${NEAR_TIE_GAP_MAX}) ${spread <= NEAR_TIE_GAP_MAX ? 'OK' : 'EXCEEDED'}`,
-      ...ranked.slice(0, 3).map((entry, i) => `  top${i + 1}: ${entry.place.id}  score=${entry.score.toFixed(4)}`),
-      `Judge read delta (weight ${JUDGE_WEIGHT}, min shift ${JUDGE_SHIFT_MIN}):`,
+      // "score" and "weight" are both in K5's banned lexicon (design v0.8 §9,
+      // SL-20) — even on this operator surface, `confit pass` is a shipping
+      // command and X2's precedent is to keep the schema word in --json only.
+      `Near-tie spread: top1 − top3 = ${spread.toFixed(4)} (max ${NEAR_TIE_GAP_MAX}) ${spread <= NEAR_TIE_GAP_MAX ? 'OK' : 'EXCEEDED'}`,
+      ...ranked.slice(0, 3).map((entry, i) => `  top${i + 1}: ${entry.place.id}  fit=${entry.score.toFixed(4)}`),
+      `Judge read delta (strength ${JUDGE_WEIGHT}, min shift ${JUDGE_SHIFT_MIN}):`,
       ...(shifts.length === 0
         ? ['  no matched driver offers a judge path — the peak beat has no lever']
         : shifts.map(
