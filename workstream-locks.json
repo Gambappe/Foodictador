@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T09:12:21.087Z",
+  "updated_at": "2026-07-25T09:12:32.323Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -397,12 +397,12 @@
       ],
       "mock_start_ok": true,
       "note": "Stub-first, but NOT claimable in wave 1: mock-start skips every dependency check, so this shows ready before contracts exist. Claim only once P0.2 has merged. Acceptance runs against the P0.2 fixture pool, NOT the S2 seed — the seed-based near-tie assertion is G4's, and keeping them apart is what lets this land before seeds exist. Never print a confession; never cite below KFLOOR. | X1 landed: do NOT edit src/cli/main.ts to register your command — it is X1's file (§2). Build your module under src/cli/ and the integrator wires the registry handler on merge. Your command already resolves, validates its options and exits 1 from a placeholder naming your task. Return a CommandResult {lines, data, exit?} from render.ts; do not print. Exit codes: 0 ok, 1 expected failure, 2 usage, 3 environment.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "fable-session-0dd9z8",
+      "branch": "feat/x3-confit-ask",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T09:02:27.595Z"
+      "claimed_at": "2026-07-25T09:12:32.322Z",
+      "updated_at": "2026-07-25T09:12:32.322Z"
     },
     "X4": {
       "title": "confit sweep: --once and --watch over the settle-sweeper, printing verified/re-ingested/retained and oldest_entry_age_seconds",
