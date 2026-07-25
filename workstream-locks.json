@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T21:50:18.712Z",
+  "updated_at": "2026-07-25T21:51:11.592Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -1218,13 +1218,13 @@
         "M13"
       ],
       "mock_start_ok": false,
-      "note": "SHIPPED: src/llm/scorer.ts (createScorer/parseAffinity/affinitySchema), applyAffinity in src/kernel/askEngine.ts, scoring flag in contracts/flags.ts + config/flagStore.ts, factRows on EpisodeResult. MEASURED: two byte-identical profiles differing only in confessions ranked Korean 1/2/3 vs 38/39/40; kernel alone gave both 0.6625/0.6625/0.6312. Adversarial probe (giConstraint+budgetBand 1+spiceTolerance 0 vs 'most expensive tasting menu'/'the hotter the better') honoured every declared setting unprompted. Determinism 5/5 same pick, score drift 1.0/0.95/0.95/1.0/0.97. NOT A GUARANTEE: the belt is the multiplier over survivors, not the model's good behaviour. API: structured output rejects minimum/maximum on number (400); parseAffinity clamps. Without ANTHROPIC_API_KEY the scorer makes NO call and the ranking is byte-identical to before this file existed.",
-      "status": "in_review",
+      "note": "Merged #87.",
+      "status": "done",
       "owner": "claude-session-014n6NYRN6Rb",
       "branch": "claude/upload-code-artifact-zop9uz",
       "pr": "https://github.com/Gambappe/Foodictador/pull/87",
       "claimed_at": "2026-07-25T21:50:17.209Z",
-      "updated_at": "2026-07-25T21:50:18.711Z"
+      "updated_at": "2026-07-25T21:51:11.592Z"
     },
     "DEMO.2": {
       "title": "Demo pack with real cohort depth (data/demo/pack.json) and a self-verifying showcase runner (npm run demo)",
