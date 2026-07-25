@@ -9,10 +9,9 @@
  * Registered in main.ts by the integrator, not here (X1 owns that file).
  */
 
+import { liveGraph } from '../config/wiring.js';
 import type { ForgetReport, ForgetTargetReport } from '../memory/forget.js';
 import { forget } from '../memory/forget.js';
-import { createFetchTransport, createMemoryClient } from '../memory/client.js';
-import { createRelayClient } from '../memory/relay.js';
 import type { CommandContext, CommandHandler } from './main.js';
 import { EXIT, type CommandResult } from './render.js';
 
@@ -72,19 +71,9 @@ export function createForgetCommand(runForget: RunForget): CommandHandler {
 
 /** The production handler: real XTrace client and relay from config. */
 export const forgetCommand: CommandHandler = (context) => {
-  const client = createMemoryClient(
-    createFetchTransport({
-      baseUrl: context.config.xtraceBaseUrl,
-      apiKey: context.config.xtraceApiKey,
-    }),
-  );
-  const relay = createRelayClient({
-    url: context.config.relayUrl,
-    token: context.config.relayToken,
-    logger: context.logger,
-  });
+  const graph = liveGraph(context.config, context.logger, context.flags);
   const handler = createForgetCommand((readId) =>
-    forget(readId, { client, relay, logger: context.logger }),
+    forget(readId, { client: graph.client, relay: graph.relay, logger: graph.logger }),
   );
   return handler(context);
 };

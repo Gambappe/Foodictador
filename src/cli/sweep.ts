@@ -13,9 +13,7 @@
  */
 
 import type { SweepReport } from '../contracts/types.js';
-import { createFetchTransport, createMemoryClient } from '../memory/client.js';
-import { createPoolStore } from '../memory/pool.js';
-import { createRelayClient } from '../memory/relay.js';
+import { liveGraph } from '../config/wiring.js';
 import { createSweeper } from '../memory/sweeper.js';
 import type { CommandContext, CommandHandler } from './main.js';
 import { EXIT, type CommandResult } from './render.js';
@@ -124,24 +122,13 @@ export function createSweepCommand(deps: SweepCommandDeps): CommandHandler {
 
 /** The production handler: real relay, pool, and sweeper from config. */
 export const sweepCommand: CommandHandler = (context: CommandContext) => {
-  const client = createMemoryClient(
-    createFetchTransport({
-      baseUrl: context.config.xtraceBaseUrl,
-      apiKey: context.config.xtraceApiKey,
-    }),
-  );
-  const relay = createRelayClient({
-    url: context.config.relayUrl,
-    token: context.config.relayToken,
-    logger: context.logger,
-  });
-  const pool = createPoolStore({ client, logger: context.logger });
+  const graph = liveGraph(context.config, context.logger, context.flags);
   const sweeper = createSweeper({
-    relay,
-    pool,
-    client,
-    logger: context.logger,
-    settleWindowSeconds: context.config.settleWindowSeconds,
+    relay: graph.relay,
+    pool: graph.pool,
+    client: graph.client,
+    logger: graph.logger,
+    settleWindowSeconds: graph.settleWindowSeconds,
   });
   const handler = createSweepCommand({ sweep: (nowIso) => sweeper.sweepOnce(nowIso) });
   return handler(context);

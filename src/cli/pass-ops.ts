@@ -174,28 +174,18 @@ export function runNudgeArm(nudge: Nudge, armed: boolean): CommandResult {
 
 // ---- integration wiring (handlers main.ts registers) ----
 
+import { liveGraph } from '../config/wiring.js';
 import type { CommandContext, CommandHandler } from './main.js';
-import { createFetchTransport, createMemoryClient } from '../memory/client.js';
-import { createPoolStore } from '../memory/pool.js';
-import { createRelayClient } from '../memory/relay.js';
-import { createUserStore } from '../memory/user.js';
 import { createNudge } from '../nudge/nudge.js';
 import { loadSeeds, readSeedArtifact } from '../../scripts/seed/load-seeds.js';
 
 /** Demo-timer nudge: per-process state, matching design v0.8 §6. */
 const processNudge = createNudge();
 
+/** One graph per invocation, from P0.6's single wiring seam. */
 function wire(context: CommandContext) {
-  const { config, logger } = context;
-  const client = createMemoryClient(
-    createFetchTransport({ baseUrl: config.xtraceBaseUrl, apiKey: config.xtraceApiKey }),
-  );
-  return {
-    client,
-    userStore: createUserStore({ client, logger }),
-    pool: createPoolStore({ client, logger }),
-    relay: createRelayClient({ url: config.relayUrl, token: config.relayToken, logger }),
-  };
+  const graph = liveGraph(context.config, context.logger, context.flags);
+  return { client: graph.client, userStore: graph.user, pool: graph.pool, relay: graph.relay };
 }
 
 export const provisionHandler: CommandHandler = (context) => {
