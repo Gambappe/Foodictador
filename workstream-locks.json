@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T08:51:40.211Z",
+  "updated_at": "2026-07-25T08:52:02.271Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -293,12 +293,12 @@
       ],
       "mock_start_ok": false,
       "note": "Front-end copy is 'deleted from Confit' — never imply cryptographic enforcement (design v0.8 §7).",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "fable-session-0dd9z8",
+      "branch": "feat/m8-forget",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T07:37:34.268Z"
+      "claimed_at": "2026-07-25T08:52:02.271Z",
+      "updated_at": "2026-07-25T08:52:02.271Z"
     },
     "L1": {
       "title": "Template narrator + copy catalog keyed by reason key: reason, rotation, usual and cohort-miss lines, all linter-clean",
