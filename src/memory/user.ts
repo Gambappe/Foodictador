@@ -44,6 +44,7 @@
 import type { MemoryClient, ProseWrite, SettingsStore, UserStore } from '../contracts/modules.js';
 import { BATCH_SIZE, type ProseBuffer } from './proseBuffer.js';
 import { personalScope } from './scopes.js';
+import { searchForEpisodes } from './episodes.js';
 import type { MealLogEntry, UsualProfile } from '../contracts/types.js';
 import type { Logger } from '../config/logger.js';
 
@@ -57,18 +58,12 @@ import type { Logger } from '../config/logger.js';
 const USUAL_KEY = 'usual';
 const MEAL_LOG_KEY = 'meal_log';
 
-/**
- * Reservation for the personal synthesis query (M16).
- *
- * Sized like M2's pool query and for the same measured reason: the API returns every fact
- * before any episode, so a top-k that is merely "enough rows" is a top-k that returns only
- * facts. A personal scope is thick with prose facts — one confession yields several — so the
- * episode sits further down than instinct suggests. `episode_slots` is sent and cannot be
- * relied on (M13: the API accepts a made-up parameter with 200), which is why the headroom
- * carries the guarantee.
+/*
+ * The personal query's sizing constants used to live here, with a note saying "the headroom
+ * carries the guarantee". M13 measured that to be false — `top_k` is inert, `top_k=1` returns
+ * thirteen rows — so there is no headroom and never was. The reservation is client-side now;
+ * see `src/memory/episodes.ts` for the measurements and the retry it justifies.
  */
-const PERSONAL_TOP_K = 40;
-const PERSONAL_EPISODE_SLOTS = 4;
 
 export interface UserStoreDeps {
   /** XTrace, for the confession prose only — the EXPERIENCES half of D-8. */
@@ -234,16 +229,16 @@ export function createUserStore(deps: UserStoreDeps): UserStoreHandle {
      * an episode is the synthesis across several, which is the thing worth putting on a card.
      */
     async personalClaim(profile: string, query: string): Promise<string> {
-      const rows = await deps.client.search(personalScope(profile), query, {
-        topK: PERSONAL_TOP_K,
-        episodeSlots: PERSONAL_EPISODE_SLOTS,
-      });
-      const episodes = rows.filter((row) => row.kind === 'episode' && row.content !== '');
-      const facts = rows.length - episodes.length;
-      const claim = episodes[0]?.content ?? '';
+      const result = await searchForEpisodes(
+        { ...deps, label: `user ${profile}` },
+        personalScope(profile),
+        query,
+      );
+      const claim = result.episodes[0]?.content ?? '';
       deps.logger.line(
-        `user: personal claim for ${profile} — ${String(episodes.length)} episode(s) over ` +
-          `${String(facts)} fact(s)${claim === '' ? '; none usable, card proceeds without it' : ''}`,
+        `user: personal claim for ${profile} — ${String(result.episodes.length)} episode(s) over ` +
+          `${String(result.facts)} fact(s) in ${String(result.attempts)} attempt(s)` +
+          `${claim === '' ? '; none usable, card proceeds without it' : ''}`,
       );
       return claim;
     },

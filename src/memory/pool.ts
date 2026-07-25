@@ -23,6 +23,7 @@ import type { Driver, JobHandle, Read } from '../contracts/types.js';
 import type { Logger } from '../config/logger.js';
 import { readToProse, type PlaceName } from './readProse.js';
 import { POOL_SCOPE } from './scopes.js';
+import { searchForEpisodes } from './episodes.js';
 
 // Re-exported because every importer of the pool scope already imports it from here, and
 // M15 moved the definition rather than the meaning. See src/memory/scopes.ts for why the
@@ -42,22 +43,16 @@ const READS_PER_CONVERSATION = 20;
 /**
  * Induction reads episodes — the cross-record synthesis lives there (§14).
  *
- * `INDUCTION_TOP_K` was 12, and that was **two rows from losing the claim entirely.**
- * Measured against a clean pool scope holding the full 220-read seed, with the exact query
- * `confit ask` issues: the API returns every fact before any episode, and the first episode
- * landed at **index 10**. A top-k of 12 left two rows of headroom on a number that moves
- * with how many facts the extractor happened to produce.
+ * The sizing constants that used to live here are gone, and so is the reasoning that named
+ * them. It said "top-k headroom is what actually protects the claim", which M13 measured to be
+ * false: `top_k` is **inert**. `top_k=1` returns thirteen rows, `episode_slots=0` and
+ * `episode_slots=99` are indistinguishable, and every alternative name tried is inert too —
+ * all with `200`. There was never any truncation to have headroom against.
  *
- * Raised to 40 for headroom rather than tuned to the measurement, because the measurement is
- * of one corpus on one day. The cost is a larger response on a query that runs once per ask.
- *
- * `INDUCTION_EPISODE_SLOTS` is sent, and we cannot prove the server honours it: a made-up
- * parameter (`wibble_slots`) is also accepted with 200, so presence proves nothing (M13).
- * Client-side reservation is the fix; until then top-k headroom is what actually protects
- * the claim.
+ * What protects the claim is client-side and lives in `src/memory/episodes.ts`, which also
+ * carries the measurements. The short version: the search is non-deterministic, so an empty
+ * answer is not an empty scope, and the reservation is a bounded retry rather than a parameter.
  */
-const INDUCTION_TOP_K = 40;
-const INDUCTION_EPISODE_SLOTS = 4;
 
 export interface PoolStoreDeps {
   client: MemoryClient;
@@ -139,15 +134,14 @@ export function createPoolStore(deps: PoolStoreDeps): PoolStore {
     },
 
     async inducedClaim(query: string): Promise<string> {
-      const rows = await deps.client.search(POOL_SCOPE, query, {
-        topK: INDUCTION_TOP_K,
-        episodeSlots: INDUCTION_EPISODE_SLOTS,
-      });
-      // Prefer the episode — that is the induced relationship; a bare fact is
-      // just one read. An empty string means "no claim", never a crash.
-      const episode = rows.find((row) => row.kind === 'episode' && row.content !== '');
-      if (episode) return episode.content;
-      return '';
+      // The reservation is client-side (M13): `top_k` and `episode_slots` are both measured
+      // INERT — `top_k=1` returns thirteen rows — so nothing here may depend on them. What
+      // does work is that the search is non-deterministic, so an empty answer is not an empty
+      // scope; see src/memory/episodes.ts.
+      const result = await searchForEpisodes({ ...deps, label: 'pool' }, POOL_SCOPE, query);
+      // The episode is the induced relationship; a bare fact is just one read. An empty string
+      // means "no claim", never a crash.
+      return result.episodes[0]?.content ?? '';
     },
   };
 }

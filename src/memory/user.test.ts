@@ -11,6 +11,7 @@ import { join } from 'node:path';
 import { createUserStore } from './user.js';
 import { BATCH_SIZE, createProseBuffer } from './proseBuffer.js';
 import { personalScope } from './scopes.js';
+import { EPISODE_ATTEMPTS } from './episodes.js';
 
 /** Fake XTrace: per-scope rows, per-job controllable status. Prose only, after M11. */
 function fakeSubstrate() {
@@ -443,18 +444,26 @@ describe('M3 personalClaim — D-8\'s second input (M16)', () => {
     expect(h.lines.join('\n')).toContain('none usable');
   });
 
-  it('reserves headroom for the episode, because facts sort first', async () => {
-    // Measured on the live API for the pool query: every fact comes before any episode, and
-    // the first episode landed at index 10. A personal scope is thick with prose facts — one
-    // confession yields several — so a small top-k returns facts only. M13: `episode_slots`
-    // is sent and cannot be relied on, so the headroom carries the guarantee.
+  it('retries when no episode comes back, because the search is non-deterministic (M13)', async () => {
+    // Replaces a test that asserted "the headroom carries the guarantee". M13 measured that to
+    // be false: `top_k` is inert — `top_k=1` returns thirteen rows — so there is no truncation
+    // to have headroom against. What IS true is that the identical request returns 13/3E,
+    // 11/2E, 13/3E across six calls, so an empty first answer is not an empty scope.
     const h = harness();
-    const seen: Array<{ topK: number; episodeSlots: number }> = [];
+    let call = 0;
     const spy = {
       ...h.client,
-      search: (_s: string, _q: string, opts: { topK: number; episodeSlots: number }) => {
-        seen.push(opts);
-        return Promise.resolve([]);
+      search: () => {
+        call += 1;
+        // Facts only on the first attempt; the episode surfaces on the second.
+        return Promise.resolve(
+          call === 1
+            ? [{ memoryId: 'f1', kind: 'fact' as const, content: 'one fact' }]
+            : [
+                { memoryId: 'f1', kind: 'fact' as const, content: 'one fact' },
+                { memoryId: 'e1', kind: 'episode' as const, content: 'the pattern across them' },
+              ],
+        );
       },
     };
     const store = createUserStore({
@@ -464,12 +473,38 @@ describe('M3 personalClaim — D-8\'s second input (M16)', () => {
         path: mkdtempSync(join(tmpdir(), 'confit-prose-')),
         logger: createLogger(() => undefined),
       }),
-      logger: createLogger(() => undefined),
+      logger: h.logger,
     });
-    await store.personalClaim('A', 'q');
-    expect(seen).toHaveLength(1);
-    expect(seen[0]?.topK ?? 0).toBeGreaterThanOrEqual(40);
-    expect(seen[0]?.episodeSlots ?? 0).toBeGreaterThan(0);
+    expect(await store.personalClaim('A', 'q')).toBe('the pattern across them');
+    expect(call).toBe(2); // it asked again rather than reporting nothing
+    expect(h.lines.join('\n')).toMatch(/attempt 2 of 3/);
+  });
+
+  it('stops after a bounded number of attempts and says so', async () => {
+    // A scope with facts and no episode is a real state — one confession cannot be synthesised
+    // across anything — and by the owner's ruling there is no floor to reach. So the retry is
+    // bounded, and the absence is reported rather than chased.
+    const h = harness();
+    let call = 0;
+    const spy = {
+      ...h.client,
+      search: () => {
+        call += 1;
+        return Promise.resolve([{ memoryId: 'f1', kind: 'fact' as const, content: 'a fact' }]);
+      },
+    };
+    const store = createUserStore({
+      client: spy,
+      settings: new StubSettingsStore(),
+      buffer: createProseBuffer({
+        path: mkdtempSync(join(tmpdir(), 'confit-prose-')),
+        logger: createLogger(() => undefined),
+      }),
+      logger: h.logger,
+    });
+    expect(await store.personalClaim('A', 'q')).toBe('');
+    expect(call).toBe(EPISODE_ATTEMPTS);
+    expect(h.lines.join('\n')).toMatch(/no episode after 3 attempts/);
   });
 
   it('queries the user\'s OWN scope, never the pool', async () => {
@@ -491,6 +526,8 @@ describe('M3 personalClaim — D-8\'s second input (M16)', () => {
       logger: createLogger(() => undefined),
     });
     await store.personalClaim('profile-B', 'q');
-    expect(scopes).toEqual([personalScope('profile-B')]);
+    // Every attempt goes to the same scope; the retry must not wander to the pool.
+    expect(new Set(scopes)).toEqual(new Set([personalScope('profile-B')]));
+    expect(scopes).toHaveLength(EPISODE_ATTEMPTS);
   });
 });
