@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T13:05:10.518Z",
+  "updated_at": "2026-07-25T13:20:19.508Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -1155,13 +1155,13 @@
         "K4"
       ],
       "mock_start_ok": false,
-      "note": "PRODUCT CALL NEEDED, small code either way. score.ts:89 excludes a place outright when priceBand > budgetBand + BUDGET_TOLERANCE_BANDS, and score.ts:170 ALSO scores priceFit. So budget is a soft preference implemented as a hard filter with one band of tolerance. Under the owner's ruling that soft preferences sit on similar footing to confession evidence, the hard half means a declared budget removes a candidate before any evidence about it can weigh in — if the confessions say someone keeps going to the expensive place, that place can never surface. Three options: (a) purely soft, so an over-budget place can be recommended when evidence supports it; (b) keep the exclusion, widen the tolerance; (c) keep it hard and declare budget an exception to the ruling. giConstraint stays hard either way — that one is safety.",
+      "note": "DECIDED (delegated to the implementing session): option (d) — evidence can LIFT the ceiling; the exclusion is not removed. Rejected (a) purely soft, because priceFit contributes 0.5 vs 1.0 on one of four sub-fits inside one weighted component: removing the exclusion does not put budget on similar footing with evidence, it makes budget nearly irrelevant, and a band-1 declarer would routinely see band-4 places on unrelated merits. Rejected (b) widening the tolerance as moving an arbitrary wall. Rejected (c) an exception, which abandons the ruling for money with no reason beyond intuition. BUILD: an over-budget place survives exclusionsFor when a CITABLE cohort (k >= KFLOOR, on a driver the user's UsualProfile evidences) includes that place. The declaration holds until evidence contradicts it, and the override is gated on the k-floor so five strangers must have signalled about that place first — reusing K6's matched() and the privacy threshold the product already trusts. COST: exclusionsFor/candidates take (place, usual) today and need reads threaded in — a kernel signature change, still pure, still no clock. giConstraint stays hard regardless. Owner may overrule in favour of (b) for the demo.",
       "status": "available",
       "owner": null,
       "branch": null,
       "pr": null,
       "claimed_at": null,
-      "updated_at": "2026-07-25T12:54:49.842Z"
+      "updated_at": "2026-07-25T13:20:19.507Z"
     }
   }
 }
