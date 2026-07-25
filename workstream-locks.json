@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T08:41:38.734Z",
+  "updated_at": "2026-07-25T08:41:48.278Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -341,13 +341,13 @@
         "P0.3"
       ],
       "mock_start_ok": false,
-      "note": "DEFECT reported by claude-session-014n6NYRN6Rb: src/llm/narrator.ts:28 declares its own 'const KFLOOR = 5'. That is a second source of truth for a privacy invariant — retuning the floor in one place would leave the other gating at the old value, silently. Import KFLOOR from src/kernel/cohorts.js instead (llm may import kernel; only the kernel has import restrictions). See DAG §4 and K4's note: the floor lives with the code that enforces it, deliberately not in constants.ts. Not fixed by the reporter: src/llm/** is lane L.",
+      "note": "TWO DEFECTS + one process violation, reported by fable-session-0dd9z8, repro'd before filing (details on PR #14). D1: sub-floor citation IS cited via every template-delegation path — TemplateNarrator interpolates k with no KFLOOR guard, so narrator.ts's 'never cited' promise only holds on the model path; repro: k=2 renders '2 of them now.' D2: one transient model error (e.g. a 429) permanently flips narrator→template with zero retries — inconsistent with the lint path which keeps the flag live, and silently degrades every later card. PROCESS: L3 was marked done without ever being claimed (owner was empty) — the double-claim guard cannot protect a task nobody claims. src/llm is lane L; not touched by the reporter.",
       "status": "done",
       "owner": null,
       "branch": null,
       "pr": "https://github.com/Gambappe/Foodictador/pull/14",
       "claimed_at": null,
-      "updated_at": "2026-07-25T08:40:45.500Z"
+      "updated_at": "2026-07-25T08:41:48.278Z"
     },
     "X1": {
       "title": "CLI skeleton: subcommand dispatch, --profile/--json/--yes/--help, documented exit codes, rendering separated from logic",
