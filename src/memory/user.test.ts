@@ -228,6 +228,84 @@ describe('M3 usual — duplicates and misses (PR #22 review)', () => {
   });
 });
 
+describe('M3 boundary parsing (SL-04)', () => {
+  it('an out-of-domain usual is skipped with a log line, never laundered into the types', async () => {
+    const h = harness();
+    await h.client.ingest(
+      'A',
+      JSON.stringify({
+        kind: 'confit:usual',
+        written_at: '2026-07-25T12:00:99.000Z', // newest by far
+        usual: { spiceTolerance: 42, budgetBand: 99, portionPref: 'gigantic', soloComfort: true, giConstraint: false, offLimits: [] },
+      }),
+    );
+    // A newer garbage record must not shadow an older valid one.
+    await h.client.ingest(
+      'A',
+      JSON.stringify({
+        kind: 'confit:usual',
+        written_at: '2026-07-25T11:00:00.000Z',
+        usual: { ...sampleUsual, offLimits: ['fasting'] },
+      }),
+    );
+    const cold = createUserStore({ client: h.client, logger: createLogger((m) => h.lines.push(m)) });
+    const usual = await cold.usual('A');
+    expect(usual?.spiceTolerance).toBe(sampleUsual.spiceTolerance);
+    expect(usual?.offLimits).toEqual(['fasting']);
+    expect(h.lines.some((l) => l.includes('skipping malformed confit:usual'))).toBe(true);
+  });
+
+  it('garbage-only usual records read as null, not as a typed lie', async () => {
+    const h = harness();
+    await h.client.ingest(
+      'B',
+      JSON.stringify({ kind: 'confit:usual', usual: { spiceTolerance: 42 } }),
+    );
+    const cold = createUserStore({ client: h.client, logger: createLogger(() => {}) });
+    expect(await cold.usual('B')).toBeNull();
+  });
+
+  it('extra keys in a stored usual are stripped — the returned object is exactly the contract shape', async () => {
+    const h = harness();
+    await h.client.ingest(
+      'A',
+      JSON.stringify({
+        kind: 'confit:usual',
+        written_at: '2026-07-25T12:00:50.000Z',
+        usual: { ...sampleUsual, smuggled: 'not-a-contract-field' },
+      }),
+    );
+    const cold = createUserStore({ client: h.client, logger: createLogger(() => {}) });
+    const usual = await cold.usual('A');
+    expect(usual).not.toBeNull();
+    expect(Object.keys(usual ?? {})).not.toContain('smuggled');
+  });
+
+  it('a junk meal-log entry is skipped and logged — and K3 no longer throws (the SL-04 probe)', async () => {
+    const h = harness();
+    await h.client.ingest(
+      'A',
+      JSON.stringify({
+        kind: 'confit:meal_log',
+        written_at: '2026-07-25T12:00:50.000Z',
+        entries: [
+          { dishId: 'pho', placeId: 'x', at: '2026-07-20', felt: 'glad' },
+          { dishId: 'pho', placeId: 'x', at: 'whenever' },
+          'not-an-entry',
+          { dishId: 'pho', placeId: 'x', at: '2026-07-21', felt: 'meh' },
+        ],
+      }),
+    );
+    const cold = createUserStore({ client: h.client, logger: createLogger((m) => h.lines.push(m)) });
+    const log = await cold.mealLog('A');
+    expect(log).toEqual([{ dishId: 'pho', placeId: 'x', at: '2026-07-20', felt: 'glad' }]);
+    expect(h.lines.filter((l) => l.includes('skipping malformed meal-log entry'))).toHaveLength(3);
+    // The probe that motivated SL-04: this used to throw out of K3.
+    const { suppressions } = await import('../kernel/rotation.js');
+    expect(() => suppressions(log, '2026-07-25')).not.toThrow();
+  });
+});
+
 describe('M3 meal log', () => {
   it('setMealLog then mealLog round-trips; a fresh profile is empty', async () => {
     const { store } = harness();

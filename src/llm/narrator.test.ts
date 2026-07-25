@@ -85,6 +85,36 @@ describe('L3 live narrator', () => {
     expect(lines.some((l) => l.includes('does not name the pick'))).toBe(true);
   });
 
+  it('an off-corpus venue in a NON-reason line is rejected too (SL-05)', async () => {
+    const { narrator, requests, lines } = harness([
+      textResponse({
+        reasonLine: `${pickName()} — the quiet consensus tonight.`,
+        rotationLine: 'Not the invented Wagyu Palace special — too soon.',
+        usualLine: "Same as your usual at Louie's Chophouse.",
+      }),
+      textResponse({ reasonLine: `${pickName()} — steady and familiar.` }),
+    ]);
+    const copy = await narrator.write(ranked(), facts());
+    expect(copy.reasonLine).toContain(pickName());
+    expect(copy.rotationLine).toBeUndefined(); // the hallucinated copy never survives
+    expect(requests).toHaveLength(2);
+    expect(lines.some((l) => l.includes('off-corpus'))).toBe(true);
+  });
+
+  it('candidate and dish names in secondary lines are allowed', async () => {
+    const second = ranked()[1];
+    if (!second) throw new Error('need a runner-up');
+    const { narrator, requests } = harness([
+      textResponse({
+        reasonLine: `${pickName()} — the quiet consensus tonight.`,
+        usualLine: `${second.place.name} is there if you change your mind.`,
+      }),
+    ]);
+    const copy = await narrator.write(ranked(), facts());
+    expect(copy.usualLine).toContain(second.place.name);
+    expect(requests).toHaveLength(1); // no regenerate — this copy is grounded
+  });
+
   it('a banned term regenerates once then falls back to the template', async () => {
     const { narrator, requests, flags } = harness([
       textResponse({ reasonLine: `${pickName()} — you're on a 3-day streak of good picks.` }),

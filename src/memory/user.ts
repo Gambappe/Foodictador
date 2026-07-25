@@ -62,17 +62,65 @@ export interface UserStoreHandle extends UserStore {
   dropUnconfirmedProse(): number;
 }
 
-function isUsualProfile(value: unknown): value is UsualProfile {
-  if (typeof value !== 'object' || value === null) return false;
+/**
+ * Boundary parsers (SL-04). DAG §1: parse external input at the boundary and
+ * hand typed values inward. The predicate these replace checked `typeof` and
+ * claimed `value is UsualProfile` — laundering `spiceTolerance: 42` into the
+ * type system, where it silently disabled K4's budget and spice constraints.
+ * These return a CLEAN object or null; they never cast.
+ */
+function parseUsualProfile(value: unknown): UsualProfile | null {
+  if (typeof value !== 'object' || value === null) return null;
   const record = value as Record<string, unknown>;
-  return (
-    typeof record['spiceTolerance'] === 'number' &&
-    typeof record['budgetBand'] === 'number' &&
-    typeof record['portionPref'] === 'string' &&
-    typeof record['soloComfort'] === 'boolean' &&
-    typeof record['giConstraint'] === 'boolean' &&
-    Array.isArray(record['offLimits'])
-  );
+  const spiceTolerance = record['spiceTolerance'];
+  const budgetBand = record['budgetBand'];
+  const portionPref = record['portionPref'];
+  const soloComfort = record['soloComfort'];
+  const giConstraint = record['giConstraint'];
+  const offLimits = record['offLimits'];
+  if (spiceTolerance !== 0 && spiceTolerance !== 1 && spiceTolerance !== 2 && spiceTolerance !== 3)
+    return null;
+  if (budgetBand !== 1 && budgetBand !== 2 && budgetBand !== 3 && budgetBand !== 4) return null;
+  if (portionPref !== 'small' && portionPref !== 'standard' && portionPref !== 'large') return null;
+  if (typeof soloComfort !== 'boolean' || typeof giConstraint !== 'boolean') return null;
+  if (!Array.isArray(offLimits) || offLimits.some((topic) => typeof topic !== 'string')) return null;
+
+  const usual: UsualProfile = {
+    spiceTolerance,
+    budgetBand,
+    portionPref,
+    soloComfort,
+    giConstraint,
+    offLimits: [...(offLimits as string[])],
+  };
+  const defaultOrder = record['defaultOrder'];
+  if (defaultOrder !== undefined) {
+    if (typeof defaultOrder !== 'object' || defaultOrder === null) return null;
+    const order = defaultOrder as Record<string, unknown>;
+    const placeId = order['placeId'];
+    const dishId = order['dishId'];
+    if (typeof placeId !== 'string' || placeId === '' || typeof dishId !== 'string' || dishId === '')
+      return null;
+    usual.defaultOrder = { placeId, dishId };
+  }
+  return usual;
+}
+
+/** One meal-log entry, domain-checked — a bad date here throws out of K3 later. */
+function parseMealLogEntry(value: unknown): MealLogEntry | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const record = value as Record<string, unknown>;
+  const dishId = record['dishId'];
+  const placeId = record['placeId'];
+  const at = record['at'];
+  const felt = record['felt'];
+  if (typeof dishId !== 'string' || dishId === '') return null;
+  if (typeof placeId !== 'string' || placeId === '') return null;
+  if (typeof at !== 'string' || Number.isNaN(Date.parse(at))) return null;
+  if (felt !== undefined && felt !== 'glad' && felt !== 'fine' && felt !== 'regret') return null;
+  const entry: MealLogEntry = { dishId, placeId, at };
+  if (felt !== undefined) entry.felt = felt;
+  return entry;
 }
 
 function parseTagged(row: MemoryRow, kind: string): Record<string, unknown> | null {
@@ -114,17 +162,28 @@ export function createUserStore(deps: UserStoreDeps): UserStoreHandle {
     return typeof value === 'string' ? value : '';
   }
 
-  /** Duplicates are expected (no upsert + settle window); the newest wins. */
-  function newest(
+  /**
+   * Duplicates are expected (no upsert + settle window); the newest PARSED
+   * record wins — a newer record that fails the boundary parser is skipped
+   * with a log line (pool.ts precedent) and must not shadow an older valid
+   * one, and garbage never reaches a caller typed.
+   */
+  function newestParsed<T>(
     found: Array<{ row: MemoryRow; record: Record<string, unknown> }>,
-    valid: (record: Record<string, unknown>) => boolean,
-  ): Record<string, unknown> | null {
-    let best: Record<string, unknown> | null = null;
-    for (const { record } of found) {
-      if (!valid(record)) continue;
-      if (best === null || writtenAt(record) > writtenAt(best)) best = record;
+    kind: string,
+    parse: (record: Record<string, unknown>) => T | null,
+  ): T | null {
+    let best: { value: T; at: string } | null = null;
+    for (const { row, record } of found) {
+      const value = parse(record);
+      if (value === null) {
+        deps.logger.line(`user: skipping malformed ${kind} record ${row.memoryId}`);
+        continue;
+      }
+      const at = writtenAt(record);
+      if (best === null || at > best.at) best = { value, at };
     }
-    return best;
+    return best === null ? null : best.value;
   }
 
   async function replaceTagged(profile: string, kind: string, body: Record<string, unknown>) {
@@ -148,11 +207,10 @@ export function createUserStore(deps: UserStoreDeps): UserStoreHandle {
     async usual(profile: string): Promise<UsualProfile | null> {
       const cached = usualCache.get(profile);
       if (cached) return structuredClone(cached);
-      const record = newest(await findTagged(profile, USUAL_KIND), (r) =>
-        isUsualProfile(r['usual']),
+      const usual = newestParsed(await findTagged(profile, USUAL_KIND), USUAL_KIND, (r) =>
+        parseUsualProfile(r['usual']),
       );
-      if (record !== null) {
-        const usual = record['usual'] as UsualProfile;
+      if (usual !== null) {
         usualCache.set(profile, structuredClone(usual));
         return structuredClone(usual);
       }
@@ -167,15 +225,24 @@ export function createUserStore(deps: UserStoreDeps): UserStoreHandle {
     async mealLog(profile: string): Promise<MealLogEntry[]> {
       const cached = mealLogCache.get(profile);
       if (cached) return structuredClone(cached);
-      const record = newest(await findTagged(profile, MEAL_LOG_KIND), (r) =>
-        Array.isArray(r['entries']),
+      // The newest record whose entries field is a list, then per-entry
+      // parsing: one junk entry is skipped with a line (pool.ts precedent),
+      // not handed to K3 to throw the whole Ask over.
+      const entries = newestParsed(await findTagged(profile, MEAL_LOG_KIND), MEAL_LOG_KIND, (r) =>
+        Array.isArray(r['entries']) ? (r['entries'] as unknown[]) : null,
       );
-      if (record !== null) {
-        const log = record['entries'] as MealLogEntry[];
-        mealLogCache.set(profile, structuredClone(log));
-        return structuredClone(log);
+      if (entries === null) return [];
+      const log: MealLogEntry[] = [];
+      for (const [index, raw] of entries.entries()) {
+        const entry = parseMealLogEntry(raw);
+        if (entry === null) {
+          deps.logger.line(`user: skipping malformed meal-log entry #${index} for ${profile}`);
+          continue;
+        }
+        log.push(entry);
       }
-      return [];
+      mealLogCache.set(profile, structuredClone(log));
+      return structuredClone(log);
     },
 
     async setMealLog(profile: string, entries: MealLogEntry[]): Promise<void> {

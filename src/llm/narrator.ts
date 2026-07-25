@@ -162,18 +162,54 @@ function parseCopy(response: ModelResponse): CardCopy | null {
 }
 
 /**
- * Reject copy that fails the linter or is not grounded in the assigned pick.
- * The grounding check is the enforceable half of choose-from-corpus: copy that
- * names some other venue cannot contain the pick it was told to write about.
+ * A capitalised multi-word run — the shape of a venue or dish name appearing
+ * mid-copy. Single capitalised words are indistinguishable from sentence
+ * starts, so the net is two-or-more; that is the reviewed trade (SL-05): a
+ * missed single-word hallucination degrades to template copy elsewhere, while
+ * a false positive costs one regenerate.
+ */
+const NAME_RUN = /[A-Z][\w'’]*(?:\s+[A-Z][\w'’]*)+/g;
+
+/** Every name the model was given and may therefore echo. */
+function allowedNames(ranked: RankedPlace[]): string[] {
+  return ranked.flatMap((entry) => [
+    entry.place.name,
+    ...entry.place.signatureDishes.map((dish) => dish.name),
+  ]);
+}
+
+/** The first name-shaped run in `line` that matches nothing the model was given. */
+function offCorpusRun(line: string, allowed: string[]): string | null {
+  for (const match of line.matchAll(NAME_RUN)) {
+    const run = match[0];
+    if (!allowed.some((name) => name.includes(run) || run.includes(name))) return run;
+  }
+  return null;
+}
+
+/**
+ * Reject copy that fails the linter or breaks the choose-from-corpus contract.
+ * Grounding is enforced on EVERY line (SL-05 — it used to cover only the
+ * reason line, so an invented venue in the rotation or usual line sailed
+ * through): the reason line must name the assigned pick, and no line may
+ * carry a name-shaped run outside the provided candidates and their dishes.
  */
 function violation(copy: CardCopy, ranked: RankedPlace[]): string | null {
   const pick = ranked[0];
   if (pick && !copy.reasonLine.includes(pick.place.name)) {
     return `reason line does not name the pick "${pick.place.name}"`;
   }
-  const lines = [copy.reasonLine, copy.rotationLine, copy.usualLine, copy.cohortMissLine];
-  for (const line of lines) {
+  const allowed = allowedNames(ranked);
+  const lines: Array<[string, string | undefined]> = [
+    ['reason', copy.reasonLine],
+    ['rotation', copy.rotationLine],
+    ['usual', copy.usualLine],
+    ['cohort-miss', copy.cohortMissLine],
+  ];
+  for (const [label, line] of lines) {
     if (line === undefined) continue;
+    const stray = offCorpusRun(line, allowed);
+    if (stray !== null) return `${label} line names off-corpus "${stray}"`;
     const result = lint(line);
     if (!result.ok) return `banned term(s): ${result.hits.join(', ')}`;
   }
