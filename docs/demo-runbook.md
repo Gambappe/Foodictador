@@ -48,6 +48,137 @@ each confession arrived.
 
 ---
 
+## One machine (a laptop, no cloud box)
+
+Everything above assumes demo day: three laptops, a hosted relay, an audience. For
+development, rehearsal, or showing one person over your shoulder, all four roles collapse
+onto one MacBook — **you host the relay yourself**, which is the only structural difference.
+
+Verified end to end on the merged trunk; the numbers below are from that run.
+
+**Prerequisites.** Node ≥ 20 (`brew install node`) and an XTrace API key.
+
+> The XTrace key is required even though a single-machine run never needs the pool:
+> `loadConfig` demands `XTRACE_API_KEY` before any command does anything, so without it
+> every invocation exits with `Missing required environment variable(s)`. Making
+> relay-only stop requiring credentials it does not use is outstanding work under
+> DEPLOY.1 — until it lands, this is a hard prerequisite rather than an inconvenience.
+
+**1. Install.**
+
+```bash
+git clone <repo> && cd Foodictador
+bash scripts/install.sh --operator
+```
+
+`npm ci`, build, `confit` linked onto PATH, and a `.confit.env` template at mode 600
+(gitignored). It writes no secrets — blanks and instructions. If `npm link` fails, which
+needs sudo on some setups, the installer prints the alias fallback.
+
+Fill in `.confit.env`:
+
+```bash
+export RELAY_URL=http://127.0.0.1:8787
+export RELAY_TOKEN=any-local-value       # you are both ends; it still travels on every request
+export XTRACE_BASE_URL=https://api.production.xtrace.ai
+export XTRACE_API_KEY=<key>
+export SETTLE_WINDOW_SECONDS=480
+export CONFIT_SCRIPTED=1                 # drop this line if you set ANTHROPIC_API_KEY
+```
+
+**2. Relay, in its own terminal.** It runs in the foreground; leave it there.
+
+```bash
+RELAY_TOKEN=any-local-value \
+RELAY_DUMP_PATH=$HOME/confit-relay.json \
+node dist/infra/relay/main.js
+# relay: listening on :8787 (durable → /Users/you/confit-relay.json)
+```
+
+`RELAY_DUMP_PATH` is the store of record here exactly as it is on the cloud box (D-7).
+It is a path in your home directory rather than a Docker volume, which makes it *easier*
+to delete by accident, not harder. `RELAY_EPHEMERAL=1` if you genuinely want a scratch run
+that discards everything on exit.
+
+**3. Seed, in a second terminal.**
+
+```bash
+cd Foodictador && source .confit.env
+npm run demo:pack            # writes data/demo/pack.json (deterministic; commit-safe)
+confit pass provision
+confit pass seed --pack      # 326 pooled = 220 base + 106 pack
+npm run preflight
+```
+
+**`--pack` is the line that matters.** Without it you get the base corpus alone, and the
+five drivers a `UsualProfile` can actually evidence sit one or two reads over the k≥5
+floor — so every card cites "5 of them" and the score landscape is flat enough that eight
+places tie at exactly 0.6625. With it:
+
+```
+spice_tolerance_low   k= 41  citable      manifest=  7  over
+budget_ceiling        k= 32  citable      manifest=  6  over
+portion_small         k= 21  citable      manifest=  5  over
+solo_comfort          k= 29  citable      manifest=  7  over
+gi_constraint         k= 13  citable      manifest=  5  over
+Cross-check clean: no driver counted below its manifest total.
+```
+
+`over` is not a warning. The manifest describes the base seed, and the report already
+reads a count above it as live reads joined — `MISMATCH`, counting *below* manifest, is
+the one that stops a demo. `pass neartie` stays clean with the pack loaded; the base seed
+is deliberately not regenerated, because it is PRNG-tuned so that invariant provably holds.
+
+Pre-flight should end `READY`. On an empty pool it hard-fails instead, which is the whole
+point of running it.
+
+**4. Run the showcases.**
+
+```bash
+npm run demo
+```
+
+Ten beats driven end to end, each asserting the claim it exists to demonstrate. Expect
+**9 PASS / 1 SHOW** with an Anthropic key, **8 PASS / 1 SHOW / 1 SKIP** without one — the
+skip is the affinity beat (D-14), which reports itself skipped rather than passing
+vacuously. `--list` names them; `--only 3,5` runs a subset.
+
+The standing `SHOW` is off-limits: both committed profiles ship `offLimits: []` and no CLI
+command sets a topic, so `[E24]` cannot be shown from the CLI at all. It has unit coverage;
+the showcase says so rather than implying the confession text merely missed.
+
+**5. Or drive it by hand.**
+
+```bash
+confit ask --profile B
+confit confess --profile A --text "I only order the safe thing when I'm alone"
+confit sweep --once
+confit pass census
+```
+
+A real card from the verification run:
+
+```
+▸ Umami Dive
+… Umami Dive is where that leads tonight — 42 people with your real spice tolerance say so.
+[people with your real spice tolerance · 42 of them]
+Not shoyu ramen — twice this week already, and you turn on it by the third.
+Fine to eat alone.
+```
+
+### Two things that will catch you out
+
+**`--pack` is opt-in, and `npm run demo` only auto-seeds an *empty* pool.** If you already
+ran `confit pass seed` without it, the runner finds reads, seeds nothing, and you rehearse
+the thin corpus. Re-run `confit pass seed --pack` explicitly. Re-seeding is safe: it
+creates pool duplicates that K6's dedup collapses, and the command discloses it.
+
+**`CONFIT_SCRIPTED=1` together with `ANTHROPIC_API_KEY` makes pre-flight warn.** The
+variable is a declaration of intent for pre-flight, not a degrade switch — it does not
+suppress model calls. Set one or the other.
+
+---
+
 ## Deploying the relay
 
 **On fly.io — the chosen path — follow `docs/deploy-flyio.md`.** It is a step-by-step list
@@ -201,7 +332,8 @@ literally and do not claim the personal-memory half from a machine showing it.
 
 ```bash
 confit pass provision --profile all
-confit pass seed
+npm run demo:pack
+confit pass seed --pack
 ```
 
 Reads are countable from the relay the moment they land. What needs hours is XTrace
@@ -209,8 +341,14 @@ building an *induced claim* worth showing — the loader says so on the way out:
 *"Seed hours ahead for a good induced claim, not to make the demo work."*
 
 Three people confessing live will never reach the k≥5 citation floor on their own. The
-220 seeded reads are what make cohorts citable. Seeding is not set-dressing; it is the
-demo's central beat.
+seeded reads are what make cohorts citable. Seeding is not set-dressing; it is the demo's
+central beat.
+
+**Seed with `--pack`.** The base corpus is 220 reads, but 190 of them sit on six drivers
+no `UsualProfile` can evidence, leaving the five that matter at 7/6/5/7/5 — barely over
+the floor, which is why an unpacked demo cites "5 of them" everywhere. The pack adds 106
+reads across all 26 cuisines and takes those five to 41/32/21/29/13. Plain
+`confit pass seed` still works and is still a valid demo; it is just the thin one.
 
 ### T−12h — start the sweeper
 
@@ -315,8 +453,9 @@ re-seed; you will lose live confessions but the seeded pool is reproducible.
 **Pool emptied by accident** (`pass reset` is one mis-click and there is no undo):
 
 ```bash
-confit pass seed
-confit pass census    # must exit 0 before you continue
+confit pass seed --pack    # --pack if you seeded with it; census will show fewer cohorts if not
+confit pass census         # must exit 0 before you continue
 ```
 
-Seeded reads come back exactly. Live confessions do not.
+Seeded reads come back exactly — both artifacts are deterministic, so recovery restores
+the same corpus rather than a similar one. Live confessions do not come back.
