@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T13:30:51.454Z",
+  "updated_at": "2026-07-25T13:33:49.257Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -992,13 +992,13 @@
         "M12"
       ],
       "mock_start_ok": false,
-      "note": "D-8's missing middle. writeProse ingests every confession to the profile scope and NOTHING queries it back — grep finds no synthesis query against a profile scope anywhere, so the personal tier has been pure cost since it was written. Add UserStore.inducedClaim(profile, query) (episodes over the user's own confessions, same shape as PoolStore.inducedClaim) and thread it onto the ask path. CONTRACT CHANGE: NarratorFacts.inducedClaim is singular and would now have two callers — the personal claim ('what you keep doing') and the group claim ('what people like you keep doing') are different promises and must be separate fields, or one silently replaces the other. Also raise INDUCTION_TOP_K's lesson here: facts sort before episodes, so a profile scope thick with prose facts can push its episode past the cut — measure the index before picking k.",
-      "status": "claimed",
+      "note": "DONE in PR #64. UserStore.personalClaim mirrors M2's inducedClaim over the user's own scope; NarratorFacts.inducedClaim split into poolClaim + personalClaim; Card/CardCopy gained personalLine; both claims share ONE lint gate. Not model-generated in either narrator — a fixed catalog frame, because a third layer of paraphrase on a claim about the reader is where drift matters most. No floor per the owner's ruling, with episode/fact counts logged so a thin claim is attributable. VERIFIED LIVE and the measurement matters more than the feature: the claim is ONE confession, not seven, because writeProse mints a fresh conv_id per call (18 rows, 8 episodes, 8 distinct conv_ids) — the M12 defect in the personal tier. AND the obvious fix fails: 4 separate POSTs sharing one conv_id still gave per-POST paraphrases, so episodes are generated per INGEST CALL not per accumulated conversation. Cross-confession synthesis needs M17's spool. Registered as M20.",
+      "status": "done",
       "owner": "claude-session-014n6NYRN6Rb",
       "branch": "claude/upload-code-artifact-zop9uz",
-      "pr": null,
+      "pr": "https://github.com/Gambappe/Foodictador/pull/64",
       "claimed_at": "2026-07-25T13:20:21.150Z",
-      "updated_at": "2026-07-25T13:20:21.150Z"
+      "updated_at": "2026-07-25T13:33:49.257Z"
     },
     "M17": {
       "title": "Durable confession spool: verify prose is RETRIEVABLE, not merely 'complete', and re-ingest what XTrace dropped",
