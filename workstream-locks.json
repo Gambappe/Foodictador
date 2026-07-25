@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T12:47:42.098Z",
+  "updated_at": "2026-07-25T12:47:43.726Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -1067,6 +1067,19 @@
       "pr": null,
       "claimed_at": null,
       "updated_at": "2026-07-25T12:47:42.098Z"
+    },
+    "S5": {
+      "title": "SL-17: induction-set.json is a byte-identical copy of reads.json, so the pass census cross-check reports clean with XTrace unreachable",
+      "phase": "S",
+      "depends_on": [],
+      "mock_start_ok": false,
+      "note": "SL-17 in docs/defect-log.md (still open). data/seeds/induction-set.json must be derived from what actually landed in XTrace via induction (S2's own induced claims), not a copy of the raw seed reads — otherwise confit pass census's [E22] cross-check can never catch a broken pool.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T12:47:43.726Z"
     }
   }
 }
