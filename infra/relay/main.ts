@@ -17,14 +17,27 @@ if (token === undefined || token.trim() === '') {
   process.exit(1);
 }
 
-const port = Number(process.env['RELAY_PORT'] ?? '8787');
+function numericEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === '') return fallback;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    process.stderr.write(`${name} must be a positive number, got "${raw}"\n`);
+    process.exit(1);
+  }
+  return parsed;
+}
+
+const port = numericEnv('RELAY_PORT', 8787);
 const dumpPath = process.env['RELAY_DUMP_PATH'];
-const dumpIntervalMs = Number(process.env['RELAY_DUMP_INTERVAL_MS'] ?? '10000');
+const dumpIntervalMs = numericEnv('RELAY_DUMP_INTERVAL_MS', 10_000);
 
 const store = new RelayStore();
 if (dumpPath !== undefined && dumpPath !== '' && existsSync(dumpPath)) {
-  store.restore(readFileSync(dumpPath, 'utf8'));
-  process.stderr.write(`relay: restored ${store.stats().count} entries from ${dumpPath}\n`);
+  const { restored, skipped } = store.restore(readFileSync(dumpPath, 'utf8'));
+  process.stderr.write(
+    `relay: restored ${restored} entries from ${dumpPath}${skipped > 0 ? ` (skipped ${skipped} invalid)` : ''}\n`,
+  );
 }
 
 function dump(): void {

@@ -68,9 +68,20 @@ export class RelayStore {
     return JSON.stringify({ entries: [...this.entries.values()] });
   }
 
-  restore(json: string): void {
-    const parsed = JSON.parse(json) as { entries?: StoredEntry[] };
+  /** Skips structurally invalid entries rather than keying the map on undefined. */
+  restore(json: string): { restored: number; skipped: number } {
+    const parsed = JSON.parse(json) as { entries?: unknown[] };
     this.entries.clear();
-    for (const entry of parsed.entries ?? []) this.entries.set(entry.read.read_id, entry);
+    let skipped = 0;
+    for (const raw of parsed.entries ?? []) {
+      const entry = raw as StoredEntry | null;
+      const readId = entry?.read?.read_id;
+      if (typeof readId !== 'string' || readId === '' || typeof entry?.received_at !== 'string') {
+        skipped += 1;
+        continue;
+      }
+      this.entries.set(readId, entry);
+    }
+    return { restored: this.entries.size, skipped };
   }
 }

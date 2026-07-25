@@ -187,11 +187,29 @@ describe('store dump/restore', () => {
     store.put(sampleRead);
     store.setJob(sampleRead.read_id, 'job-7');
     const copy = new RelayStore();
-    copy.restore(store.serialize());
+    const report = copy.restore(store.serialize());
+    expect(report).toEqual({ restored: 1, skipped: 0 });
     const entries = copy.list();
     expect(entries).toHaveLength(1);
     expect(entries[0]?.ingest_job_id).toBe('job-7');
     expect(entries[0]?.read).toEqual(sampleRead);
+  });
+
+  it('restore skips structurally invalid entries instead of loading garbage', () => {
+    const store = new RelayStore();
+    const report = store.restore(
+      JSON.stringify({
+        entries: [
+          { read: sampleRead, received_at: '2026-07-25T19:00:00.000Z' },
+          { read: { no_id: true }, received_at: '2026-07-25T19:00:00.000Z' },
+          { received_at: '2026-07-25T19:00:00.000Z' },
+          null,
+          { read: sampleRead }, // missing received_at
+        ],
+      }),
+    );
+    expect(report).toEqual({ restored: 1, skipped: 4 });
+    expect(store.list()).toHaveLength(1);
   });
 });
 

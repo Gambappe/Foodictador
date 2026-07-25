@@ -16,7 +16,7 @@ Run: `RELAY_TOKEN=<token> npx tsx infra/relay/main.ts` (port `RELAY_PORT`, defau
 | `GET /reads?since=` | open | `RelayEntry[]` = `{read, received_at, ingest_job_id?}` |
 | `DELETE /reads/{read_id}` `{token}` | token | 204; 404 unknown — used by both the deletion purge and the sweeper's verified-drop |
 | `GET /stats` | open | `{count, oldest_entry_age_seconds}` — every present entry is unverified by construction, so oldest age IS the stuck-entry signal |
-| `POST /seed` `{token, reads[]}` | open? no — token | `{count}`; batch is all-or-nothing, 400 names the failing index |
+| `POST /seed` `{token, reads[]}` | token | `{count}`; batch is all-or-nothing, 400 names the failing index |
 | `POST /reset` `{token}` | token | `{count: 0}` |
 
 Re-`POST` of an existing `read_id` updates the body but preserves `received_at` and
