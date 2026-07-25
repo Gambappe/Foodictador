@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T21:51:13.814Z",
+  "updated_at": "2026-07-25T21:51:15.472Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -1233,13 +1233,13 @@
         "D-14"
       ],
       "mock_start_ok": false,
-      "note": null,
-      "status": "claimed",
+      "note": "Merged #87. SHIPPED: scripts/demo/gen-demo-pack.mjs -> data/demo/pack.json (106 deterministic reads, PACK_SEED 0xdec0de, all 26 cuisines, distinct dec0de* id space); scripts/demo/showcase.mjs (npm run demo, ten beats, each asserts its own claim); npm scripts demo:pack + demo; eslint block for scripts/demo/**/*.mjs (the existing scripts/*.mjs ignore is one level deep). WHY: the base seed put 190 of 220 reads on six drivers no UsualProfile can evidence, leaving the five matchable ones at 7/6/7/5/5 — one or two over the k>=5 floor. That is why every card cited '5 of them' and eight places tied at exactly 0.6625. Pack takes them to 42/32/29/21/13, gi_constraint deliberately left near the floor so the floor is visibly working on stage. data/seeds/reads.json is NOT regenerated: it is PRNG-tuned so pass neartie provably holds, and re-rolling it re-rolls that guarantee. Live run over 331 reads: 9 PASS, 1 SHOW, 0 FAIL. TWO SELF-INFLICTED BUGS KEPT IN THE COMMENTS: showcase 9 first checked two ABSENCES and so passed with the relay down ('pool and relay failed' satisfies both negatives) — the false-receipt shape, committed inside the check meant to catch it, now asserts the positive property; and a missing dist/ reported ten failed showcases instead of 'run npm run build' (now an exit-2 guard).",
+      "status": "done",
       "owner": "claude-session-014n6NYRN6Rb",
       "branch": "claude/upload-code-artifact-zop9uz",
-      "pr": null,
+      "pr": "https://github.com/Gambappe/Foodictador/pull/87",
       "claimed_at": "2026-07-25T21:51:13.814Z",
-      "updated_at": "2026-07-25T21:51:13.814Z"
+      "updated_at": "2026-07-25T21:51:15.472Z"
     }
   }
 }
