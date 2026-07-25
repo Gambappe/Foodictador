@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T08:28:56.823Z",
+  "updated_at": "2026-07-25T08:29:08.987Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -309,12 +309,12 @@
       ],
       "mock_start_ok": false,
       "note": "Lands before the live narrator — it is both the narrator=template degrade path and the fixture the whole suite narrates with.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "claude-session-12uj0q",
+      "branch": "claude/app-design-task-impl-12uj0q",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T07:37:34.268Z"
+      "claimed_at": "2026-07-25T08:29:08.987Z",
+      "updated_at": "2026-07-25T08:29:08.987Z"
     },
     "L2": {
       "title": "Chip preview on claude-haiku-4-5: structured output for the five chips, off-limits check before and after, one retry then extraction=seeded",
