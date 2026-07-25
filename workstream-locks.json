@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T18:04:17.560Z",
+  "updated_at": "2026-07-25T18:04:19.066Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -1021,13 +1021,13 @@
       "phase": "P0",
       "depends_on": [],
       "mock_start_ok": false,
-      "note": "Fixed. Stub imports KFLOOR; StubNarrator floors its citation like TemplateNarrator. Guarded through the stubs behaviour, red-verified against both mutations.",
-      "status": "in_review",
+      "note": "Merged to trunk via #71 (0293a0f), which landed the #65 branch intact after the announced takeover deadline; review record on #65. Ownership preserved.",
+      "status": "done",
       "owner": "claude-session-014n6NYRN6Rb",
       "branch": "claude/upload-code-artifact-zop9uz",
       "pr": "65",
       "claimed_at": "2026-07-25T15:31:33.929Z",
-      "updated_at": "2026-07-25T15:35:57.502Z"
+      "updated_at": "2026-07-25T18:04:19.066Z"
     },
     "P0.11": {
       "title": "SL-07: infra/relay/server.ts reimplements parseRead instead of importing it",
