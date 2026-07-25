@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T08:18:12.415Z",
+  "updated_at": "2026-07-25T08:18:57.110Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -99,12 +99,12 @@
       ],
       "mock_start_ok": false,
       "note": "Substring, not word-boundary: a topic of 'gluten' must fire on 'glutenous'. This is the gate that stops a flagged confession being ingested anywhere ([E24]) — a false negative is a duty-of-care failure, a false positive is an annoyance. Put that reasoning in a comment so nobody 'improves' it.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "claude-session-12uj0q",
+      "branch": "claude/app-design-task-impl-12uj0q",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T07:37:34.268Z"
+      "claimed_at": "2026-07-25T08:18:57.090Z",
+      "updated_at": "2026-07-25T08:18:57.090Z"
     },
     "K3": {
       "title": "Rotation: appetite curve, half-life fit from >=3 observations else seeded median, suppressions returning reason keys not prose",
