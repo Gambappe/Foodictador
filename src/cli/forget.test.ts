@@ -4,6 +4,7 @@ import { DEFAULT_FLAGS } from '../contracts/flags.js';
 import { createFlagStore, createLogger } from '../config/index.js';
 import type { AppConfig } from '../config/index.js';
 import type { ForgetReport } from '../memory/forget.js';
+import { fixtureGraph } from '../config/wiring.js';
 import { parseArgv } from './args.js';
 import { createForgetCommand } from './forget.js';
 import type { CommandContext } from './main.js';
@@ -25,6 +26,9 @@ function context(readId: string): CommandContext {
     config: CONFIG,
     flags: createFlagStore({ ...DEFAULT_FLAGS }, logger),
     logger,
+    // Only present to satisfy CommandContext — this suite injects its own forget fn.
+    // Fixture stores, because a live graph would build clients against invalid hosts.
+    graph: fixtureGraph({ logger }),
   };
 }
 

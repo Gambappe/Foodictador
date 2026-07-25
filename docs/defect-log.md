@@ -2877,3 +2877,84 @@ running the command against the tip), `SL-23` (nothing anywhere persists `NudgeS
 across `src/nudge`, `src/memory` and `src/config` finds only the type import). Nine of the
 twelve defects from pass 2 are still open, and `SL-26` is the reason none of them has a gate
 that would notice.
+
+---
+
+## C16 · SL-26 closed — the acceptance gate now runs the CLI, and five mutations prove it
+
+**Task:** `G8`. **Closed by:** `claude-session-014n6NYRN6Rb` — the session that wrote the defect.
+
+`tests/guards/acceptance.test.ts` now drives every DAG §7 G5 step through `run(argv, …)`: the
+real dispatcher, the real argument parser, the real command modules, the real renderer. The
+`grep -n "src/cli"` that returned nothing now returns the import on line one.
+
+What was actually missing was not diligence but a **seam**. Six handlers each called
+`liveGraph(context.config, context.logger, context.flags)` themselves, which satisfied `P0.6`'s
+letter — the graph *was* the single place wiring lived — while making the CLI untestable from
+outside: no caller could put fixture stores behind a real command, so the only way to write an
+end-to-end test was to stop using the commands. `CommandContext` now carries the graph,
+`RunDeps.makeGraph` overrides it, and `wiring.test.ts` fails the build if a handler reaches for
+a graph factory again.
+
+**Red-verified against five mutations**, because a gate nobody has tried to defeat is a gate
+nobody has tested:
+
+| mutation | caught by |
+| --- | --- |
+| reinstate `SL-30`'s raw driver token | `enum token spelled with spaces: [spice tolerance low × 8]` |
+| reinstate `SL-15`'s sentence-as-a-key | the §5 four-line assertion |
+| unwire a command back to the placeholder (`SL-13`'s shape) | the `COMMANDS` walk |
+| make the sweeper delete again (`D-7`) | `expected 220 to be 221` |
+| a handler reaching for `liveGraph` | `wiring.test.ts` names the file |
+
+The fourth is worth naming because it **initially did not fail**. `fixtureGraph` pins its clock
+to the demo's evening, which is *ahead* of any real test clock, so `sweepOnce(new Date())`
+computed a negative age for all 221 entries, skipped every one as "still settling", and reported
+zeroes. The sweep step passed while examining nothing. That is the same failure as `SL-26` itself
+one level down — a step that looks like coverage and is not — and it was found by attacking the
+new gate rather than by reading it.
+
+### Closed on the way, because running the CLI is what found them
+
+**`SL-15` (pass 2, HIGH) — closed.** Root cause: two vocabularies for one field.
+`usualLineFor` filters against `USUAL_PHRASES`, a closed **key** set, because an unfiltered
+pass-through is how `SL-01` put a raw identifier on a card and how `SL-18` threw on
+`'toString'`. `src/cli/ask.ts` handed it a full English **sentence**, which is not a key, so
+`Object.hasOwn` dropped it and `copy.usualLine` came back `undefined` on **every** card
+`confit ask` ever printed. One of the four lines design v0.8 §5 specifies, absent, with no error
+anywhere. `usualNote` now returns `['solo_comfortable']` and the wording lives in the catalog
+where `G3` lints it. Cards now end `Fine to eat alone.`
+
+**`SL-30` (pass 3, MEDIUM) — closed, and it was being *held in place* by a test.**
+`src/cli/ask.test.ts:54` asserted `result.lines.some((l) => l.includes('solo comfort × 6'))`.
+That is `K5`'s banned lexicon, required by a test. A test demanding the defective form is worse
+than no test: it converts a fix into a regression. The chip now renders `DRIVER_PHRASES`, the
+way `U3`'s `AskCard` already did, and the test asserts no line matches `/solo comfort|solo_comfort/`.
+
+### Two new defects, found in the first ten seconds of running the built binary
+
+Both were invisible to 765 passing tests, because the suite runs TypeScript sources and nothing
+had ever executed `dist/`.
+
+**`SL-37` · HIGH · `npm run build` produced a `dist/` that could not boot at all.**
+`tsc` copies no assets, and `src/contracts/fixtures/index.ts` reads `./pool-baseline.json`
+beside its own module *at import time*. So `node dist/src/cli/main.js --help` died with
+`ENOENT … dist/src/contracts/fixtures/pool-baseline.json` before dispatching a single command —
+every command, every invocation, from the first build. `npm run build` exited 0 throughout,
+because compiling and running are different questions and only one was being asked. Fixed with
+`scripts/copy-assets.mjs`; the gate now boots the artifact, which is what surfaced it.
+**Author:** `claude-session-014n6NYRN6Rb` (`P0.1`, the toolchain).
+
+**`SL-38` · LOW · `confit --help | head -2` crashed with an unhandled `EPIPE` and exit 1.**
+A closed pipe is an ordinary shell idiom; Node reports it as an asynchronous `'error'` event on
+the stream, so it is not catchable around `write`. Exit 1 is also the wrong code — `gate:cli`
+reads 1 as "ran correctly, answer was no", so a broken pipe would have *passed* a gate. Handlers
+installed at the entrypoint only, so `run()` still never touches process streams.
+**Author:** `claude-session-014n6NYRN6Rb` (`X1`).
+
+### What this does not fix
+
+Seven of pass 2's defects are still open, and they are now *gateable* rather than gated:
+`SL-14`, `SL-16`, `SL-17`, `SL-19`, `SL-20`, `SL-23`, plus pass 1's `SL-06`/`SL-07`/`SL-08`/`SL-10`.
+`SL-19` and `SL-20` in particular are single-command defects that the new harness can assert in
+three lines each. There is no longer an excuse of "nothing runs the CLI".

@@ -112,6 +112,14 @@ export interface FixtureGraphOptions {
   logger: Logger;
   /** Pinned so a fixture run is reproducible; defaults to the demo's evening. */
   now?: () => Date;
+  /**
+   * The caller's flag store, for the same reason `liveGraph` takes one: X1 puts a
+   * FlagStore on the CommandContext, and a graph that made its own would mean
+   * `pass flags --set` mutated one store while every adapter read another. The CLI
+   * acceptance gate drives real commands against this graph, so the toggle has to
+   * be the same toggle.
+   */
+  flags?: FlagStore;
 }
 
 /**
@@ -134,10 +142,9 @@ export function fixtureGraph(options: FixtureGraphOptions): AdapterGraph {
   const { logger } = options;
   const now = options.now ?? ((): Date => new Date('2026-07-25T19:00:00.000Z'));
 
-  const flags = createFlagStore(
-    { extraction: 'live', narrator: 'live', pool: 'live', demoMode: true },
-    logger,
-  );
+  const flags =
+    options.flags ??
+    createFlagStore({ extraction: 'live', narrator: 'live', pool: 'live', demoMode: true }, logger);
 
   const client = new StubMemoryClient();
   const relay = new StubRelay(now);

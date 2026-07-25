@@ -215,7 +215,6 @@ export function runNudgeArm(nudge: Nudge, armed: boolean): CommandResult {
 
 // ---- integration wiring (handlers main.ts registers) ----
 
-import { liveGraph } from '../config/wiring.js';
 import type { CommandContext, CommandHandler } from './main.js';
 import { createNudge } from '../nudge/nudge.js';
 import { loadSeeds, readSeedArtifact } from '../../scripts/seed/load-seeds.js';
@@ -225,7 +224,7 @@ const processNudge = createNudge();
 
 /** One graph per invocation, from P0.6's single wiring seam. */
 function wire(context: CommandContext) {
-  const graph = liveGraph(context.config, context.logger, context.flags);
+  const graph = context.graph;
   return { client: graph.client, userStore: graph.user, pool: graph.pool, relay: graph.relay };
 }
 

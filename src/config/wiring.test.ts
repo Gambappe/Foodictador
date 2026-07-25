@@ -207,4 +207,25 @@ describe('no command builds its own adapters', () => {
     }
     expect(offenders).toEqual([]);
   });
+
+  it('no command builds its own GRAPH either — main.ts injects it', () => {
+    // The companion rule, and the one whose absence cost more. Six handlers each called
+    // `liveGraph(context.config, context.logger, context.flags)`, which satisfied P0.6's
+    // letter — the graph WAS the single place wiring lived — while making the CLI
+    // untestable from the outside: no caller could put fixture stores behind a real
+    // command. That is why the gate named "the CLI acceptance run" re-implemented all
+    // seven of its steps instead of invoking one (defect SL-26), and why SL-13, SL-15 and
+    // SL-30 shipped on a surface nothing executed.
+    //
+    // The graph now arrives on `CommandContext`. `main.ts` is the one module allowed to
+    // build it, because it is the module that owns `RunDeps.makeGraph`.
+    const root = new URL('../', import.meta.url);
+    const offenders = tsFilesUnder(root, ['cli'])
+      .filter((name) => !name.endsWith('.test.ts') && name !== 'cli/main.ts')
+      .filter((name) => /\b(live|fixture)Graph\s*\(/.test(readFileSync(fileURLToPath(new URL(name, root)), 'utf8')));
+    expect(
+      offenders,
+      'these read a graph factory directly; use context.graph so the gate can inject fixtures',
+    ).toEqual([]);
+  });
 });
