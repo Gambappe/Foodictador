@@ -8,12 +8,16 @@ import { createUserStore } from './user.js';
 
 /**
  * Fake substrate: per-scope rows, searchable by naive substring, removable,
- * with per-job controllable status — enough to exercise verify-and-retry.
+ * with per-job controllable status, plus a manual settle mode — rows ingested
+ * under it are invisible to search until settleAll(), simulating XTrace's
+ * ingest→retrievable window (the condition behind the PR #22 review).
  */
 function fakeSubstrate() {
   const rowsByScope = new Map<string, MemoryRow[]>();
   const jobStatuses = new Map<string, IngestJobStatus>();
   const ingests: Array<{ scope: string; payload: string; jobId: string }> = [];
+  const unsettled = new Set<string>();
+  let manualSettle = false;
   let seq = 0;
 
   const client: MemoryClient = {
@@ -21,14 +25,18 @@ function fakeSubstrate() {
       const jobId = `job-${++seq}`;
       ingests.push({ scope, payload, jobId });
       const rows = rowsByScope.get(scope) ?? [];
-      rows.push({ memoryId: `mem-${seq}`, kind: 'fact', content: payload });
+      const memoryId = `mem-${seq}`;
+      rows.push({ memoryId, kind: 'fact', content: payload });
+      if (manualSettle) unsettled.add(memoryId);
       rowsByScope.set(scope, rows);
       jobStatuses.set(jobId, 'pending');
       return Promise.resolve({ jobId });
     },
     search(scope, query) {
       const rows = rowsByScope.get(scope) ?? [];
-      return Promise.resolve(rows.filter((r) => r.content.includes(query)));
+      return Promise.resolve(
+        rows.filter((r) => !unsettled.has(r.memoryId) && r.content.includes(query)),
+      );
     },
     remove(scope, memoryId) {
       const rows = rowsByScope.get(scope) ?? [];
@@ -43,14 +51,33 @@ function fakeSubstrate() {
     },
   };
 
-  return { client, rowsByScope, jobStatuses, ingests };
+  return {
+    client,
+    rowsByScope,
+    jobStatuses,
+    ingests,
+    enableManualSettle: () => {
+      manualSettle = true;
+    },
+    settleAll: () => {
+      unsettled.clear();
+    },
+    countTagged: (scope: string, kind: string) =>
+      (rowsByScope.get(scope) ?? []).filter((r) => r.content.includes(kind)).length,
+  };
+}
+
+/** Deterministic monotonic clock for written_at stamps. */
+function tickingClock() {
+  let tick = 0;
+  return () => `2026-07-25T12:00:${String(tick++).padStart(2, '0')}.000Z`;
 }
 
 function harness() {
   const lines: string[] = [];
   const logger = createLogger((m) => lines.push(m));
   const substrate = fakeSubstrate();
-  const store = createUserStore({ client: substrate.client, logger });
+  const store = createUserStore({ client: substrate.client, logger, now: tickingClock() });
   return { store, lines, logger, ...substrate };
 }
 
@@ -144,6 +171,60 @@ describe('M3 usual', () => {
     await client.ingest('A', 'raw prose mentioning confit:usual in passing');
     await client.ingest('A', '{"kind":"confit:usual","usual":{"broken":true}}');
     expect(await store.usual('A')).toBeNull();
+  });
+});
+
+describe('M3 usual — duplicates and misses (PR #22 review)', () => {
+  it('two competing settings records: the NEWEST wins on a cold cache, even listed first-is-stale', async () => {
+    const h = harness();
+    h.enableManualSettle();
+    // Write v1; it is still inside the settle window when v2 is written, so
+    // replaceTagged cannot see it and cannot remove it — the review's stale-
+    // duplicate scenario. Both then settle; a fresh store reads cold.
+    await h.store.setUsual('A', { ...sampleUsual, offLimits: ['fasting'] });
+    await h.store.setUsual('A', { ...sampleUsual, offLimits: ['fasting', 'gluten'] });
+    h.settleAll();
+    expect(h.countTagged('A', 'confit:usual')).toBe(2); // the duplicate exists…
+
+    const cold = createUserStore({ client: h.client, logger: createLogger(() => {}) });
+    const usual = await cold.usual('A');
+    // …and written_at ordering, not luck, returns the newer list. The fake
+    // returns rows in insertion order with the stale record first.
+    expect(usual?.offLimits).toEqual(['fasting', 'gluten']);
+  });
+
+  it('a stamped record beats a legacy unstamped one regardless of order', async () => {
+    const h = harness();
+    // Hand-plant a legacy record (no written_at) first in insertion order.
+    await h.client.ingest(
+      'A',
+      JSON.stringify({ kind: 'confit:usual', usual: { ...sampleUsual, offLimits: ['old-topic'] } }),
+    );
+    const fresh = createUserStore({ client: h.client, logger: createLogger(() => {}), now: tickingClock() });
+    await fresh.setUsual('A', { ...sampleUsual, offLimits: ['new-topic'] });
+    const cold = createUserStore({ client: h.client, logger: createLogger(() => {}) });
+    expect((await cold.usual('A'))?.offLimits).toEqual(['new-topic']);
+  });
+
+  it('a search that omits the settings row entirely reads as null — the documented meaning', async () => {
+    const h = harness();
+    h.enableManualSettle();
+    await h.store.setUsual('B', { ...sampleUsual, offLimits: ['fasting'] });
+    // The record exists but never settles: a cold reader gets null. What the
+    // WRITE path may do with null is an open contract question raised to the
+    // integrator (see user.ts docblock) — this pins the store's half only.
+    const cold = createUserStore({ client: h.client, logger: createLogger(() => {}) });
+    expect(await cold.usual('B')).toBeNull();
+  });
+
+  it('meal log follows the same newest-wins rule across a cold cache', async () => {
+    const h = harness();
+    h.enableManualSettle();
+    await h.store.setMealLog('A', [{ dishId: 'old_dish', placeId: 'p', at: '2026-07-01' }]);
+    await h.store.setMealLog('A', [{ dishId: 'new_dish', placeId: 'p', at: '2026-07-20' }]);
+    h.settleAll();
+    const cold = createUserStore({ client: h.client, logger: createLogger(() => {}) });
+    expect((await cold.mealLog('A'))[0]?.dishId).toBe('new_dish');
   });
 });
 
