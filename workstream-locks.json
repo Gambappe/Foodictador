@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T12:13:36.397Z",
+  "updated_at": "2026-07-25T12:13:38.095Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -961,13 +961,13 @@
         "M2"
       ],
       "mock_start_ok": false,
-      "note": "Dependency is M2, not M12: these two land in ONE change because an episode needs both several messages in a conversation AND prose worth summarising. R4: 'Structured notation extracted 0 facts from 8 complete records. Render structured data to sentences first.' src/memory/pool.ts sends JSON.stringify(read). Before D-7 that had to stay verbatim because readsForDriver parsed it back; D-7 deleted that path, so the payload is free and nothing depends on its shape. Fact count is NOT the argument (measured 19 from JSON vs 9 from prose) — quality is: the JSON-derived induced claim contained 'noodle_shrine' verbatim (L4), the prose one said \"Rosa's Taqueria\".",
-      "status": "claimed",
+      "note": "DONE with M12 in PR #60. src/memory/readProse.ts renders a read as two third-person English sentences with place NAMES; refuses to emit an id for an unknown place rather than falling back. Every possible sentence (signals x drivers x cadences) is linted by K5 in readProse.test.ts, because whatever goes into the pool can come back out onto a card. Measured effect: batching alone still leaked 3 identifier-carrying texts; batching + prose leaked 0.",
+      "status": "done",
       "owner": "claude-session-014n6NYRN6Rb",
       "branch": "claude/upload-code-artifact-zop9uz",
-      "pr": null,
+      "pr": "https://github.com/Gambappe/Foodictador/pull/60",
       "claimed_at": "2026-07-25T11:51:43.553Z",
-      "updated_at": "2026-07-25T11:51:43.553Z"
+      "updated_at": "2026-07-25T12:13:38.095Z"
     },
     "M15": {
       "title": "Adopting M12/M14 needs a clean pool scope: pre-M12 per-read episodes outrank the new cross-record ones",
