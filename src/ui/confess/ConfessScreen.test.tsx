@@ -54,6 +54,7 @@ function substrate() {
     },
     search: (scope, query) =>
       Promise.resolve((rows.get(scope) ?? []).filter((r) => r.content.includes(query))),
+    ingestBatch: () => Promise.reject(new Error('unused — single ingests only in this suite')),
     remove: () => Promise.resolve(),
     jobStatus: () => Promise.resolve('complete' as const),
   };
@@ -82,7 +83,7 @@ function realHarness(offLimits: string[]) {
   const s = substrate();
   const logger = createLogger(() => {});
   const user = createUserStore({ client: s.client, logger });
-  const pool = createPoolStore({ client: s.client, logger });
+  const pool = createPoolStore({ client: s.client, logger, placeName: (id: string) => id.replaceAll('_', ' ') });
   const { relay, entries } = recordingRelay();
 
   const view = render(

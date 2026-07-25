@@ -73,6 +73,7 @@ function substrate() {
         (rows.get(scope) ?? []).filter((r) => !unsettled.has(r.memoryId) && r.content.includes(query)),
       );
     },
+    ingestBatch: () => Promise.reject(new Error('unused — single ingests only in this suite')),
     remove(scope, memoryId) {
       rows.set(scope, (rows.get(scope) ?? []).filter((r) => r.memoryId !== memoryId));
       return Promise.resolve();
@@ -128,7 +129,7 @@ async function coldConfess(client: MemoryClient) {
   const logger = createLogger(() => {});
   const { relay, entries } = silentRelay();
   const user = createUserStore({ client, logger }); // fresh store ⇒ cold cache
-  const pool = createPoolStore({ client, logger });
+  const pool = createPoolStore({ client, logger, placeName: (id) => id.replaceAll('_', ' ') });
 
   const profile = await user.usual(PROFILE);
   const offLimits = profile?.offLimits ?? [];

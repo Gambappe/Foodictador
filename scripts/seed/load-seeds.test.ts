@@ -1,30 +1,46 @@
 import { describe, expect, it } from 'vitest';
 
 import type { PoolStore, Relay } from '../../src/contracts/modules.js';
-import type { Read, RelayEntry } from '../../src/contracts/types.js';
+import type { JobHandle, Read, RelayEntry } from '../../src/contracts/types.js';
 import { createLogger } from '../../src/config/logger.js';
-import { census } from '../../src/kernel/cohorts.js';
 import { loadSeeds, readSeedArtifact } from './load-seeds.js';
 
 const NOW = new Date('2026-07-25T10:00:00.000Z');
 
-function fakes(init?: { failPoolFor?: Set<string> }) {
-  const poolReads: Read[] = [];
+/**
+ * The pool fake records BATCHES, not reads.
+ *
+ * That is the shape of the change M12 made: this loader used to send 220 individual
+ * ingests, one per read, each landing in its own conversation — so XTrace produced 220
+ * episodes, each a paraphrase of one read, and the cross-record synthesis the pool exists
+ * for could not happen. Recording batches is how a test can see the difference; a fake that
+ * flattened them back into a list of reads would pass either way.
+ */
+function fakes(init?: { poolFails?: boolean }) {
+  const batches: Read[][] = [];
   const relayEntries: RelayEntry[] = [];
   const log: string[] = [];
   let jobSeq = 0;
 
   const pool: PoolStore = {
-    writeRead(read) {
-      if (init?.failPoolFor?.has(read.read_id)) {
-        return Promise.reject(new Error('ingest 503'));
-      }
-      poolReads.push(read);
-      jobSeq += 1;
-      return Promise.resolve({ jobId: `job-${jobSeq}` });
+    writeRead: () =>
+      Promise.reject(new Error('the loader must batch — one ingest per read is the M12 defect')),
+    writeReads(reads): Promise<JobHandle[]> {
+      if (init?.poolFails === true) return Promise.reject(new Error('ingest 503'));
+      // Grouping policy is M2's, so this fake does not model it; it records what it was
+      // given and returns one handle per driver, which is the shape the real store returns.
+      batches.push([...reads]);
+      const drivers = new Set(reads.map((read) => read.driver));
+      return Promise.resolve(
+        [...drivers].map(() => {
+          jobSeq += 1;
+          return { jobId: `job-${String(jobSeq)}` };
+        }),
+      );
     },
     inducedClaim: () => Promise.reject(new Error('unused')),
   };
+
   const relay: Relay = {
     put: () => Promise.reject(new Error('unused')),
     setJob: () => Promise.reject(new Error('unused')),
@@ -49,7 +65,7 @@ function fakes(init?: { failPoolFor?: Set<string> }) {
     settleWindowSeconds: 480,
     now: () => NOW,
   };
-  return { deps, poolReads, relayEntries, log };
+  return { deps, batches, relayEntries, log };
 }
 
 const seeds = readSeedArtifact();
@@ -65,38 +81,50 @@ describe('S3 seed loader', () => {
       failed: [],
       rerunDetected: false,
     });
-    expect(f.poolReads).toHaveLength(220);
     expect(f.relayEntries).toHaveLength(220);
     const closing = f.log[f.log.length - 1] ?? '';
     expect(closing).toMatch(/480s/);
     expect(closing).toMatch(/warm no earlier than 2026-07-25T10:08:00/);
   });
 
-  it('loading twice warns about the re-run and the census stays identical via K6 dedup', async () => {
+  it('feeds the pool in ONE call, so the store can group reads into conversations', async () => {
+    // The M12 regression this locks. Per-read ingests are not a performance question —
+    // XTrace episodes summarise a conversation, so an isolated read can only produce a
+    // paraphrase of itself. Measured on the live API: ungrouped, the induced claim was
+    // "The session consisted of a single structured signal about Harbor Greens"; grouped,
+    // it spanned four places. If this loader ever loops over `writeRead` again, the pool
+    // fake above rejects and this file names why.
     const f = fakes();
     await loadSeeds(seeds, f.deps);
-    const firstCensus = census(f.poolReads);
+    expect(f.batches).toHaveLength(1);
+    expect(f.batches[0]).toHaveLength(220);
+    expect(f.log.some((l) => /conversation\(s\)/.test(l))).toBe(true);
+  });
+
+  it('loading twice warns about the re-run; the relay upserts so counts stay stable', async () => {
+    const f = fakes();
+    await loadSeeds(seeds, f.deps);
     const report = await loadSeeds(seeds, f.deps);
     expect(report.rerunDetected).toBe(true);
     expect(f.log.some((l) => l.includes('re-run detected'))).toBe(true);
-    expect(f.poolReads).toHaveLength(440); // duplicates ARE created — no fake upserts
-    expect(census(f.poolReads)).toEqual(firstCensus); // and dedup keeps the census stable
+    // The relay is the store of record (D-7) and keys on read_id, so a re-seed does not
+    // double a cohort. The pool gets fed again, which is extra induction material rather
+    // than a miscount — nothing counts from XTrace any more.
+    expect(f.relayEntries).toHaveLength(220);
+    expect(f.batches).toHaveLength(2);
   });
 
-  it('a partial pool failure reports the exact read_ids and notes the sweeper recovery path', async () => {
-    const victims = new Set(seeds.slice(0, 3).map((r) => r.read_id));
-    const f = fakes({ failPoolFor: victims });
+  it('a pool failure loses no reads and says induction is what degraded', async () => {
+    // All-or-nothing on the pool feed, and it must not read as data loss: every read is on
+    // the relay, countable immediately. Only the induced claim suffers until a re-seed.
+    const f = fakes({ poolFails: true });
     const report = await loadSeeds(seeds, f.deps);
-    expect(report.poolLoaded).toBe(217);
-    expect([...report.failed].sort()).toEqual([...victims].sort());
-    expect(f.relayEntries).toHaveLength(220); // relay copies of the failures remain
-    expect(f.log.some((l) => l.includes('sweeper will re-ingest'))).toBe(true);
-  });
-
-  it('progress lines appear per batch', async () => {
-    const f = fakes();
-    await loadSeeds(seeds, f.deps);
-    const batchLines = f.log.filter((l) => /batch \d+\/9/.test(l));
-    expect(batchLines).toHaveLength(9); // 220 reads / 25 per batch
+    expect(report.poolLoaded).toBe(0);
+    expect(report.failed).toHaveLength(220);
+    expect(report.relaySeeded).toBe(220);
+    expect(f.relayEntries).toHaveLength(220); // nothing lost
+    const failure = f.log.find((l) => l.includes('pool feed failed')) ?? '';
+    expect(failure).toMatch(/countable/);
+    expect(failure).toMatch(/induction is degraded/);
   });
 });

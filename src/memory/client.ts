@@ -106,23 +106,54 @@ export function createMemoryClient(transport: HttpTransport): MemoryClient {
     return res.json;
   }
 
+  /** One message, one fresh conversation. Shared by `ingest` and nothing else. */
+  async function single(scope: string, payload: string): Promise<JobHandle> {
+    const json = await call(
+      {
+        method: 'POST',
+        path: '/v1/memories',
+        body: {
+          user_id: scope,
+          conv_id: `confit-${scope}-${crypto.randomUUID()}`,
+          messages: [{ role: 'user', content: payload }],
+        },
+      },
+      'ingest',
+    );
+    // The handle is `id`, not `job_id`.
+    return { jobId: requireString(asRecord(json, 'ingest'), 'id', 'ingest') };
+  }
+
   return {
     async ingest(scope: string, payload: string): Promise<JobHandle> {
       // The API is conversation-shaped: `messages` plus a `conv_id`, not a bare
       // `content` string. A body without all three is rejected 422 naming the fields.
-      // `conv_id` groups an ingest; one prose confession is one conversation of one
-      // message, which is also what keeps the payload byte-identical to the input ([E11]).
+      // A random `conv_id` is right HERE and only here: one prose confession is one
+      // conversation of one message, which is what keeps the payload byte-identical
+      // ([E11]). It is wrong for the pool, and was used there — see `ingestBatch`.
+      return single(scope, payload);
+    },
+
+    async ingestBatch(
+      scope: string,
+      payloads: readonly string[],
+      convId: string,
+    ): Promise<JobHandle> {
+      if (payloads.length === 0) throw new Error('xtrace: ingestBatch called with no payloads');
       const json = await call(
         {
           method: 'POST',
           path: '/v1/memories',
           body: {
             user_id: scope,
-            conv_id: `confit-${scope}-${crypto.randomUUID()}`,
-            messages: [{ role: 'user', content: payload }],
+            // The caller's id, not a fresh one. That IS the feature: episodes are
+            // conversation summaries, so what shares a conv_id is what a claim can be
+            // synthesised across (M12).
+            conv_id: convId,
+            messages: payloads.map((content) => ({ role: 'user', content })),
           },
         },
-        'ingest',
+        'ingestBatch',
       );
       // The handle is `id`, not `job_id`.
       return { jobId: requireString(asRecord(json, 'ingest'), 'id', 'ingest') };

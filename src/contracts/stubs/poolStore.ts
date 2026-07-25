@@ -21,6 +21,10 @@ export class StubPoolStore implements PoolStore {
     return Promise.resolve({ jobId: `pool-job-${this.seq}` });
   }
 
+  async writeReads(reads: readonly Read[]): Promise<JobHandle[]> {
+    return Promise.all(reads.map((read) => this.writeRead(read)));
+  }
+
   inducedClaim(_query: string): Promise<string> {
     return Promise.resolve('Hygiene complaints under-predict loyalty at the taqueria.');
   }

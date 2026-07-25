@@ -42,6 +42,54 @@ Consequences worth knowing before you touch anything here:
 Design v0.8 is superseded on this point ([E9], [E12], [E14], [E21]) — DAG §4 D-7 is
 authoritative until a v0.9 absorbs it.
 
+## M12/M14: induction needs grouped conversations AND prose. Measured.
+
+The one role XTrace kept after D-7 and M11 is cross-record synthesis. It was not working, and
+neither half of the reason was visible from the code.
+
+`client.ts` minted a fresh `conv_id` per ingest, and XTrace episodes are **conversation
+summaries** — so an isolated read could only ever produce a paraphrase of itself. Meanwhile
+`pool.writeRead` sent `JSON.stringify(read)`, which is the substrate's worst input (operational
+guide R4: *"Structured notation extracted 0 facts from 8 complete records"*).
+
+Twelve reads through the live API, three configurations, the induction query `confit ask`
+actually issues:
+
+| configuration | distinct places in one claim | texts leaking a raw id |
+| --- | --- | --- |
+| one POST per read, JSON (before) | 2 | 12 |
+| batched into one conversation, JSON | 4 | 3 |
+| batched into one conversation, **prose** | 4 | **0** |
+
+Two independent effects, which is why they shipped together. **Batching** is what produces a
+claim spanning several people at all — ungrouped, the episode reads *"The session consisted of
+a single structured signal about Harbor Greens"*. **Prose** is what stops `spice_tolerance_low`
+coming back out onto a card (L4 — nothing lints the induced claim).
+
+Then the full 220-read seed through the real CLI into a clean scope, queried with the
+production query:
+
+> *"The conversation explored a series of examples about people describing their restaurant
+> habits in misleading ways… Across places like Miso Hollow, Tortoise Teahouse, Banh Mi Signal,
+> Hen & Honey, Rosa's Taqueria, Ash & Rye, Copper Kettle… the repeated conclusion was that each
+> place carried something the person would rather not revisit."*
+
+Seventeen places, cross-person, no identifiers. That is design v0.8 §8's differentiator, and it
+had never once run before.
+
+Three things fell out, all recorded as tasks:
+
+- **The pool scope must be clean (M15).** Pre-M12 episodes rank ABOVE the new ones for the same
+  query — which is what made the first live check look like a failure. The query was never wrong.
+- **`INDUCTION_TOP_K` was two rows from losing the claim.** Facts are returned before episodes,
+  and the first episode landed at index 10 against a top-k of 12. Raised to 40.
+- **`episode_slots` cannot be trusted (M13).** A made-up parameter is accepted with `200`, so
+  sending a field proves nothing about whether the server honours it. Top-k headroom is the
+  protection that actually works; client-side reservation is the fix.
+
+Incidentally: 220 reads now cost **17 API calls instead of 220**, and the 429s that failed 108
+of them are gone.
+
 ## D-2: XTrace endpoint paths (status: **CONFIRMED** against the live API)
 
 Confirmed by direct probing of `api.production.xtrace.ai`. **Every one of the four shapes

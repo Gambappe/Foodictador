@@ -63,6 +63,9 @@ function harness(options: {
       if (options.poolFails === true) throw new Error('pool down');
       return Promise.resolve({ jobId: 'job-pool' });
     }),
+    // A live confession is one read, so confess must NOT batch — batching exists for the
+    // seed path, where many reads share a conversation (M12).
+    writeReads: vi.fn(() => Promise.reject(new Error('confess writes one read'))),
     inducedClaim: vi.fn(() => Promise.resolve('')),
   };
 
