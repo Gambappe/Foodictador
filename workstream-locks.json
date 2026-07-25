@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T15:12:29.465Z",
+  "updated_at": "2026-07-25T15:12:53.263Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -838,12 +838,12 @@
       ],
       "mock_start_ok": false,
       "note": "Gate zero found the handles exist: a succeeded job's result carries memories_created:[{id,type,text}]. Capture them in M5's write path and thread them into forget's poolMemories/userMemories. Today BOTH XTrace targets report skipped-with-reason, which is honest but is a weaker deletion promise than design v0.8 §7 makes. Do not close this by searching for the read_id — that is a fuzzy match choosing what to destroy.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "claude-session-014n6NYRN6Rb",
+      "branch": "claude/upload-code-artifact-zop9uz",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T10:33:26.922Z"
+      "claimed_at": "2026-07-25T15:12:53.262Z",
+      "updated_at": "2026-07-25T15:12:53.262Z"
     },
     "G7": {
       "title": "Rewrite gate zero for D-7: relay survives restart losing nothing, deletion deletes by handle, induction yields a usable claim",
