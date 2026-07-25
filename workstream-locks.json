@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T08:29:59.413Z",
+  "updated_at": "2026-07-25T08:30:43.615Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -160,12 +160,12 @@
       ],
       "mock_start_ok": false,
       "note": "released unstarted — scaling back to one task at a time",
-      "status": "in_review",
+      "status": "done",
       "owner": "claude-session-014n6NYRN6Rb",
       "branch": "claude/upload-code-artifact-zop9uz",
-      "pr": null,
+      "pr": "https://github.com/Gambappe/Foodictador/pull/11",
       "claimed_at": "2026-07-25T08:21:36.816Z",
-      "updated_at": "2026-07-25T08:29:59.413Z"
+      "updated_at": "2026-07-25T08:30:43.615Z"
     },
     "M1": {
       "title": "MemoryClient over XTrace: ingest/search/remove, user_id a required positional parameter, explicit episode-slot reservation, pollable ingest handle",
