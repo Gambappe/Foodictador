@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T12:23:06.122Z",
+  "updated_at": "2026-07-25T12:23:07.775Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -868,13 +868,13 @@
         "M3"
       ],
       "mock_start_ok": false,
-      "note": "SAME defect class as D-7, found live while testing M9. setUsual writes a tagged structured record; XTrace extracts it to prose, so findTagged matches nothing and usual() returns null — 'confit ask' AND 'confit confess' are both dead against live XTrace (confess reads usual() for the off-limits list). Probed A and B directly: 0 verbatim-JSON rows, 0 rows carrying the confit:usual tag, re-checked over 90s to rule out settle time. NOW ALSO A SAFETY ARGUMENT, not just a functional one: the operational guide's §1 says do NOT use XTrace for 'safety-critical facts (allergies, medical, money, legal deadlines)' or as 'a system of record', and UsualProfile.offLimits and giConstraint are exactly that — an off-limits topic silently lost is a blocked confession written to the pool. Retention is ~11/16 and NON-DETERMINISTIC by the vendor's own numbers, which settles it. Recommendation: a settings namespace on the relay, which P0.8 made durable (atomic write, fsync, persisted before the mutation is acknowledged). That DELETES findTagged/parseTagged/newestParsed/replaceTagged/written_at ordering and the write-through cache — all of which exist only to work around the absence of addressing and upsert.",
+      "note": "SETTINGS ONLY, per D-8: the user's DECLARED facts (allergies, intolerances, budget band, portion, solo comfort, off-limits) move to a durable store; their EXPERIENCES stay in XTrace. Root cause: setUsual writes a tagged structured record, XTrace extracts it to prose, findTagged matches nothing, usual() returns null — so 'confit ask' AND 'confit confess' are both dead against live XTrace (confess reads usual() for off-limits). Probed A and B directly: 0 verbatim-JSON rows, 0 rows carrying the confit:usual tag, re-checked over 90s to rule out settle time. SAFETY, not just function: the guide's §1 says do NOT use XTrace for safety-critical facts (allergies, medical) or as a system of record, retention is ~11/16 and non-deterministic, and a dropped off-limits topic means a confession that should be blocked gets written to the pool. Recommendation: a settings namespace on the relay (atomic + fsync since P0.8). Deletes findTagged/parseTagged/newestParsed/replaceTagged/written_at ordering and the write-through cache — all of which exist only to work around the absence of addressing and upsert. Does NOT touch writeProse: that is M16/M17.",
       "status": "available",
       "owner": null,
       "branch": null,
       "pr": null,
       "claimed_at": null,
-      "updated_at": "2026-07-25T11:46:55.997Z"
+      "updated_at": "2026-07-25T12:23:07.774Z"
     },
     "P0.9": {
       "title": "Close [E26]: the relay's arrival ordering is a side channel now that it holds everything for ever",
