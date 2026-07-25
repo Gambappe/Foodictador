@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T21:49:57.562Z",
+  "updated_at": "2026-07-25T21:49:59.183Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -1225,6 +1225,21 @@
       "pr": null,
       "claimed_at": null,
       "updated_at": "2026-07-25T21:49:57.561Z"
+    },
+    "DEMO.2": {
+      "title": "Demo pack with real cohort depth (data/demo/pack.json) and a self-verifying showcase runner (npm run demo)",
+      "phase": "P0",
+      "depends_on": [
+        "D-14"
+      ],
+      "mock_start_ok": false,
+      "note": null,
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T21:49:59.183Z"
     }
   }
 }
