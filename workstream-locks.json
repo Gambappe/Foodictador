@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T10:41:17.453Z",
+  "updated_at": "2026-07-25T10:41:21.595Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -822,12 +822,12 @@
       ],
       "mock_start_ok": false,
       "note": "D-7 makes the relay the store of record. P0.4 built it as an in-memory Map with a periodic JSON dump, which was right for a settle-window buffer and is wrong for a store of record. Needs persistence, atomic write-and-rename, and a restart that loses nothing. Also [E26]: the relay now holds every read for ever rather than for minutes, so coarse timestamps move from the [prod] list to required.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "claude-session-12uj0q",
+      "branch": "claude/app-design-task-impl-12uj0q",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T10:13:42.793Z"
+      "claimed_at": "2026-07-25T10:41:21.594Z",
+      "updated_at": "2026-07-25T10:41:21.594Z"
     },
     "M10": {
       "title": "Ingest ledger (D-7/M10): capture memories_created[] handles at write time so forget deletes both XTrace scopes instead of reporting skipped",
