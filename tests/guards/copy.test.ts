@@ -12,7 +12,13 @@ import { corpusFixture } from '../../src/contracts/fixtures/index.js';
 import type { NarratorFacts, RankedPlace } from '../../src/contracts/types.js';
 import { lint } from '../../src/kernel/copylint.js';
 import { BANNED_LEXICON } from '../../src/kernel/lexicon.js';
-import { CATALOG, DRIVER_PHRASES, renderTemplate, type CatalogKey } from '../../src/llm/catalog.js';
+import {
+  CATALOG,
+  DRIVER_PHRASES,
+  USUAL_PHRASES,
+  renderTemplate,
+  type CatalogKey,
+} from '../../src/llm/catalog.js';
 import { TemplateNarrator } from '../../src/llm/template.js';
 
 /** Benign slot values for rendering every template. */
@@ -105,6 +111,17 @@ describe('G3: one case per banned lexicon entry', () => {
 describe('G3: the acceptance cases', () => {
   it('a deliberately inserted streak line fails', () => {
     expect(lint("you're on a 3-day streak").ok).toBe(false);
+  });
+
+  it('lints every usual-line phrase', () => {
+    // Defect SL-21: these ten strings are card copy but live outside CATALOG, so this
+    // guard's CATALOG sweep never reached them. The first fix only added a sweep to L1's
+    // own suite, which left G3 — the task whose whole job is catching unlinted copy —
+    // still blind to them. A budget or portion phrase is exactly where `weight` or
+    // `portion control` would appear.
+    for (const [key, phrase] of Object.entries(USUAL_PHRASES)) {
+      expect(lint(phrase), `${key}: ${phrase}`).toEqual({ ok: true });
+    }
   });
 
   it('a realistic dirty card line names every term that fired', () => {

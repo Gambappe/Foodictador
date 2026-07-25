@@ -61,7 +61,7 @@ export const PASS_ACTIONS = [
     id: 'sweeper',
     path: ['sweep'],
     label: 'Sweeper status',
-    blurb: 'One sweeper pass: verified, re-ingested, retained, and oldest_entry_age_seconds.',
+    blurb: 'One sweeper pass: pooled, re-ingested, and PENDING — the number to watch.',
     sends: ['once'],
     mutates: true,
   },
@@ -100,12 +100,37 @@ export const PASS_ACTIONS = [
   {
     id: 'reset',
     path: ['pass', 'reset'],
-    label: 'Clear relay',
-    blurb: 'Clear the relay. Pool records remain — the substrate has no bulk delete.',
-    sends: [],
+    label: 'DELETE all reads',
+    // The relay IS the pool under DAG §4 D-7, so this empties it permanently. The
+    // previous copy — "Clear the relay. Pool records remain" — was true while the
+    // relay was a settle-window buffer and is now the opposite of what happens.
+    // Reassurance on the one button that destroys the pool is worse than none.
+    blurb: 'Deletes every read in the pool, permanently. No undo. Re-seed afterwards.',
+    // `yes` because the panel runs its own confirm step (mutates: true) and the CLI
+    // would otherwise block on a stdin prompt no browser can answer.
+    sends: ['yes'],
     mutates: true,
   },
 ] as const satisfies readonly PassAction[];
+
+/**
+ * The `sweep --json` keys the sweeper panel renders, in display order.
+ *
+ * Here rather than inline in the JSX so `actions.test.ts` can check them against X4's
+ * real payload. D-7 renamed every field on `SweepReport`; the panel kept reading
+ * `verified` / `retained` / `oldest_entry_age_seconds` and rendered the string
+ * "undefined" three times, green the whole way, because its fixtures staged the old
+ * names back. A hand-kept list agrees with the panel forever and proves nothing — this
+ * one is compared to the command's output.
+ */
+export const SWEEPER_FIELDS = [
+  // `pending` leads: nothing is deleted under D-7, so `stored` only grows and this is
+  // the sole number that means something is wrong.
+  { key: 'pending', label: 'PENDING (unconfirmed)', testId: 'sweeper-pending' },
+  { key: 'pooled', label: 'pooled (confirmed)' },
+  { key: 'reingested', label: 're-ingested' },
+  { key: 'stored', label: 'reads stored', testId: 'sweeper-stored' },
+] as const satisfies readonly { key: string; label: string; testId?: string }[];
 
 export type PassActionId = (typeof PASS_ACTIONS)[number]['id'];
 

@@ -62,7 +62,6 @@ function harness(options: {
       if (options.poolFails === true) throw new Error('pool down');
       return Promise.resolve({ jobId: 'job-pool' });
     }),
-    readsForDriver: vi.fn(() => Promise.resolve([])),
     inducedClaim: vi.fn(() => Promise.resolve('')),
   };
 

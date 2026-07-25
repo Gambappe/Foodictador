@@ -179,10 +179,14 @@ export async function confess(deps: ConfessDeps, input: ConfessInput): Promise<C
  * Declining is the safe answer, so a stray newline, a closed pipe or a `^D` all mean no —
  * `[E24]`'s gate is worth nothing if an ambiguous keystroke pools a confession.
  */
-export async function stdinConfirm(): Promise<boolean> {
+export async function stdinConfirm(prompt = 'Add to the pot? [y/N] '): Promise<boolean> {
+  // The prompt goes to stderr, not stdout: results own stdout (X1's render
+  // contract), so `pass reset --json | jq` must not be fed a question.
   const io = createInterface({ input: process.stdin, output: process.stderr });
   try {
-    const answer = await io.question('Add to the pot? [y/N] ');
+    const answer = await io.question(prompt);
+    // Anything that is not an explicit yes is a no. A destructive command must
+    // not read a stray newline as consent.
     return /^y(es)?$/i.test(answer.trim());
   } finally {
     io.close();

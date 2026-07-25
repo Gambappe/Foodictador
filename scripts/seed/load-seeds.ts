@@ -87,7 +87,9 @@ export async function loadSeeds(reads: Read[], deps: LoadSeedsDeps): Promise<Loa
   ).toISOString();
   deps.logger.line(
     `load-seeds: done — ${poolLoaded}/${reads.length} pooled, ${failed.length} failed. ` +
-      `Settle window is ${deps.settleWindowSeconds}s; induction warm no earlier than ${warmAt}. Seed HOURS ahead of the demo.`,
+      `Reads are countable NOW (the relay is the store, D-7). Only induction waits: ` +
+      `settle window ${deps.settleWindowSeconds}s, warm no earlier than ${warmAt}. ` +
+      `Seed hours ahead for a good induced claim, not to make the demo work.`,
   );
   return {
     total: reads.length,

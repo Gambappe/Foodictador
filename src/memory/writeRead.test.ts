@@ -39,7 +39,6 @@ function fakes(failures: Failures = {}) {
         ? Promise.reject(new Error('pool down'))
         : Promise.resolve({ jobId: 'job-77' });
     },
-    readsForDriver: () => Promise.resolve([]),
     inducedClaim: () => Promise.resolve(''),
   };
   const user: UserStore = {

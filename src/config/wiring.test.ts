@@ -48,7 +48,7 @@ describe('fixtureGraph', () => {
     expect(() => fixtureGraph({ logger: silentLogger().logger })).not.toThrow();
   });
 
-  it('drives a write and read back through the stub stores', async () => {
+  it('drives a write and counts it back through the view', async () => {
     const graph = fixtureGraph({ logger: silentLogger().logger });
     const read = {
       read_id: '11111111-2222-4333-8444-555555555555',
@@ -63,9 +63,12 @@ describe('fixtureGraph', () => {
     const entries = await graph.relay.list();
     expect(entries.map((entry) => entry.read.read_id)).toContain(read.read_id);
 
+    // Counted through the PoolView, which is the relay under D-7. Asserting it
+    // through `pool` instead would test XTrace's induction feed and call it
+    // counting — the confusion that produced the round-trip that never worked.
     await graph.pool.writeRead(read);
-    const back = await graph.pool.readsForDriver('spice_tolerance_low');
-    expect(back.map((r) => r.read_id)).toContain(read.read_id);
+    const back = await graph.poolView.readsForDriver('spice_tolerance_low');
+    expect(back.reads.map((r) => r.read_id)).toContain(read.read_id);
   });
 
   it('reports flags as live, because the stubs are the implementations', () => {

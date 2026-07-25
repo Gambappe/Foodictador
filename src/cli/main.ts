@@ -140,7 +140,16 @@ export const COMMANDS: readonly CommandSpec[] = [
     task: 'X7',
     handler: seedHandler,
   },
-  { path: ['pass', 'reset'], summary: 'clear the pool and relay', task: 'X7', handler: resetHandler },
+  {
+    path: ['pass', 'reset'],
+    summary: 'DELETE every read in the pool (confirms; --yes to skip)',
+    task: 'X7',
+    // `--yes` is declared, not implicit: U5's Pass panel runs its own confirm step and
+    // needs to skip the stdin prompt, and actions.test.ts checks the panel against this
+    // list rather than a copy of it.
+    options: ['yes'],
+    handler: resetHandler,
+  },
   {
     path: ['pass', 'flags'],
     summary: 'show degrade flags, or set one with --set key=value',

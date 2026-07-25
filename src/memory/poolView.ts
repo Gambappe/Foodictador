@@ -1,76 +1,66 @@
 /**
- * PoolView (M6) — the union every Ask reads: XTrace pool ∪ relay, deduplicated
- * on `read_id` ([E20]). The pool copy is canonical, so it goes first and a
- * divergent relay copy loses (K6's documented dedup convention).
+ * PoolView (M6) — the read set every Ask counts.
  *
- * Under `flags.pool === 'relay-only'` (XTrace unavailable or not settling) the
- * view serves the S2 induction set plus live relay contents and reports
- * `degraded: true` so the card can disclose it — cohort counts stay live
- * because the relay is still read.
+ * Under DAG §4 D-7 this is the relay, and only the relay. It used to be a union
+ * of XTrace's pool and the relay, deduplicated on `read_id` ([E20]), on the
+ * assumption that both sides could hand back a `Read`. Gate zero disproved half
+ * of that: XTrace extracts payloads rather than storing them, so the pool half
+ * of the union was always empty in production and the relay half was carrying
+ * the whole thing anyway. Removing the union is not a loss of data — it is the
+ * removal of a query that never returned a row.
+ *
+ * `degraded` therefore no longer means "counts may be incomplete". Relay counts
+ * are exact. It means XTrace's induction index is unreachable, so there is no
+ * induced claim to put on the card — which is exactly how `src/cli/ask.ts` has
+ * always consumed it (`inducedClaim` is gated on `!degraded`, and the disclosure
+ * copy already says "counts are live").
+ *
+ * The S2 induction set is not loaded here any more. Those seeded reads reach the
+ * relay through `pass seed`, which is where a fixture that must be *countable*
+ * belongs — loading them behind a flag made the same read present or absent
+ * depending on a toggle no one set deliberately.
  */
 
-import { readFileSync } from 'node:fs';
-
-import type { PoolStore, PoolView, Relay } from '../contracts/modules.js';
+import type { PoolView, Relay } from '../contracts/modules.js';
 import type { Driver, Read } from '../contracts/types.js';
 import type { FlagStore } from '../config/flagStore.js';
 import type { Logger } from '../config/logger.js';
-import { parseRead } from '../kernel/read.js';
 
 export interface PoolViewDeps {
-  pool: PoolStore;
   relay: Relay;
   flags: FlagStore;
   logger: Logger;
-  /** Overridable for tests; defaults to the committed S2 artifact. */
-  inductionSetPath?: string;
-}
-
-function defaultInductionSetPath(): string {
-  return new URL('../../data/seeds/induction-set.json', import.meta.url).pathname;
 }
 
 export function createPoolView(deps: PoolViewDeps): PoolView {
-  // Lazy-loaded and cached: live mode never touches the file, and a missing
-  // artifact only fails the degraded path it belongs to.
-  let inductionSet: Read[] | null = null;
-  const loadInductionSet = (): Read[] => {
-    if (inductionSet !== null) return inductionSet;
-    const path = deps.inductionSetPath ?? defaultInductionSetPath();
-    const raw = JSON.parse(readFileSync(path, 'utf8')) as { reads?: unknown[] };
-    const parsed: Read[] = [];
-    for (const candidate of raw.reads ?? []) {
-      try {
-        parsed.push(parseRead(candidate));
-      } catch (error) {
-        deps.logger.line(
-          `poolView: skipping invalid induction-set read: ${error instanceof Error ? error.message : String(error)}`,
-        );
-      }
-    }
-    inductionSet = parsed;
-    return parsed;
-  };
-
   return {
     async readsForDriver(driver: Driver): Promise<{ reads: Read[]; degraded: boolean }> {
-      const degraded = deps.flags.get().pool === 'relay-only';
-      const canonical = degraded
-        ? loadInductionSet().filter((read) => read.driver === driver)
-        : await deps.pool.readsForDriver(driver);
-      const relayReads = (await deps.relay.list())
-        .map((entry) => entry.read)
-        .filter((read) => read.driver === driver);
+      const entries = await deps.relay.list();
 
-      // Canonical copy first, relay second — first occurrence of a read_id wins.
+      // The relay keys its store on read_id, so duplicates should not occur —
+      // but K6 counts what it is given and a double-counted read is a cohort
+      // that clears the k>=5 floor without five people behind it. Dedup here
+      // and say so, rather than trust a remote service's uniqueness.
       const seen = new Set<string>();
-      const union: Read[] = [];
-      for (const read of [...canonical, ...relayReads]) {
-        if (seen.has(read.read_id)) continue;
+      const reads: Read[] = [];
+      let duplicates = 0;
+      for (const entry of entries) {
+        const read = entry.read;
+        if (read.driver !== driver) continue;
+        if (seen.has(read.read_id)) {
+          duplicates += 1;
+          continue;
+        }
         seen.add(read.read_id);
-        union.push(read);
+        reads.push(read);
       }
-      return { reads: union, degraded };
+      if (duplicates > 0) {
+        deps.logger.line(
+          `poolView: relay returned ${duplicates} duplicate read_id(s) for ${driver} — counted once each`,
+        );
+      }
+
+      return { reads, degraded: deps.flags.get().pool === 'relay-only' };
     },
   };
 }

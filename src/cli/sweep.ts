@@ -1,6 +1,11 @@
 /**
- * `confit sweep` (X4) — the operator-run settle-sweeper (design v0.8 [E21]):
+ * `confit sweep` (X4) — the operator-run induction backfill (design v0.8 [E21]):
  * the command that must work when the author's session is gone.
+ *
+ * Under DAG §4 D-7 a sweep no longer drains the relay — the relay is the durable
+ * store and M7 deletes nothing. What a sweep does now is confirm XTrace ingested
+ * each settled read and re-send the ones it did not, so the report counts
+ * induction coverage rather than a shrinking backlog.
  *
  * `--once` (the default) runs one pass and prints the report. `--watch` loops
  * on an interval derived from config's settle window, logging one line per
@@ -35,22 +40,36 @@ export interface SweepCommandDeps {
   onInterrupt?: (callback: () => void) => void;
 }
 
+/**
+ * `pending` is the line an operator is meant to act on — under D-7 the sweeper
+ * deletes nothing, so a growing store is normal and only an unconfirmed entry
+ * means something is wrong. It is labelled to say so, because the number it
+ * replaced ("retained on relay") looked like a backlog and is now just a count
+ * of everything Confit knows.
+ */
 function reportLines(report: SweepReport, heading: string): string[] {
   return [
     heading,
-    `  verified & dropped: ${report.verified}`,
-    `  re-ingested:        ${report.reingested}`,
-    `  retained on relay:  ${report.retained}`,
-    `  oldest_entry_age_seconds: ${report.oldestEntryAgeSeconds}`,
+    `  pooled (confirmed):   ${report.pooled}`,
+    `  re-ingested:          ${report.reingested}`,
+    `  PENDING (unconfirmed): ${report.pending}`,
+    `  reads stored:         ${report.stored}`,
+    `  oldest_stored_age_seconds: ${report.oldestStoredAgeSeconds}`,
   ];
 }
 
-function reportData(report: SweepReport): Record<string, unknown> {
+/**
+ * The `--json` payload. Exported so U5's `actions.test.ts` can check the Pass panel's
+ * field names against the real thing: D-7 renamed every key in `SweepReport`, and the
+ * panel went on reading the old ones while its own fixtures staged them back.
+ */
+export function sweepPayload(report: SweepReport): Record<string, unknown> {
   return {
-    verified: report.verified,
+    pooled: report.pooled,
     reingested: report.reingested,
-    retained: report.retained,
-    oldest_entry_age_seconds: report.oldestEntryAgeSeconds,
+    pending: report.pending,
+    stored: report.stored,
+    oldest_stored_age_seconds: report.oldestStoredAgeSeconds,
   };
 }
 
@@ -68,7 +87,7 @@ export function createSweepCommand(deps: SweepCommandDeps): CommandHandler {
       const report = await deps.sweep(now());
       return {
         lines: reportLines(report, 'Sweep report:'),
-        data: { mode: 'once', ...reportData(report) },
+        data: { mode: 'once', ...sweepPayload(report) },
       };
     }
 
@@ -87,16 +106,22 @@ export function createSweepCommand(deps: SweepCommandDeps): CommandHandler {
 
     const intervalMs = watchIntervalMs(context.config.settleWindowSeconds);
     let passes = 0;
-    let last: SweepReport = { verified: 0, reingested: 0, retained: 0, oldestEntryAgeSeconds: 0 };
-    const totals = { verified: 0, reingested: 0 };
+    let last: SweepReport = {
+      pooled: 0,
+      reingested: 0,
+      pending: 0,
+      stored: 0,
+      oldestStoredAgeSeconds: 0,
+    };
+    const totals = { pooled: 0, reingested: 0 };
 
     while (!interrupted) {
       last = await deps.sweep(now());
       passes += 1;
-      totals.verified += last.verified;
+      totals.pooled += last.pooled;
       totals.reingested += last.reingested;
       context.logger.line(
-        `sweep pass ${passes}: verified=${last.verified} reingested=${last.reingested} retained=${last.retained} oldest_entry_age_seconds=${last.oldestEntryAgeSeconds}`,
+        `sweep pass ${passes}: pooled=${last.pooled} reingested=${last.reingested} pending=${last.pending} stored=${last.stored}`,
       );
       await Promise.race([sleep(intervalMs), interruptedPromise]);
     }
@@ -104,16 +129,16 @@ export function createSweepCommand(deps: SweepCommandDeps): CommandHandler {
     return {
       lines: [
         `Watch ended after ${passes} pass(es).`,
-        `  verified & dropped (total): ${totals.verified}`,
-        `  re-ingested (total):        ${totals.reingested}`,
-        `  retained on relay (last):   ${last.retained}`,
-        `  oldest_entry_age_seconds:   ${last.oldestEntryAgeSeconds}`,
+        `  pooled (total):        ${totals.pooled}`,
+        `  re-ingested (total):   ${totals.reingested}`,
+        `  PENDING (last):        ${last.pending}`,
+        `  reads stored (last):   ${last.stored}`,
       ],
       data: {
         mode: 'watch',
         passes,
         totals: { ...totals },
-        last: reportData(last),
+        last: sweepPayload(last),
       },
       exit: EXIT.ok, // SIGINT is how a watch is supposed to end
     };

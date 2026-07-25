@@ -20,12 +20,13 @@
  * degrades to plain CLI output rather than to a blank panel or a wrong number.
  */
 
-import { useCallback, useState } from 'react';
+import { Fragment, useCallback, useState } from 'react';
 
 import type { CommandResult } from '../../cli/render.js';
 import {
   FLAG_CHOICES,
   PASS_ACTIONS,
+  SWEEPER_FIELDS,
   passAction,
   type FlagName,
   type PassAction,
@@ -344,17 +345,18 @@ export function PassPanel({ run }: PassPanelProps) {
         </div>
         <Failure id="sweeper" />
         {sweeper ? (
+          // Fields come from SWEEPER_FIELDS rather than being spelled out here, so
+          // actions.test.ts can check them against X4's real --json payload. D-7 renamed
+          // every key on SweepReport and the panel kept reading the old ones.
           <dl data-testid="sweeper-status" className="mt-3 text-sm">
-            <dt className="text-muted">oldest_entry_age_seconds</dt>
-            <dd data-testid="oldest-entry-age">
-              {String(sweeper.data['oldest_entry_age_seconds'])}
-            </dd>
-            <dt className="mt-2 text-muted">verified &amp; dropped</dt>
-            <dd>{String(sweeper.data['verified'])}</dd>
-            <dt className="mt-2 text-muted">re-ingested</dt>
-            <dd>{String(sweeper.data['reingested'])}</dd>
-            <dt className="mt-2 text-muted">retained on relay</dt>
-            <dd>{String(sweeper.data['retained'])}</dd>
+            {SWEEPER_FIELDS.map((field, index) => (
+              <Fragment key={field.key}>
+                <dt className={`${index === 0 ? '' : 'mt-2 '}text-muted`}>{field.label}</dt>
+                <dd {...('testId' in field ? { 'data-testid': field.testId } : {})}>
+                  {String(sweeper.data[field.key])}
+                </dd>
+              </Fragment>
+            ))}
           </dl>
         ) : null}
       </Section>
@@ -445,7 +447,10 @@ export function PassPanel({ run }: PassPanelProps) {
         {results.seed ? <Lines result={results.seed} testId="seed-lines" /> : null}
 
         <div className="mt-4">
-          <ActionButton id="reset" />
+          {/* `yes` skips the CLI's stdin prompt: the panel's own confirm step is the
+              gate, and a browser cannot answer a terminal question. Same shape as
+              sweeper's `once` above. */}
+          <ActionButton id="reset" values={{ yes: 'true' }} />
           <p className="mt-1 text-sm text-muted">{passAction('reset').blurb}</p>
         </div>
         <Failure id="reset" />

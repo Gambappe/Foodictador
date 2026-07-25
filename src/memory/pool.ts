@@ -1,22 +1,22 @@
 /**
- * PoolStore (M2) — the collective pool at `user_id: "confit:pool"`.
+ * PoolStore (M2) — the XTrace side of the collective pool at
+ * `user_id: "confit:pool"`. **Induction only, under DAG §4 D-7.**
  *
- * Counting and induction are separate queries on purpose ([E22]): counting
- * missed members renders a qualifying cohort as a cohort-miss on stage, so
- * `readsForDriver` is scoped to one driver with k = COUNTING_K (far above any
- * real cohort), while `inducedClaim` stays top-k because induction does not
- * need every row.
+ * The counting query used to live here. It is gone, and its absence is the
+ * point: gate zero ingested one read and got back five prose facts
+ * ("User's place is rosas_taqueria.") with nothing joining them, and no query —
+ * not by read_id, not by place — returned the object that went in. A
+ * `readsForDriver` on this store could only ever return an empty array while
+ * looking like it worked, which is worse than not existing. Counting reads the
+ * relay now (M6).
  *
- * A read is written as its own six-field JSON with `read_id` embedded in the
- * record content, so M7's fallback verification can find an entry whose
- * `setJob` annotation never landed (DAG §4 D-1).
+ * What is left is the query XTrace is measurably good at ([E22], design v0.8
+ * §8): synthesis across records it derived itself.
  */
 
 import type { MemoryClient, PoolStore } from '../contracts/modules.js';
-import type { Driver, JobHandle, MemoryRow, Read } from '../contracts/types.js';
+import type { JobHandle, Read } from '../contracts/types.js';
 import type { Logger } from '../config/logger.js';
-import { COUNTING_K } from '../kernel/constants.js';
-import { parseRead } from '../kernel/read.js';
 
 export const POOL_SCOPE = 'confit:pool';
 
@@ -29,48 +29,14 @@ export interface PoolStoreDeps {
   logger: Logger;
 }
 
-function parsePoolRow(row: MemoryRow, logger: Logger): Read | null {
-  let raw: unknown;
-  try {
-    raw = JSON.parse(row.content);
-  } catch {
-    logger.line(`pool: skipping malformed row ${row.memoryId}: content is not JSON`);
-    return null;
-  }
-  try {
-    return parseRead(raw);
-  } catch (error) {
-    // A malformed substrate row must never crash the Ask — skip it, say so.
-    logger.line(
-      `pool: skipping malformed row ${row.memoryId}: ${error instanceof Error ? error.message : String(error)}`,
-    );
-    return null;
-  }
-}
-
 export function createPoolStore(deps: PoolStoreDeps): PoolStore {
   return {
     async writeRead(read: Read): Promise<JobHandle> {
-      // The content is the read itself — six fields, read_id included, exactly
-      // what readsForDriver parses back out and what M7 re-verifies against.
+      // The six fields go in as JSON and come out as prose about them. That is
+      // the substrate's behaviour, not a defect to route around — the extracted
+      // facts are what `inducedClaim` synthesises over. The read itself is kept
+      // verbatim by the relay (D-7); this write is the induction feed.
       return deps.client.ingest(POOL_SCOPE, JSON.stringify(read));
-    },
-
-    async readsForDriver(driver: Driver, opts?: { k?: number }): Promise<Read[]> {
-      const rows = await deps.client.search(POOL_SCOPE, driver, {
-        topK: opts?.k ?? COUNTING_K,
-        // Counting wants the raw records, not synthesis — the reservation is
-        // explicit (the type requires it) and explicitly zero.
-        episodeSlots: 0,
-      });
-      const reads: Read[] = [];
-      for (const row of rows) {
-        const read = parsePoolRow(row, deps.logger);
-        // Semantic search is fuzzy; the driver scope is only real if enforced
-        // here. A read for another driver is off-scope, not malformed.
-        if (read !== null && read.driver === driver) reads.push(read);
-      }
-      return reads;
     },
 
     async inducedClaim(query: string): Promise<string> {

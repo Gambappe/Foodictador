@@ -1,8 +1,17 @@
 # The shared relay (P0.4)
 
-The ~60-line-of-state KV service that carries un-settled reads across devices while
-XTrace settles behind it (design v0.8 §6, [E14]). Transport, not memory: losing it
-loses nothing that has settled.
+The KV service that holds the pool's reads and carries them across devices
+(design v0.8 §6, [E14], as amended by DAG §4 D-7).
+
+> **This is memory, not transport.** [E14] called it "transport, not memory: losing it
+> loses nothing that has settled", and that was true while XTrace was the durable side.
+> Gate zero ended it — XTrace extracts payloads rather than storing them, so a read exists
+> verbatim *here and nowhere else*. Losing this service loses every confession in it,
+> permanently. The sweeper no longer deletes from it (see `src/memory/sweeper.ts`), and
+> `tests/guards/relayDurability.test.ts` keeps it that way.
+>
+> The durability to match that role is **not yet built**: the dump below is on a
+> 10-second timer, is written non-atomically, and is opt-in. Tracked as **P0.8**.
 
 Run: `RELAY_TOKEN=<token> npx tsx infra/relay/main.ts` (port `RELAY_PORT`, default
 8787; optional `RELAY_DUMP_PATH` + `RELAY_DUMP_INTERVAL_MS` persist a JSON dump).
@@ -14,8 +23,8 @@ Run: `RELAY_TOKEN=<token> npx tsx infra/relay/main.ts` (port `RELAY_PORT`, defau
 | `POST /reads` `{token, read}` | token | 201; validates against `READ_KEYS` exactly — extra keys (incl. `received_at`, `ingest_job_id`) → 400 |
 | `POST /reads/{read_id}/ingest-job` `{token, ingest_job_id}` | token | 204; 404 unknown read |
 | `GET /reads?since=` | open | `RelayEntry[]` = `{read, received_at, ingest_job_id?}` |
-| `DELETE /reads/{read_id}` `{token}` | token | 204; 404 unknown — used by both the deletion purge and the sweeper's verified-drop |
-| `GET /stats` | open | `{count, oldest_entry_age_seconds}` — every present entry is unverified by construction, so oldest age IS the stuck-entry signal |
+| `DELETE /reads/{read_id}` `{token}` | token | 204; 404 unknown — **`forget` only.** The sweeper's verified-drop used to call this and no longer may (D-7) |
+| `GET /stats` | open | `{count, oldest_entry_age_seconds}` — `count` is the pool size. Oldest age is **no longer** a stuck-entry signal: nothing is removed, so it is just the oldest read ever confessed. Use `SweepReport.pending` |
 | `POST /seed` `{token, reads[]}` | token | `{count}`; batch is all-or-nothing, 400 names the failing index |
 | `POST /reset` `{token}` | token | `{count: 0}` |
 

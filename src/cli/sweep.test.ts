@@ -29,11 +29,18 @@ function context(args: string[], logLines: string[] = []): CommandContext {
 }
 
 function report(overrides: Partial<SweepReport> = {}): SweepReport {
-  return { verified: 2, reingested: 1, retained: 3, oldestEntryAgeSeconds: 512, ...overrides };
+  return {
+    pooled: 2,
+    reingested: 1,
+    pending: 4,
+    stored: 3,
+    oldestStoredAgeSeconds: 512,
+    ...overrides,
+  };
 }
 
 describe('X4 confit sweep --once', () => {
-  it('runs one sweep and prints the counts and oldest_entry_age_seconds', async () => {
+  it('runs one sweep and prints the counts, with pending called out', async () => {
     const nows: string[] = [];
     const handler = createSweepCommand({
       sweep: (now) => {
@@ -45,11 +52,19 @@ describe('X4 confit sweep --once', () => {
     const result = await handler(context(['sweep', '--once']));
     expect(nows).toEqual(['2026-07-25T12:00:00.000Z']);
     expect(result.exit ?? EXIT.ok).toBe(EXIT.ok);
-    expect(result.lines.join('\n')).toContain('verified & dropped: 2');
-    expect(result.lines.join('\n')).toContain('re-ingested:        1');
-    expect(result.lines.join('\n')).toContain('retained on relay:  3');
-    expect(result.lines.join('\n')).toContain('oldest_entry_age_seconds: 512');
-    expect(result.data).toMatchObject({ mode: 'once', oldest_entry_age_seconds: 512 });
+    const printed = result.lines.join('\n');
+    expect(printed).toContain('pooled (confirmed):   2');
+    expect(printed).toContain('re-ingested:          1');
+    // Labelled PENDING because that is the only number here an operator acts on
+    // — under D-7 a growing `stored` is the product working, not a backlog.
+    expect(printed).toContain('PENDING (unconfirmed): 4');
+    expect(printed).toContain('reads stored:         3');
+    expect(result.data).toMatchObject({
+      mode: 'once',
+      pending: 4,
+      stored: 3,
+      oldest_stored_age_seconds: 512,
+    });
   });
 
   it('--once is the default when no mode flag is given', async () => {
@@ -79,7 +94,7 @@ describe('X4 confit sweep --watch', () => {
       sweep: () => {
         calls += 1;
         if (calls === 3) interrupt(); // SIGINT during the third pass
-        return Promise.resolve(report({ verified: 1, reingested: 0 }));
+        return Promise.resolve(report({ pooled: 1, reingested: 0 }));
       },
       now: () => '2026-07-25T12:00:00.000Z',
       sleep: (ms) => {
@@ -95,10 +110,10 @@ describe('X4 confit sweep --watch', () => {
     expect(result.exit).toBe(EXIT.ok); // SIGINT is the intended ending
     expect(calls).toBe(3);
     expect(result.data['passes']).toBe(3);
-    expect(result.data['totals']).toEqual({ verified: 3, reingested: 0 });
+    expect(result.data['totals']).toEqual({ pooled: 3, reingested: 0 });
     // One stderr line per pass, so the operator sees progress while it runs.
     expect(logLines.filter((l) => l.startsWith('sweep pass'))).toHaveLength(3);
-    expect(logLines[0]).toContain('oldest_entry_age_seconds=512');
+    expect(logLines[0]).toContain('pending=4');
     // The interval comes from config's settle window.
     expect(sleeps.every((ms) => ms === watchIntervalMs(CONFIG.settleWindowSeconds))).toBe(true);
   });

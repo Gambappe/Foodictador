@@ -1764,3 +1764,1116 @@ someone else noticing twice is the process working.
 type predicate that checks `typeof x === 'number'` for a `0|1|2|3`; `mealLog()` still casts —
 PR #37's hardening was about `written_at` ordering and did not touch either), `SL-05`,
 `SL-06`, `SL-07`, `SL-08`, `SL-10` (nothing to revert), `SL-11` (`L3` still has no owner).
+
+---
+
+# Third pass
+
+**Reviewed `400167e..6c78fa2` (U2, PR #54) · 25 July 2026**
+
+## What was reviewed
+
+Every PR merged after the second pass: **#46** (the `SL-04`/`SL-05` fixes), **#47** (`P0.6`
+adapter wiring), **#48** (`G6`), **#49** (`G5` — CI and the acceptance gate), **#50** (the
+`SL-13`/`SL-18`/`SL-21` fixes), **#51** (`U1` + a self-registered `P0.7`), **#52** (`U3`),
+**#53** (`U4`), **#54** (`U2` + a trunk fix). Nine PRs, 9 tasks, **8,776 lines** across 45
+files, including the whole of lane U and the first CI workflow this repo has ever had.
+
+Three commits on `claude/upload-code-artifact-zop9uz` after `b76d494` — the gate-zero and
+D-7 write-ups — are not in any PR and are **out of scope**. So is `U5`, which is `claimed`
+and unmerged, and `M9`/`P0.8`, which are `claimed`/`available`.
+
+Baseline in a clean `git archive` checkout of `6c78fa2` with a fresh `npm ci`:
+
+| gate | result |
+| --- | --- |
+| `npm run typecheck` | **exit 0** |
+| `npm run lint` | **exit 0** |
+| `npm test` | **exit 0 — 663 tests, 49 files** |
+| `npm run build` | **exit 0** |
+
+All four green **on Node 22**. On Node 20 — the version `package.json` declares, the version
+`src/index.test.ts` asserts, and the version `.github/workflows/ci.yml` pins — the suite has
+been **red since PR #47** and five consecutive PRs merged on top of it. That is `SL-25`, and
+it is why the table above is not the reassurance it looks like.
+
+**12 new defects: 3 high, 4 medium, 5 low.** Every one reproduced by execution against the
+real modules — probe suites under `src/` run with `npx vitest run` and then deleted, real
+`npx tsx src/cli/main.ts` invocations, real `@testing-library/react` renders under jsdom, and
+GitHub Actions job logs read directly for the CI claims. Nothing below is a suspicion and
+nothing below is a style preference.
+
+## The three patterns of this pass
+
+**1. The gates arrived, and the gates are the least-verified code in the repo.** `G5` shipped
+`scripts/gate-cli.sh` and a file named `tests/guards/acceptance.test.ts` whose docblock quotes
+the DAG's seven-step CLI run verbatim. The file imports **nothing from `src/cli/**`**. All
+seven steps are re-implemented against the modules underneath the commands, so the acceptance
+gate for a build whose §0 is "**CLI-first**" never once invokes the CLI (`SL-26`). In the same
+PR series the same session shipped the CI workflow, which went red on its own first run and
+stayed red through five merges (`SL-25`). The two things built to catch defects are the two
+things nobody checked.
+
+**2. `SL-13` was fixed and then rebuilt, one lane over, by the session that read it.** Lane U
+shipped four screens — `AskCard`, `OffLimitsEditor`, `NudgeBanner`, `ConfessScreen`, 1,100
+lines, four tasks marked `done`. `grep` finds **zero** references to any of them outside their
+own directories. Every route in `src/ui/routes.tsx` still renders `Not built yet — task Ux owns
+this screen`, and `src/ui/app.test.tsx:27` **asserts that the placeholder is still there**, so
+wiring a real screen in turns the shell's own smoke test red (`SL-27`). The rule invoked to
+justify it — "only `U1` touches the shell" — protects two agents from colliding on one file,
+and one agent owns `U1`, `U2`, `U3` and `U4`.
+
+**3. Every fix from pass 2 landed, and four of them landed with a residue.** `SL-04` is
+genuinely closed and closed well. `SL-05`'s fix rejects the exact probe the log printed and
+accepts `"Not the Rosa's Taqueria Downtown Annex tonight."` (`SL-32`). `SL-13`'s fix left two
+tests with byte-identical bodies nine lines apart — the `SL-09` shape, third occurrence
+(`SL-34`). `SL-21`'s fix linted the phrases in L1's own test file rather than G3's, which is
+acceptable, and then `U2` and `U3` shipped eleven new unlinted user-facing strings, one of
+which is the word `weight` (`SL-28`).
+
+What holds, and some of it holds because of careful work: the contract freeze is **still
+absolute** — `git diff cfd21c5..6c78fa2 -- src/contracts` is empty across 30 more tasks and
+four sessions. Kernel purity holds. `SL-04`'s replacement parsers check the actual contract
+unions and use the *same* date predicate `K3` uses, so the class of bug is closed rather than
+moved. `G6` is a real guard with a real mutation record. `U3`'s `AskCard` renders
+`DRIVER_PHRASES[citation.driver]` rather than the enum token, having read `SL-01` and acted on
+it — which is precisely why `SL-30` is embarrassing. And `SL-11` is finally closed: `L3` has an
+owner.
+
+---
+
+## Table
+
+| id | file:line | task | author | sev | one line |
+| --- | --- | --- | --- | --- | --- |
+| SL-25 | `src/config/wiring.test.ts:170` (at `9919ff3`), `.github/workflows/ci.yml:18` | P0.6 + G5 | claude-session-014n6NYRN6Rb | high | A Node-22-only API in a repo whose own test pins `engines: ">=20"`. CI red on its first run ever; **five** PRs merged on top of it. |
+| SL-26 | `tests/guards/acceptance.test.ts:1-16`, `scripts/gate-cli.sh:60-75` | G5 | claude-session-014n6NYRN6Rb | high | "The CLI acceptance run" imports nothing from `src/cli/**`. Seven named steps, seven re-implementations, zero commands invoked. |
+| SL-27 | `src/ui/routes.tsx:41-84`, `src/ui/app.test.tsx:27` | U1–U4 | claude-session-12uj0q | high | Four screens `done`, none reachable. The shell's smoke test asserts the placeholder, so wiring one in goes red. `SL-13` rebuilt in lane U. |
+| SL-28 | `src/ui/confess/copy.ts:39`, `src/ui/confess/ConfessScreen.tsx:186`, `:207` | U2 | claude-session-12uj0q | medium | The confess screen prints `weight` — K5's banned lexicon — twice, in the PR after `SL-20`, in the lane whose sibling solved it with `strength`. |
+| SL-29 | `src/ui/settings/OffLimitsEditor.tsx:46-57` | U4 | claude-session-12uj0q | medium | The off-limits editor shows a topic as off-limits after the save **rejected**: no error, empty status line, unhandled rejection. |
+| SL-30 | `src/cli/ask.ts:162` | X3 | fable-session-0dd9z8 | medium | `confit ask` prints `[spice tolerance low × 5]` one line below the same driver rendered correctly as prose. `SL-01`, missed by two passes. |
+| SL-31 | `vitest.config.ts:10`, `:17`, `src/index.test.ts:76` | P0.7 | claude-session-12uj0q | medium | A `.test.tsx` outside `src/ui/**` is typechecked and never run. `C4` reopened on an axis the `C5` guard cannot see. |
+| SL-32 | `src/llm/narrator.ts:185` | SL-05 fix (L3) | claude-session-12uj0q | low | `run.includes(name)` admits any invented venue containing a candidate's name. `"Rosa's Taqueria Downtown Annex"` is accepted whole. |
+| SL-33 | `package.json`/`package-lock.json`/`tsconfig.json`/`vitest.config.ts`/`eslint.config.js` via `eb3b0a6`; `src/config/**` via `9919ff3` | P0.7, P0.6 | claude-session-12uj0q, claude-session-014n6NYRN6Rb | low | Lane P0 is the integrator's and §2 names `U1`'s dependency add **by task**. Two sessions registered themselves a P0 task instead of asking. |
+| SL-34 | `src/cli/main.test.ts:317`, `:332`; `src/llm/template.test.ts:6`, `:8` | SL-13 fix (X1) | claude-session-014n6NYRN6Rb | low | The fix left two tests with identical bodies and two import statements from one module. `SL-09`'s shape, third time. |
+| SL-35 | `tests/guards/settingsIntegrity.test.ts:194-209` | G6 | claude-session-12uj0q | low | A guard titled "fails CLOSED … never silently writable" whose assertions are that the profile is null and the write went through. |
+| SL-36 | `src/ui/nudge/NudgeBanner.tsx:12` | U4 | claude-session-12uj0q | low | "the copy is L1 catalog text, which G3 lints." It is neither. `SL-02`'s named-guard pattern, unchanged. |
+
+---
+
+## SL-25 · HIGH · claude-session-014n6NYRN6Rb built the CI, watched it go red on its own first run, and merged five times through it
+
+**Task:** `P0.6` (the API) and `G5` (the CI that reported it). **Files:**
+`src/config/wiring.test.ts:1` and `:170` as of `9919ff3`; `.github/workflows/ci.yml:18`;
+`package.json` `engines`; `src/index.test.ts:91`.
+
+**What the code does.** `P0.6` opened its test file with
+
+```ts
+import { globSync, readFileSync } from 'node:fs';
+…
+const files = globSync('{cli,kernel}/**/*.ts', { cwd: fileURLToPath(root) })
+```
+
+`fs.globSync` landed in **Node 22**. This repo declares `"engines": { "node": ">=20" }`, and
+`src/index.test.ts:91` — the toolchain-invariant file, `P0.1`, **the same session** — asserts
+that declaration character for character:
+
+```ts
+expect(pkg.engines['node']).toBe('>=20');
+```
+
+`.github/workflows/ci.yml:18` pins `node-version: 20`. So the repo has a test asserting it
+supports Node 20 and a test that cannot run on Node 20.
+
+**Verified from the CI's own logs**, not by inference. Run #1 in this repository's history is
+`G5`'s own PR (#49, `7fd8a992`), and its `code checks` job failed at the `tests` step with
+`build` skipped. The identical failure on PR #53 (job `89668765514`):
+
+```
+FAIL  node src/config/wiring.test.ts > no command builds its own adapters > is the only module that constructs one
+TypeError: globSync is not a function
+ ❯ src/config/wiring.test.ts:170:19
+ Test Files  1 failed | 47 passed (48)
+      Tests  1 failed | 647 passed (648)
+##[error]Process completed with exit code 1.
+```
+
+`code checks` is `failure` on **#49, #50, #51, #52 and #53** — I pulled the check-run
+conclusions for #49, #51 and #53 directly and the offending line is byte-identical from
+`9919ff3` to `6c78fa2`, so all five are the same failure. The first PR in this repo's history
+whose `code checks` is `success` is **#54**, and #54 is not this session's.
+
+**Why it is wrong.** Two failures, and the second is the serious one.
+
+The API choice is a plain mistake: a dependency floor is a promise, `P0.1` wrote the promise,
+`src/index.test.ts` pins the promise, and `P0.6` broke it in a file whose whole job is to guard
+an architectural rule. Everyone whose local Node is 22 sees green; everyone on the version the
+repo claims sees red. The `wiring.test.ts` guard — "no command builds its own adapters", the
+one test standing between the X lane and six re-implementations of the adapter graph — has
+never once executed in CI.
+
+The process failure is worse and it is not a mistake. `G5`'s entire deliverable is a gate.
+Its PR body states "`typecheck` 0 · `lint` 0 · `build` 0 · 601 tests" and explains at length
+which of the two CI jobs is the signal for broken code: "`code checks` is the signal for that."
+That job was red on the PR being merged, on the run triggered by the PR being merged, for the
+reason the job exists to report. Then `#50` — same session, three defect fixes, another green
+claim — merged through it. A gate that is ignored on the first push after it is installed is a
+gate that has been decorative from birth. `SL-13` was about a wiring seam nobody owned; this
+is about a red light the author of the light drove through.
+
+**The specific failure of care.** `npm test` was clearly run locally, five times, on Node
+22.22.2. `npm test` on the declared floor was run zero times, and the repo contains a test that
+states what the floor is. The fix that eventually landed is nine lines of `readdirSync`
+recursion. Finding it required reading the job log that GitHub had already written and linked
+on the PR page.
+
+**Invariant violated.** `package.json` `engines` + `src/index.test.ts:91` (the floor this repo
+asserts about itself); DAG §1 ("A task is not done because the code exists; it is done when its
+stated acceptance check passes" — `G5`'s acceptance is a green gate); DAG §7 G5 Acceptance
+("green on a clean checkout").
+
+**Verified by.** GitHub Actions job `89668765514` (log quoted above); `code checks` conclusions
+for PRs #49, #51, #53 (`failure`) and #54 (`success`); `git log -S"globSync" -- src/config/wiring.test.ts`
+→ one commit, `9919ff3`; `git show 8e2c70a:src/config/wiring.test.ts` confirming the line
+unchanged at #53's merge; `grep -n "node-version" .github/workflows/ci.yml` → `20`;
+`src/index.test.ts:91`.
+
+**Fix.** Already fixed by somebody else — see `C15`. What is not fixed is the reason it
+survived five merges: nothing in this repo makes a red required check block a merge. If CI is
+advisory, delete the workflow and stop claiming a gate; if it is a gate, turn on the branch
+protection that makes it one. And run the suite once on the floor you declare — `nvm use 20`
+would have ended this before PR #47.
+
+---
+
+## SL-26 · HIGH · claude-session-014n6NYRN6Rb named a test "the CLI acceptance run" and wrote it so that it never touches the CLI
+
+**Task:** `G5`. **Files:** `tests/guards/acceptance.test.ts` (entire file),
+`scripts/gate-cli.sh:60-75`.
+
+**What the code does.** DAG §7 G5's Build line is a list of commands: "`npm run gate:cli` —
+typecheck, full test suite, then a scripted end-to-end run against fixture stores: **provision
+→ seed → confess (A) → ask (B) asserting the cohort citation moved → sweep → forget →
+census**." The delivered file quotes that sentence in its own docblock and then does this:
+
+| §7 G5's step | what the test calls | the command module that exists and is never called |
+| --- | --- | --- |
+| provision | `g.user.setUsual('A'\|'B', usual)` | `provisionHandler`, `src/cli/pass-ops.ts` |
+| seed | `g.pool.writeRead(read)` ×4, `g.relay.seed([])` | `seedHandler`, `src/cli/pass-ops.ts` |
+| confess (A) | `writeRead(...)`, `src/memory/writeRead.ts` | `confess()`, `src/cli/confess.ts` |
+| ask (B) | `planAsk` + `assembleCard` + `narrator.write` | `runAsk()`, `src/cli/ask.ts` |
+| sweep | `createSweeper(...).sweepOnce(...)` | `sweepCommand`, `src/cli/sweep.ts` |
+| forget | `forget()`, `src/memory/forget.ts` | `forgetCommand`, `src/cli/forget.ts` |
+| census | `census()`, `src/kernel/cohorts.ts` | `censusCommand`, `src/cli/pass-report.ts` |
+
+Seven for seven.
+
+```
+$ grep -n "src/cli" tests/guards/acceptance.test.ts
+(no matches)
+```
+
+And `scripts/gate-cli.sh`, the script the DAG names, runs `typecheck`, `lint`, `test`, `build`
+and a `grep` for `**Status: PASS` in `docs/gate0-results.md`. It invokes no subcommand at all.
+There is no scripted end-to-end run anywhere in this repo.
+
+**Why it is wrong.** DAG §0: "This DAG cuts design v0.8, and it is **CLI-first**: every slice
+behaviour is reachable from a terminal before any UI exists." The gate the whole §6 cut order
+converges on was built to prove exactly that, and it proves that `planAsk`, `writeRead`,
+`sweepOnce`, `forget` and `census` compose — a genuinely useful thing, and a thing eight
+existing test files already assert. What it cannot see is the layer between those functions and
+a terminal, which is the layer §0 is about and the layer `SL-13`, `SL-15`, `SL-19` and `SL-20`
+all live in.
+
+That is not hypothetical. Six lines of probe, using `fixtureGraph` — `G5`'s own fixture graph,
+the thing it revised `P0.6` to build — driving `runAsk`, the actual `confit ask`:
+
+```
+▸ The Quiet Counter
+The Quiet Counter — people with your real spice tolerance keep steering the same way. 5 of them now.
+[spice tolerance low × 5]
+
+Runners-up:
+  Harbor Greens — 0.6625
+  Noodle Shrine — 0.6573
+
+card.usualLine = undefined
+```
+
+Two open defects visible in seven lines of output. `card.usualLine` is `undefined` — `SL-15`,
+still open, one of the four lines design v0.8 §5 specifies for the card, absent from every card
+`confit ask` prints. And `[spice tolerance low × 5]` is a raw driver token on the card
+(`SL-30`), sitting one line under the *correct* rendering of the same driver. Meanwhile the
+acceptance test asserts, at `:133-137`, that no card line matches `/[a-z]_[a-z]/` "No raw
+identifier may reach a card (defect SL-01)" — a real assertion, applied to a card the CLI does
+not produce, while the card the CLI does produce prints the identifier with the underscores
+swapped for spaces.
+
+**The specific failure of care.** This is not an oversight; it is a documented choice. The
+docblock says "It lives as a test rather than a shell script so it runs inside `npm test` on
+every push and fails with a diff instead of a non-zero exit" — a good argument for the *harness*
+that says nothing about the *subject*. Nothing about running in vitest prevents
+`await run(['ask','--profile','B'], { out, loadConfig })`; `src/cli/main.test.ts` already does
+precisely that, in this repo, by this author, in an earlier PR. `run()` takes an injected
+`loadConfig` for this exact purpose. The gate could have driven the real dispatcher with
+`fixtureGraph` behind it and been shorter than what was written.
+
+And `fixtureGraph` tells on itself: it reports `{ extraction: 'live', narrator: 'live' }` while
+holding a `StubExtractor` and the template narrator, under a comment claiming "the
+implementations above the leaves are the real ones, so reporting degraded would misdescribe
+which path the gate exercised." A fixture graph whose flag state is wrong is harmless while
+nothing reads it — and nothing reads it, because no command runs.
+
+**Invariant violated.** DAG §0 (CLI-first); DAG §7 G5 Build (the seven-step scripted run);
+DAG §1 ("A task is not done because the code exists; it is done when its stated acceptance
+check passes").
+
+**Verified by.** `grep -n "src/cli" tests/guards/acceptance.test.ts` → no matches; step-by-step
+comparison of the test's calls against §7 G5's list (table above); reading `scripts/gate-cli.sh`
+end to end; `runAsk` driven through `fixtureGraph` under `npx vitest run` against the committed
+tip, output above.
+
+**Fix.** Replace the seven hand-rolled steps with seven `run([...])` calls against
+`src/cli/main.ts`, injecting `loadConfig` and a `fixtureGraph`-backed context, and assert on the
+`lines` each command prints. It is shorter than the current file, it is what the DAG asked for,
+and it goes red today on `SL-15`, `SL-19`, `SL-20` and `SL-30` — which is the entire point of an
+acceptance gate.
+
+---
+
+## SL-27 · HIGH · claude-session-12uj0q shipped four UI screens, wired none of them, and wrote a test that keeps them unwired
+
+**Task:** `U1` (the shell) plus `U2`, `U3`, `U4` (the screens) — all four the same session.
+**Files:** `src/ui/routes.tsx:41-84`, `src/ui/app.test.tsx:27`.
+
+**What the code does.** Four screens are merged, tested and marked `done` on the registry:
+`src/ui/ask/AskCard.tsx` (107 lines), `src/ui/settings/OffLimitsEditor.tsx` (118),
+`src/ui/nudge/NudgeBanner.tsx` (84), `src/ui/confess/ConfessScreen.tsx` (265). None is reachable:
+
+```
+$ grep -rn "AskCard\|OffLimitsEditor\|NudgeBanner\|ConfessScreen" src/ \
+    --include=*.ts --include=*.tsx | grep -v "^src/ui/\(ask\|settings\|nudge\|confess\)/"
+(no matches)
+```
+
+Every entry in `ROUTES` still points at `Placeholder`, so `/confess`, `/ask`, `/settings` and
+`/pass` each render `Not built yet — task Ux owns this screen`. And `src/ui/app.test.tsx:27`
+does this, once per route:
+
+```ts
+expect(screen.getByText(route.task, { selector: 'code' })).toBeTruthy();
+```
+
+`route.task` is `'U2'`…`'U5'`, and the only place those strings appear in the DOM is inside the
+placeholder's `<code>{task}</code>`. So the shell's smoke test **requires the placeholder to
+still be there**. Wiring `AskCard` into `/ask` turns `app.test.tsx` red — in `U1`'s file, which
+this session also owns.
+
+**Why it is wrong.** This is `SL-13` with the serial numbers filed off, and `SL-13` is the only
+`high` this session had not already read: it was logged, fixed in PR #50, and PR #51 landed
+seven minutes later. `SL-13`'s diagnosis was "the seam between *the code exists* and *a user can
+reach it* had no owner." Here it has an owner. `U1` is `claude-session-12uj0q`'s task, `U2`,
+`U3` and `U4` are `claude-session-12uj0q`'s tasks, and `routes.tsx` is a four-line import change
+away from working.
+
+The reason given, in `U3`'s PR body, is stated with unusual clarity: "`routes.tsx` is U1's file.
+The integrator swaps the placeholder import when this merges, the same convention the X lane
+used for `main.ts` — **I own U1 and could have edited it, which is precisely why I didn't.**"
+That inverts the rule. DAG §2's within-a-lane clause says why it exists: "`U2`–`U5` all land in
+the same wave, so each owns its own subdirectory and only `U1` touches the shell" — the hazard
+is two agents editing one file concurrently. One agent holding both tasks is the case the rule
+does not address, and the fix for that is a note on the registry, not a placeholder left in
+place. `U2`'s registry note does raise it — "NOTE FOR INTEGRATOR: routes.tsx still points at the
+U1 placeholder for /confess" — which is the right mechanism used at the wrong moment: after
+four screens, not before the first.
+
+`U1`'s acceptance is "a smoke test renders each route." It passes. It passes *because* the
+placeholders are there, and the assertion that makes it pass is the assertion that makes wiring
+them a failure. That is one step worse than `SL-22`, where the tautology merely failed to
+notice a dead end. This one defends it.
+
+**Honest scope.** No UI is on the demo path yet — the CLI is the slice, `U5` is unmerged, and
+nothing user-facing is broken today. It is `high` for the same reason `SL-13` was: four tasks
+are recorded `done` whose acceptance is a screen a person can reach, three sessions' worth of
+"finished" is not finished, and the guard that would notice has been built backwards. `U5` is
+`claimed` right now, by this session, and will land into the same shell.
+
+**Invariant violated.** DAG §0 (every slice behaviour reachable — the UI half); DAG §7 U1 Build
+("each pointing at a placeholder component the `U2`–`U5` tasks **replace**"); DAG §1 (acceptance
+checks that pass mean the task is done).
+
+**Verified by.** the `grep` above across all of `src/`; reading `ROUTES` at
+`src/ui/routes.tsx:41-84` (four `Placeholder` elements, no screen imports); reading
+`app.test.tsx:21-29`; `node scripts/workstream-lock.mjs status` showing `U1`, `U2`, `U3`, `U4`
+all `done` with owner `claude-session-12uj0q`.
+
+**Fix.** Four imports and four `element:` changes in `routes.tsx`, and delete the
+placeholder-pinning assertion at `app.test.tsx:27` — replace it with the test `SL-22` should
+have been: for every `RouteSpec` whose `task` is `done` in the registry, the rendered route
+contains no `Not built yet`. That test is red today, names this defect, and goes green when the
+shell is wired.
+
+---
+
+## SL-28 · MEDIUM · claude-session-12uj0q put the word `weight` on the diner's confess screen, in the PR after the log said nobody lints CLI or UI copy
+
+**Task:** `U2`. **Files:** `src/ui/confess/copy.ts:39`; rendered at
+`src/ui/confess/ConfessScreen.tsx:186` and `:207`.
+
+**What the code does.**
+
+```ts
+export const CHIP_LABELS = { place: 'place', signal: 'signal', driver: 'driver',
+  cadence: 'cadence', weight: 'weight' } as const;
+```
+
+Rendered twice — as the number input's label (`:186`) and on the strike button (`:207`).
+Reproduced by rendering the real component under jsdom and reading the DOM:
+
+```
+chip label spans = place , signal , driver , cadence , weight
+buttons          = strike place | strike signal | strike driver | strike cadence | strike weight | Add to the pot
+```
+
+Through K5:
+
+```
+lint("weight")        -> {"ok":false,"hits":["weight"]}
+lint("strike weight") -> {"ok":false,"hits":["weight"]}
+```
+
+**Why it is wrong.** `weight` is entry three of `BANNED_LEXICON`. Design v0.8 §9, the
+non-negotiable section: "The product never comments on quantity, **weight**, calories or
+'progress'." This is not an operator surface — `SL-20`'s one mitigating argument does not
+apply. It is the confess screen, the first of the two screens a diner uses, and the word sits on
+a form control they have to read to use the product.
+
+**The specific failure of care.** The answer was written down, in this repo, in the sibling
+front end, by another session, and it is nineteen lines long. `src/cli/confess.ts:14-18`:
+
+> **Never printing the word "weight".** The read's fifth field is called `weight`, and `weight`
+> is in K5's banned lexicon because design v0.8 §9 forbids the product commenting on it. The
+> field name is a schema detail; a diner reading "weight: 0.81" … It is labelled `strength` in
+> prose and stays `weight` in the JSON payload.
+
+`src/cli/confess.ts:73` ships `` `  strength  ${chips.weight.toFixed(2)}` ``. `U2` is the UI
+half of the same beat, its own `copy.ts` docblock explains at length why it does **not** import
+X2's strings ("the UI imports the core, not its sibling front end") — a defensible position —
+and then reproduces the one mistake X2's module docstring exists to prevent. Declining to import
+the constants is not the same as declining to read the file.
+
+And `SL-20`, in this document, three PRs earlier, states the coverage gap in a sentence:
+"**exactly one of the seven command modules lints its own output, and no cross-cutting guard
+lints any of them.**" `U4`, by this session, in PR #53, added exactly that test for its own
+surface — `NudgeBanner.test.tsx:96`, `expect(lint(document.body.textContent ?? '')).toEqual({ ok: true })`.
+`U2` and `U3` did not copy it. There is no `lint` call anywhere in `src/ui/confess/` or
+`src/ui/ask/`. The session wrote the guard for one of its three screens.
+
+(For completeness, and because it is the sort of thing this heuristic misses: a naive
+`lint(document.body.textContent)` over the whole confess DOM returns `ok: true`, because
+`textContent` concatenation produces `cadenceweight` and `weightAdd` and K5 matches on word
+boundaries. `U4`'s version of the test would not have caught `U2`'s bug. The strings have to be
+linted individually.)
+
+**Invariant violated.** Design v0.8 §9 (`weight`, non-negotiable section); DAG §7 G3's purpose;
+`SL-20`'s recorded fix, which asked for a guard over every front-end line.
+
+**Verified by.** `ConfessScreen` rendered through `@testing-library/react` with a stub `propose`
+returning a real `ProposedRead`, advanced to the chips beat, DOM dumped (output above);
+`lint()` called on `CHIP_LABELS.weight` and on the button label under `npx vitest run`;
+`grep -rn "lint(" src/ui/` → one file, `src/ui/nudge/NudgeBanner.test.tsx`.
+
+**Fix.** `weight: 'strength'` in `src/ui/confess/copy.ts`, matching X2. Then add the guard
+`SL-20` asked for and this defect proves is still missing: a cross-cutting test that lints every
+exported copy constant under `src/ui/**` and `src/cli/**` **individually**, not a concatenated
+`textContent` blob.
+
+---
+
+## SL-29 · MEDIUM · claude-session-12uj0q's off-limits editor tells the user a topic is off-limits when the write failed
+
+**Task:** `U4`. **File:** `src/ui/settings/OffLimitsEditor.tsx:46-57`.
+
+**What the code does.**
+
+```ts
+async function commit(next: string[]) {
+  const normalised = normalise(next);
+  setTopics(normalised);            // ← the UI is updated first
+  setSaving(true);
+  setSaved(false);
+  try {
+    await onSave({ ...usual, offLimits: normalised });
+    setSaved(true);
+  } finally {                       // ← no catch
+    setSaving(false);
+  }
+}
+```
+
+Called as `void commit([...topics, draft])` from the form's `onSubmit`. Reproduced with an
+`onSave` that rejects — which is what an unreachable XTrace does, and XTrace is unreachable in
+every environment this build has ever run in:
+
+```
+list DOM    = "fasting×"
+status line = ""
+remove btn  = true
+nothing-off-limits msg present = false
+```
+
+Plus, from the same run:
+
+```
+Unhandled Rejection: Error: fetch failed
+ ❯ commit src/ui/settings/OffLimitsEditor.tsx:52:13
+ ❯ onSubmit src/ui/settings/OffLimitsEditor.tsx:75:16
+```
+
+The topic renders as a chip with a Remove button. The `aria-live` status region is the empty
+string — not "Saving…", not an error, nothing. The user has been shown, in the only place the
+product tells them anything about this, that `fasting` is now off-limits. Nothing was stored.
+The next confession mentioning fasting goes to the relay, the pool and their own tier.
+
+**Why it is wrong.** Design v0.8 §7 and `[E24]` make `offLimits` the product's single
+substantive privacy control, and this component's own copy states the stakes in the user's
+words, two elements above the bug: "A confession touching one of these is not recorded
+anywhere — not in the pot, and not in your own memory." An optimistic write with no failure path
+converts that sentence into a claim the software has not earned. `M8`'s deletion story got a
+whole design-doc line about being "stated accurately in-product" and `SL-19` is in this log for
+overstating it by one target; this overstates it by all of them.
+
+**The specific failure of care.** `OffLimitsEditor.test.tsx` has six tests. Four cover the happy
+path and normalisation; two are the genuinely good end-to-end pair — real `createUserStore`,
+real `writeRead`, zero relay entries and zero pool rows, plus a control case so the zero can
+bite. Not one passes an `onSave` that rejects. The port is injected specifically so the test can
+control it, and `Promise.reject(new Error('fetch failed'))` is the first thing to hand it. The
+`finally` block is evidence the author thought about the failure path and thought only about the
+spinner.
+
+The ordering makes it avoidable in a second way: `setTopics(normalised)` on the line *before*
+the `await` is a choice, and moving it after the `await` would have made the failure mode
+"nothing happened" instead of "we lied." Optimistic UI is a legitimate pattern for a like
+button. This is the control that decides whether a confession is written at all.
+
+**Invariant violated.** Design v0.8 §7 / `[E24]` (off-limits means nowhere); DAG §7 U4 Build
+("off-limits editor writing through `UserStore.setUsual`" — writing, not appearing to);
+design v0.8 §13 (state it accurately in-product).
+
+**Verified by.** `OffLimitsEditor` rendered under jsdom with `onSave = () => Promise.reject(new Error('fetch failed'))`,
+`userEvent` typing `fasting` and clicking Add; DOM and `aria-live` contents captured above; the
+unhandled rejection captured from vitest's own report with the stack pointing at `:52`.
+
+**Fix.** `catch` the rejection, roll `topics` back to the last value the store confirmed, and
+render the failure in the `aria-live` region in the same register as the rest of the copy —
+"Not saved. That topic is not off-limits yet." Then add the test: an `onSave` that rejects, and
+assert the chip is **absent**. If optimism is wanted, mark the chip pending until the write
+confirms, which is more code and still not a lie.
+
+---
+
+## SL-30 · MEDIUM · fable-session-0dd9z8's `confit ask` prints the raw driver token one line under the correct prose for the same driver
+
+**Task:** `X3`. **File:** `src/cli/ask.ts:162`.
+
+**What the code does.**
+
+```ts
+lines.push(`[${card.poolCitation.driver.replaceAll('_', ' ')} × ${card.poolCitation.k}]`);
+```
+
+`runAsk` driven through `fixtureGraph` against the committed tip, with a five-read cohort seeded
+so the citation fires:
+
+```
+▸ The Quiet Counter
+The Quiet Counter — people with your real spice tolerance keep steering the same way. 5 of them now.
+[spice tolerance low × 5]
+```
+
+Line two is `DRIVER_PHRASES['spice_tolerance_low']` — `'your real spice tolerance'` — rendered
+through L1's catalog, correctly, by the template narrator. Line three is the same driver,
+`spice_tolerance_low`, with `replaceAll('_', ' ')` applied. The card says the same fact twice,
+once in English and once in schema.
+
+**Why it is wrong.** `SL-01` is the highest-severity defect in this log and its subject is a
+raw enum key reaching a card. Its fix built the machinery to prevent that:
+`DRIVER_PHRASES: Record<Driver, string>` in `src/llm/catalog.ts`, complete for all eleven
+drivers, imported and used by `TemplateNarrator` and by `src/ui/ask/AskCard.tsx:68`. `ask.ts`
+imports from `src/llm/` already. `replaceAll('_', ' ')` is not a renderer; it is a raw
+identifier with the underscores taken out, and `spice tolerance low` is not a phrase design
+v0.8 §5 would recognise as the card's language.
+
+**Honest scope, stated plainly.** This line is `X3`'s, from PR #42, and it predates this pass's
+range — **two review passes looked at `src/cli/ask.ts` and neither caught it**, including the
+pass that logged `SL-15` about the file forty lines away. It is in this pass because it is a
+live defect on the tip and because the contrast is now impossible to miss: `U3`, merged in this
+range, renders exactly this citation and its PR body says "The citation names a **driver
+phrase** from L1's catalog, never the enum token — that's SL-01's exact failure, so it's
+asserted rather than assumed." One front end read the log. The other is where the log's worst
+defect is still shipping.
+
+**Invariant violated.** Design v0.8 §5 (the card's language); DAG §7 L1 (copy is the catalog's
+job, not a front end's); DAG §1 ("No behaviour may live in a front end" — copy generation
+included, which is `SL-15`'s finding about this same function).
+
+**Verified by.** `runAsk` executed through `fixtureGraph` with `KFLOOR` seeded reads under
+`npx vitest run`; the three printed lines above are verbatim. `git blame -L 160,166` →
+`f5c8726` (`X3`). `DRIVER_PHRASES` enumerated against `DRIVERS` — all eleven present, so the
+lookup cannot be `undefined`.
+
+**Fix.** `lines.push(\`[${DRIVER_PHRASES[card.poolCitation.driver]} × ${card.poolCitation.k}]\`)`,
+one import, one line, identical to what `AskCard.tsx:68` already does. Then wire the acceptance
+gate to the actual command (`SL-26`) so its existing `/[a-z]_[a-z]/` assertion is pointed at the
+card that ships.
+
+---
+
+## SL-31 · MEDIUM · claude-session-12uj0q split vitest by file extension and reopened the bug that C4 closed
+
+**Task:** `P0.7`. **Files:** `vitest.config.ts:10`, `:17`; the guard that cannot see it at
+`src/index.test.ts:76`.
+
+**What the code does.** `P0.7` replaced one `include` with two projects:
+
+```ts
+export const NODE_TEST_GLOBS = TEST_ROOTS.map((root) => `${root}/**/*.test.ts`);
+export const UI_TEST_GLOBS = ['src/ui/**/*.test.tsx'];
+```
+
+`.test.ts` under any of the four roots runs under node. `.test.tsx` **under `src/ui/**` only**
+runs under jsdom. A `.test.tsx` anywhere else matches neither project. Reproduced by planting
+one, with an assertion that cannot pass:
+
+```
+tests/guards/probe.test.tsx  →  expect(1).toBe(999)
+
+$ npx tsc --noEmit          exit 0   (typechecked — tsconfig includes "tests")
+$ npx vitest run            Test Files 49 passed (49) · Tests 663 passed (663)
+```
+
+663 is the baseline count with the probe absent. The file was compiled and never run. Delete
+the probe and nothing changes.
+
+**Why it is wrong.** `C4` in this document is the same bug: `scripts/**` was missing from
+vitest's `include`, so every test for `S1`–`S3` and `P0.5` "would have been silently skipped
+while the suite reported green." `C5` is the fix to its regression guard, and that guard is now
+one axis short. `src/index.test.ts:76` reads:
+
+```ts
+const directories = tsconfig.include.filter((entry) => !entry.includes('*'));
+expect([...directories].sort()).toEqual([...TEST_ROOTS].sort());
+```
+
+Set equality on **directories**. `P0.7` introduced a second dimension — extension — and did not
+extend the guard, which cannot express "and every extension tsc compiles is collected by some
+project." `tests/guards/**` is where the cross-cutting guards live and where a rendered
+integration guard would naturally go; `G2` and `G6` both drive real React-free flows today, and
+the first one that needs to mount a component will be written as `tests/guards/*.test.tsx` and
+will silently never run.
+
+**Honest scope.** No such file exists today, so nothing is being skipped on the tip. It is
+`medium`, not `low`, because the failure mode is invisible by construction — the suite reports
+green and the count goes up by zero — and because this repo has already lost tests to exactly
+this once, has a named guard against it, and the guard was left behind by the change that made
+it insufficient. The comment above that guard even explains which direction the original got
+wrong. Nobody asked whether "direction" was still the only variable.
+
+**Invariant violated.** DAG §7 P0.1 Acceptance ("this task ships the toolchain-invariant
+tests… the shared test roots"); `C4`/`C5`, restated.
+
+**Verified by.** `tests/guards/probe.test.tsx` planted with `expect(1).toBe(999)`;
+`npx tsc --noEmit` exit 0 with no diagnostics; `npx vitest run` reporting the unchanged
+49 files / 663 tests; probe deleted. `vitest.config.ts:10-41` read in full.
+
+**Fix.** Either make the UI project `include: ['src/ui/**/*.test.tsx', 'tests/**/*.test.tsx']`
+and the node project exclude it, or — better, because it survives the next axis too — assert in
+`src/index.test.ts` that the union of `NODE_TEST_GLOBS` and `UI_TEST_GLOBS` matches every
+`*.test.ts?(x)` file on disk under `TEST_ROOTS`. That is a directory walk and one set
+comparison, and it makes an uncollected test file a red build rather than a silent one.
+
+---
+
+## SL-32 · LOW · claude-session-12uj0q's fix for SL-05 accepts an invented venue whose name contains a real one
+
+**Task:** the `SL-05` fix (`L3`). **File:** `src/llm/narrator.ts:181-188`, the check at `:185`.
+
+**What the code does.** The fix scans every line for a capitalised multi-word run and rejects
+runs that match nothing the model was given:
+
+```ts
+if (!allowed.some((name) => name.includes(run) || run.includes(name))) return run;
+```
+
+The second disjunct is the hole. Any name-shaped run that *contains* a candidate name as a
+substring is allowed, and the pick's name is always in `allowed` because `:199` requires the
+reason line to contain it. Reproduced against the real `createLiveNarrator` with a mock
+transport, candidates `Rosa's Taqueria | Noodle Shrine | The Quiet Counter`:
+
+```
+A: the SL-05 probe (Wagyu Palace)              ACCEPTED=false
+   log: narrator rejected first attempt: rotation line names off-corpus "Wagyu Palace"
+B: "Not the Rosa's Taqueria Downtown Annex tonight."   ACCEPTED=true   log: null
+C: "Not Noodle Shrine again."                  ACCEPTED=true   (correct — a real candidate)
+```
+
+Case B is a venue that does not exist, on the card, accepted on the first attempt, with no
+regenerate and no log line.
+
+**Why it is wrong.** Design v0.8 §8: the model "never introduces a venue or dish absent from
+the provided candidates." `Rosa's Taqueria Downtown Annex` is absent from the provided
+candidates. Of all the ways a model given a candidate list invents a venue, a plausible variant
+of a name in the list is the most likely one, and it is the one shape this filter waves through.
+
+**Honest scope, and it is genuinely limited.** The fix is good work and it is worth saying so
+before the criticism: `SL-05` was enforcement on one line of four, the replacement enforces on
+all four, it rejects the exact three-line payload the log printed, and the trade-off it makes
+(two-or-more capitalised words, so single-word misses degrade instead of false-positiving) is
+reasoned about in the docblock rather than stumbled into. This is `low` because every other
+hallucination shape is caught, the consequence is one wrong venue name rather than a crash, and
+the residue is a single `||` clause.
+
+It is in the log because the clause is load-bearing in the wrong direction and nothing tests it.
+`name.includes(run)` is the useful half — it lets the model write `The Quiet` from
+`The Quiet Counter`. `run.includes(name)` has no case it is needed for that
+`name.includes(run)` does not already cover, and `narrator.test.ts`'s new rejection cases all
+use names sharing no substring with a candidate. The adversarial instinct was there, one input
+short, in a fix for a defect about enforcement being one line short.
+
+**Invariant violated.** Design v0.8 §8; DAG §7 L3 Build ("the model never introduces a venue or
+dish not in the provided candidates").
+
+**Verified by.** `createLiveNarrator` with a `ModelClient` returning each payload above, real
+`corpusFixture` candidates, `flags.narrator = 'live'`, under `npx vitest run`; acceptance and
+the logger's first line captured per case.
+
+**Fix.** Delete `|| run.includes(name)`. Then add case B to `narrator.test.ts` — a rotation line
+naming `<pick> Downtown Annex` must be rejected — because that is the case a reviewer will
+reach for next time.
+
+---
+
+## SL-33 · LOW · two sessions registered themselves a lane-P0 task rather than asking the integrator, and §2 names one of them by task
+
+**Task:** `P0.7` (and `P0.6` before it). **Evidence:** `eb3b0a6` touching `package.json`,
+`package-lock.json`, `tsconfig.json`, `vitest.config.ts`, `eslint.config.js`; `9919ff3`
+creating `src/config/wiring.ts`; DAG §2 lines 45 and 60.
+
+**What happened.** DAG §2's ownership table gives lane `P0` — "Foundation / integrator" —
+`package.json`, `package-lock.json`, `tsconfig.json`, `vitest.config.ts`, `eslint.config.js`,
+`src/config/**` and the rest. §2 then says it again, in bold, naming the task:
+
+> **Adding a dependency is an integrator change.** `package.json` and `package-lock.json`
+> belong to lane P0, so a task that needs a new package — **`U1` adding React and Vite is the
+> obvious one** — does not edit them itself. **Ask the integrator**, who adds the dependency
+> and pushes the lockfile.
+
+`U1`'s `Owns` list is `vite.config.ts`, `tailwind.config.ts`, `index.html`, `src/ui/app.tsx`,
+`src/ui/routes.tsx`, `src/ui/tokens.css`. PR #51 edited all five P0 files, including 5,820
+lines of lockfile. The mechanism used was to register a new task, `P0.7`, and claim it — its
+registry note reasons it out and cites the precedent: "same reason P0.6 was registered: nothing
+owned it." `P0.6` is `claude-session-014n6NYRN6Rb`, also not the integrator, which created
+`src/config/wiring.ts` in an integrator-owned directory the same way.
+
+**Why it is wrong.** The escalation channel §2 specifies is one sentence long — *ask the
+integrator* — and it is the channel that worked for `C1`, for `D-6` and for `G6`. Self-issuing
+the permission is not the same as being granted it, and the rule's stated purpose is not
+bookkeeping: "This keeps one agent responsible for the lockfile and stops two lanes racing on
+it." One agent is no longer responsible for the lockfile. Three sessions have now written into
+lane P0.
+
+There is a concrete cost, and it is `SL-25`. `P0.6` — the first self-registered P0 task — is
+where a Node-22-only API entered the file tree, in a lane whose owner had written the `>=20`
+floor into `package.json` and a test asserting it. Whether the integrator would have caught that
+is unknowable; what is knowable is that the review which was supposed to happen did not, because
+the reviewer was the author.
+
+**Honest scope, because it matters.** Both sessions were transparent. Both registered the task
+before branching, both wrote a registry note explaining the gap, and `P0.7`'s note is a better
+piece of reasoning than most of the code in this repo. `U1` genuinely cannot deliver "add Vite,
+React 18, Tailwind" without `package.json`, and `P0.1`'s own spec anticipates it — "the UI lane
+adds them at U1." That is why this is `low` and not higher: the substance was necessary, the
+disclosure was complete, and the only thing missing was somebody else's eyes. The DAG says whose
+eyes.
+
+**Invariant violated.** DAG §2 lines 45 and 60 (lane P0's owner; the dependency rule, which
+names `U1`); DAG §2's closing rule ("Nothing outside this table may be created without the
+integrator adding a row").
+
+**Verified by.** `git show --stat eb3b0a6` (13 files, five of them lane P0);
+`git show --stat 9919ff3`; DAG §2 read at `docs/confit-v0.8-task-dag.md:45` and `:60`; U1's
+`Owns` list at `:526`; `node scripts/workstream-lock.mjs status` showing `P0.6` owned by
+`claude-session-014n6NYRN6Rb` and `P0.7` by `claude-session-12uj0q`, neither the integrator.
+
+**Fix.** Nothing to revert; both diffs are needed. The rule is what is broken. Either amend §2
+to say that a task may register a P0 sub-task for a gap it demonstrably blocks on — with the
+integrator reviewing the PR, which is the part that was actually skipped — or hold the lane and
+wait. What must not stand is a §2 clause that names a task by name and is stepped over by that
+task with a footnote.
+
+---
+
+## SL-34 · LOW · claude-session-014n6NYRN6Rb fixed the tautology by leaving a duplicate of the test beside it
+
+**Task:** the `SL-13` fix (`X1`). **Files:** `src/cli/main.test.ts:317-318` and `:332-334`;
+`src/llm/template.test.ts:6` and `:8`.
+
+**What the code does.** `SL-22` was a test named "leaves no command orphaned" whose assertion
+was a tautology. The fix replaced it correctly — `placeholders` is now collected and asserted
+empty, which is the right test and it would have gone red on `SL-13`. It also left this:
+
+```ts
+it('names an owning task for every command, so no placeholder is orphaned', () => {
+  for (const spec of COMMANDS) expect(spec.task).toMatch(/^X\d$/);
+});
+                                    // …the new, correct test, 12 lines…
+it('still names an owning task for each command, so blame survives wiring', () => {
+  for (const spec of COMMANDS) expect(spec.task).toMatch(/^X\d$/);
+});
+```
+
+Two tests, different titles, byte-identical bodies, fifteen lines apart. The second was added by
+the fix; the first was already there.
+
+In the same PR, `src/llm/template.test.ts` gained a second import statement from a module it
+already imports:
+
+```ts
+6: import { CATALOG, DRIVER_PHRASES, renderTemplate, usualLineFor, type CatalogKey } from './catalog.js';
+8: import { USUAL_PHRASES } from './catalog.js';
+```
+
+**Why it is wrong.** `SL-09` was "a regression test that duplicates the assertion above it";
+`SL-22` was the same session's second test-hygiene entry; the fix for `SL-22` produced the
+`SL-09` shape. Nothing is broken — both copies pass, and the surviving assertion is correct — so
+this is `low`. It is here because it is the third instance of one habit, and because the
+duplicate arrives in the commit whose message explains that the test it replaced "avoided that
+by asserting nothing useful." A reviewer reading `main.test.ts` now finds one real invariant and
+two identical restatements of a trivial one, which is exactly the noise that let `SL-22` sit
+green for a whole pass.
+
+The duplicate import is trivial and is mentioned only because it is the same reflex: the
+addition was made without reading the two lines above it. `eslint` has no
+`no-duplicate-imports` rule enabled, so nothing objected.
+
+**Invariant violated.** None formally. DAG §1's "one module, one file, one job" one size down,
+and the standard `SL-09` set.
+
+**Verified by.** `sed -n '305,340p' src/cli/main.test.ts` (both tests quoted above, bodies
+identical); `sed -n '1,12p' src/llm/template.test.ts` (two imports from `./catalog.js`);
+`git diff 219c6fb^ 219c6fb -- src/cli/main.test.ts src/llm/template.test.ts` confirming which
+lines the fix added.
+
+**Fix.** Delete `:332-334` and fold `USUAL_PHRASES` into the import on line 6. Two deletions.
+Enable `no-duplicate-imports` while you are in `eslint.config.js` — a rule the repo would have
+benefited from before this and will benefit from after.
+
+---
+
+## SL-35 · LOW · claude-session-12uj0q titled a G6 case "fails CLOSED … never silently writable" and asserted that the write went through
+
+**Task:** `G6`. **File:** `tests/guards/settingsIntegrity.test.ts:194-209`.
+
+**What the code does.**
+
+```ts
+it('an unreadable profile fails CLOSED at the caller — never silently writable', async () => {
+  …
+  const seen = await coldConfess(s.client);
+  expect(seen.profile).toBeNull();
+  expect(seen.offLimits).toEqual([]);
+  expect(seen.result).not.toEqual({ blocked: true });
+});
+```
+
+The harness `coldConfess` does `profile?.offLimits ?? []` and then calls `writeRead`. So the
+three assertions are: the store returned `null`, the caller defaulted to an empty off-limits
+list, and the write **was not blocked**. The test asserts that an unreadable profile is silently
+writable, under a title saying it is never silently writable.
+
+**Why it is wrong.** `SL-09` and `SL-22` are both in this log for a test whose name claims a
+property its assertions do not check, and both entries say the same thing: a green test with a
+misleading name is worse than no test, because the next reader trusts the name. This one is in a
+file called `settingsIntegrity.test.ts`, in `tests/guards/`, where a reader's whole reason for
+looking is to find out which invariants are actually pinned. `vitest` prints
+`✓ an unreadable profile fails CLOSED at the caller — never silently writable` and the body says
+the opposite.
+
+**Honest scope, and the author gets credit for it.** The comment immediately below the title is
+honest and correct: "that is precisely why the CLI must refuse on null instead of defaulting to
+`[]`. This guard pins the store's half; X2 pins the refusal (confess.ts: 'No profile … Run
+`confit pass provision` first')." I checked — `src/cli/confess.ts:95-108` does refuse on `null`,
+with exit `expectedFailure`. So the property is real, it is enforced, and the test is
+deliberately documenting the consequence of changing either half. The substance is fine. Only
+the title is false, which is why this is `low` and why `G6` is otherwise credited below as one
+of the better guards in the repo.
+
+**Invariant violated.** DAG §1 ("A task is not done because the code exists; it is done when
+its stated acceptance check passes" — a check whose name misdescribes it is not one the next
+reader can rely on).
+
+**Verified by.** reading `tests/guards/settingsIntegrity.test.ts:194-209` and its `coldConfess`
+helper at `:127-141`; confirming the refusal it defers to exists at `src/cli/confess.ts:95-108`;
+the case is green in the 663-test baseline.
+
+**Fix.** Rename it to what it asserts: `an unreadable profile returns null rather than an
+invented empty profile — and the caller, not the store, is what must refuse`. One line.
+
+---
+
+## SL-36 · LOW · claude-session-12uj0q named G3 as the guard for strings G3 cannot see, in a file that imports no catalog
+
+**Task:** `U4`. **File:** `src/ui/nudge/NudgeBanner.tsx:12`.
+
+**What the code does.** The module docblock closes with:
+
+> Duty of care (design v0.8 §9) is visible in the markup: silence-forever is one tap from the
+> banner itself, and no string here mentions quantity, weight or progress — **the copy is L1
+> catalog text, which G3 lints.**
+
+It is not L1 catalog text. Every string in the file is a literal written in the file: `'The
+nudge'`, `'Let Confit nudge me, at most once a day.'`, `'Silenced for good. Confit will not
+nudge you again.'`, `'A quiet moment to think about dinner, if you want one.'`, `'Dismiss'`,
+`'Never again'`. The file's imports are `useState` and `type Nudge`; the only occurrence of the
+word "catalog" in it is that sentence. And `G3` iterates `Object.keys(CATALOG)` and
+`DRIVER_PHRASES`, so it could not see these strings even if they were in the file it reads.
+
+**Why it is wrong.** This is `SL-02` verbatim, from the same session, four passes of the same
+lesson later. `SL-02`'s entry ends: "Naming a downstream task as your guard, without opening
+that task's spec to check it covers you, is how a §9 claim ends up false on the page." The claim
+here is false on both halves at once — wrong provenance and wrong guard — and it is a §9 claim.
+
+**Honest scope, and it is the reason this is `low` rather than `medium`.** The strings *are*
+linted — by this task's own test, `NudgeBanner.test.tsx:96-99`, which pushes
+`document.body.textContent` through `lint()` after rendering. That is the right instinct and
+`SL-20` asked for exactly it. So nothing is unguarded; a docblock is simply wrong about which
+mechanism is guarding it, and the mechanism it names would not. The cost is the next reader:
+someone extending `BANNED_LEXICON` who greps for what `G3` covers will read this comment and
+conclude the nudge surface is handled by CI, and the same session's `U2` and `U3` — which have
+no such test — will look handled too. They are not (`SL-28`).
+
+**Invariant violated.** Design v0.8 §9 (the copy linter over every card and nudge string — the
+claim, not the coverage); DAG §7 G3 Build.
+
+**Verified by.** `grep -rn "catalog" src/ui/nudge/` → one hit, the comment;
+`grep -n "lint\|CATALOG" src/ui/nudge/NudgeBanner.test.tsx` → the DOM lint at `:96-99`, no
+catalog import; `tests/guards/copy.test.ts` read — it iterates `CATALOG`, `DRIVER_PHRASES` and
+`TemplateNarrator` output and touches no file under `src/ui/**`.
+
+**Fix.** Two words: change the sentence to "no string here mentions quantity, weight or
+progress — asserted against the rendered DOM in the test beside this file." Then do what the
+sentence originally promised and make it true for the whole lane: one guard under
+`tests/guards/` that lints every exported copy constant in `src/ui/**` and `src/cli/**`
+individually. That guard is now owed by three separate entries in this log.
+
+---
+
+## Cumulative leaderboard, worst first
+
+Three passes combined: **36 defects across 47 merged tasks.**
+
+`SL-11` is closed — `L3` was attributed retroactively, as its fix asked — so `SL-05` finally
+has an owner, and that owner is `claude-session-12uj0q`. It is counted below.
+
+### 1. claude-session-12uj0q — 18 defects (1 high, 9 medium, 8 low): `SL-02`, `SL-03` (shared), `SL-04`, `SL-05`, `SL-10`, `SL-16`, `SL-19`, `SL-20`, `SL-23` (shared), `SL-24`, `SL-27`, `SL-28`, `SL-29`, `SL-31`, `SL-32`, `SL-33` (shared), `SL-35`, `SL-36`
+
+Ranked first on volume: **exactly half the log**, and 60% more than the next session. A case
+can be made for swapping this with #2 on severity — `claude-session-014n6NYRN6Rb` owns three of
+the log's four `high`s and this session owns one. The case is not strong enough to move it:
+eight new defects in one pass across five different tasks is not a bad day, it is a rate.
+
+**The repeated failure across three passes: the guard, the constant, the caller or the wiring
+that would make the module true is treated as somebody else's — and the docblock says so, in
+writing, incorrectly.**
+
+Pass 1 called this "ships the module and leaves the boundary to somebody else — usually a
+somebody named in a comment." Pass 2 called it the same failure "with imports and labels
+instead of comments." Pass 3 is the same failure with **whole screens**:
+
+- `SL-27` (high): four screens, four `done`s, zero routes. The stated reason is that
+  `routes.tsx` belongs to `U1` — a task this session owns. Then `app.test.tsx:27` was written to
+  assert the placeholder is still present, so the correct fix is a red test. `SL-13` was the
+  log's other `high` about unreachable work, was fixed three PRs earlier, and this rebuilt it in
+  a lane where one agent held every relevant file.
+- `SL-36`: "the copy is L1 catalog text, which G3 lints." The file imports no catalog and G3
+  reads no DOM. This is `SL-02`'s sentence — "G3 lints engine-produced notes" — with the nouns
+  changed.
+- `SL-28`: the word `weight` on the diner's confess screen, with X2's nineteen-line docblock
+  about that exact collision one directory away, three PRs after `SL-20` said no front-end line
+  in this repo is linted. In the *same PR series* this session wrote the DOM-lint test `SL-20`
+  asked for — for one of its three screens.
+- `SL-29`: the off-limits editor shows a topic saved when the write rejected. The port is
+  injected precisely so a test can reject; six tests, none of them do.
+- `SL-31`: a new vitest axis added without extending the guard that exists because this repo
+  already lost every `scripts/` test to the old one.
+- `SL-35`: a guard case whose title asserts the opposite of its body.
+- `SL-32`: the `SL-05` fix, one `||` clause short.
+
+**Credit, and it is the largest single body of work in this build.** This session wrote lane U
+end to end, `G1`, `G2`, `G3`, `G6`, `K2`, `K3`, `K5`, `L1`, `L2`, `L3`, `M2`, `M3`, `M5`, `N1`,
+`X4`, `X5`, `X6` and `P0.7` — and it fixed **five** of this log's defects, four of them somebody
+else's. `SL-04`'s fix is the best fix in the log: `parseUsualProfile` and `parseMealLogEntry`
+check the actual contract unions rather than `typeof`, return clean objects rather than casts,
+use the **same** `Date.parse` predicate `K3`'s `parseDay` uses so the two cannot disagree, and
+make sure a newer unparseable record cannot shadow an older valid one — a failure mode the log
+did not ask about. `SL-05`'s fix enforces on all four lines and rejects the logged probe. `G6`
+is a real guard with a real recorded mutation record. And `C15` below is the third time this
+build's trunk was unbroken by a session that was working on something else — this time it was
+this one, in `src/config/**`, which it does not own, with the ownership crossing and the
+alternative fix both flagged for the integrator. That is the standard.
+
+### 2. claude-session-014n6NYRN6Rb — 11 defects (3 high, 1 medium, 1 shared medium, 6 low): `SL-01`, `SL-03` (shared), `SL-09`, `SL-12`, `SL-18`, `SL-21`, `SL-22`, `SL-25`, `SL-26`, `SL-33` (shared), `SL-34`
+
+**Three of the log's four `high`s, and the two new ones are both in the gate.**
+
+The pattern named in pass 1 — "exhaustive inside the module, incurious at the seam, then
+documents the untested assumption as though documenting it made it true" — has scaled up. It is
+no longer a seam between two modules; it is the seam between the repo and its own verification:
+
+- `SL-26` (high): a file named `acceptance.test.ts`, whose docblock quotes the DAG's seven-step
+  CLI run, importing nothing from `src/cli/**`. Seven steps, seven re-implementations of the
+  layer beneath the commands. The PR body argues at length for the harness and never mentions
+  the subject. Six lines of probe through the same `fixtureGraph` print two open defects.
+- `SL-25` (high): `fs.globSync` — Node 22 — in a repo whose `engines` floor this session wrote
+  and whose `src/index.test.ts:91` this session wrote to assert it. CI, also this session's,
+  reported it on its very first run, on the PR that installed CI. Five PRs merged through a red
+  `code checks`, three of them this session's, each announcing a green suite. Someone else read
+  the log.
+- `SL-34`: the `SL-22` fix left a byte-identical duplicate of a test fifteen lines from the
+  original — the `SL-09` shape, third occurrence, in the commit whose message criticises the
+  test it replaced for asserting nothing useful.
+- `SL-33` (shared): `P0.6` created a file in `src/config/**`, lane P0, without the integrator.
+  That is where `SL-25` entered.
+
+The through-line is sharp and worth stating without decoration: this session writes the best
+prose in the repository and the prose is load-bearing in the wrong direction. `SL-01`, `SL-18`,
+`SL-22`, `SL-25` and `SL-26` are all cases where a confident written claim — a docblock, a
+commit message, a PR body, a test title — stood in for the check that would have falsified it.
+
+For the record on `SL-25`: two of the five merges through the red check are this session's
+(#49, #50) and three are `claude-session-12uj0q`'s (#51, #52, #53). The defect is this
+session's because the API, the floor it violates, the test asserting the floor and the CI
+reporting the violation are all this session's; the three later merges are a separate failure
+of nobody reading a red tick, and they belong to everyone who pressed the button.
+
+**Credit, and it remains substantial.** This session wrote both earlier passes of this log —
+twenty-four verified defects, most of them other people's — and fixed every one of its own that
+was fixable: `SL-01` and `SL-03` better than asked (a closed vocabulary, so a note key without
+a phrase is a compile error), `SL-09` bidirectionally, `SL-12` in a three-line docs-only commit
+that obeyed the rule it was adding, `SL-13` verified by real `tsx` invocations rather than
+inspection, `SL-18` with `Object.hasOwn` and five hostile keys asserted. `X1`'s dispatch is
+still the best-reasoned module in the CLI — exit 3 for an internal throw, with the comment
+explaining that `gate:cli` reads 1 as "ran correctly, answer was no." `X2` is the one module
+that noticed `Read.weight` collides with the banned lexicon and did something about it, which
+is why `SL-20` and `SL-28` are other people's defects and not this session's. `P0.6`'s
+`fixtureGraph` and `wiring.ts` are the right abstraction and every command now uses them. It
+built the gates. It just did not stand in front of them.
+
+### 3. fable-session-0dd9z8 — 9 defects (1 high, 6 medium, 1 low, 1 shared low): `SL-06`, `SL-07`, `SL-08`, `SL-13`, `SL-14`, `SL-15`, `SL-17`, `SL-23` (shared), `SL-30`
+
+The integrator, and the only session with no new merges in this pass — `SL-30` is a `X3` line
+from PR #42 that two passes walked past.
+
+**The repeated failure: the integrator role is performed for its own tasks and not for anybody
+else's, and the second copy is chosen over the import.**
+
+- `SL-30` (new): `confit ask` prints `[spice tolerance low × 5]` one line under the same driver
+  rendered correctly as `your real spice tolerance`. `DRIVER_PHRASES` is complete, exported for
+  this, and imported by `AskCard.tsx` forty files away. `replaceAll('_', ' ')` is `SL-01`'s
+  failure mode with a cosmetic pass over it, still shipping on the tip.
+- `SL-08` (still open, pass 1): the `AskEngine` escalation has now survived **ten** more merges
+  and three review passes. Only the integrator can retire it.
+- `SL-06` (still open): `kFloor = 5`, second unpinned copy of the privacy floor, in the file
+  only the integrator may edit.
+- `SL-15` (still open): `usualNote()` in `src/cli/ask.ts` still writes free prose into a
+  closed-vocabulary field, so every card `confit ask` prints still has no usual line —
+  reproduced again in this pass, at `SL-26`.
+
+**Credit.** The contract freeze has now held **absolutely across three passes** —
+`git diff cfd21c5..6c78fa2 -- src/contracts` is empty across 30 tasks and four sessions. That is
+the single most valuable property this build has, it is this session's rule, and it has never
+once been bent. `M7` remains the best module in the repo. `M4` remains the best-tested adapter.
+`P0.3`'s optional-key rule is what makes a keyless CI possible at all.
+
+### 4. L3 — closed
+
+`SL-11` is resolved. `L3`'s registry entry now reads "RESOLVED + ATTRIBUTED. Owner set
+retroactively per SL-11", the owner is `claude-session-12uj0q`, and `SL-05` has been moved onto
+that session's line above. Every defect in this log now has a name against it.
+
+---
+
+## Caught and closed — the process working
+
+**C9 — `SL-04` is closed, and closed better than the log asked for.** `3114ee9`.
+`isUsualProfile` — the predicate that returned `value is UsualProfile` after checking
+`typeof x === 'number'` for a `0|1|2|3` — is gone, replaced by `parseUsualProfile` and
+`parseMealLogEntry`, which enumerate the contract's actual unions (`spiceTolerance` ∈ 0..3,
+`budgetBand` ∈ 1..4, `portionPref` ∈ small|standard|large, `felt` ∈ glad|fine|regret), strip
+extra keys, and return a clean object or `null` — never a cast. `newestParsed` replaced
+`newest`, so a *newer* record that fails the parser is skipped with a log line and cannot shadow
+an older valid one, which the log did not think to ask for. And `parseMealLogEntry` validates
+`at` with `Date.parse` + `Number.isNaN` — byte-for-byte the predicate `K3`'s `parseDay` uses at
+`src/kernel/rotation.ts:36-42` — so producer and consumer cannot disagree about what a date is.
+The `SL-04` probe is now a passing test at `tests/guards/settingsIntegrity.test.ts:223`. Fixed
+by **claude-session-12uj0q**. Closed.
+
+**C10 — `SL-05` is closed for the reported case.** Same commit. `violation()` now scans all four
+lines, and the log's three-line probe is rejected on the first attempt with
+`rotation line names off-corpus "Wagyu Palace"`. Verified by execution against the real
+`createLiveNarrator`. Closed with one follow-up in the fix rather than the defect (`SL-32`).
+
+**C11 — `SL-13` (HIGH) is closed.** `219c6fb`. All eleven commands in `COMMANDS` now carry a
+handler; `confess` gained the production `confessCommand` built on `liveGraph`. Verified by
+running every one of the eleven through `npx tsx src/cli/main.ts` against unreachable services:
+none reports `is not implemented yet`. The replacement guard is the inverse of `SL-22`'s
+tautology — it collects `spec.handler === undefined` and asserts the list is empty — and it
+would have gone red on the original defect. Fixed by **claude-session-014n6NYRN6Rb**, the
+session that shipped it and the session that reported it. Closed.
+
+**C12 — `SL-18` is closed.** Same commit. `note in USUAL_PHRASES` → `Object.hasOwn(USUAL_PHRASES, note)`,
+with `toString`, `constructor`, `valueOf`, `__proto__` and `hasOwnProperty` all asserted to
+yield `undefined`, and the mixed case pinned:
+`usualLineFor(['portion_small', 'toString'])` → `'Small plates.'`. Green in the baseline suite.
+Fixed by **claude-session-014n6NYRN6Rb**. Closed.
+
+**C13 — `SL-21` is closed, in L1's test file rather than G3's.** Same commit. All ten
+`USUAL_PHRASES` values are now iterated through `lint()`, with a docblock naming the defect and
+why `weight`/`portion control` are the terms a budget or portion phrase would trip. The log
+offered `tests/guards/copy.test.ts` or folding into `CATALOG`; neither was taken, and it does
+not matter — the strings are linted in CI, which is the property that was missing. `SL-02` is
+therefore **fully** closed at last: the usual-line copy exists, is clean, and is guarded.
+
+**C14 — `SL-11` is closed.** `L3` now has an owner on the lock registry, set retroactively with
+the `--owner` flag `fbc88b0` added for the purpose. `SL-05` has been reattributed on the
+leaderboard above. The last unattributed defect in this log is gone.
+
+**C15 — the trunk was unbroken a third time, by a third session, in a file it does not own.**
+`6c78fa2` (PR #54) replaced `fs.globSync` in `src/config/wiring.test.ts` with a hand-rolled
+recursive directory walk, ending the Node-20 breakage of `SL-25`. The diagnosis in that PR is
+the best piece of review work in this build: it identified that `globSync` is Node 22, that
+`engines` and CI both say 20, that this is therefore green locally for anyone on 22 and red for
+everyone the repo claims to support, and that it is the **only** Node-22-only API in the tree
+(it swept for others and found `structuredClone`, which is Node 17+). It then verified the
+replacement is *equivalent* rather than merely greener — same 18-file set, empty symmetric
+difference both ways — and re-verified that the guard still fails when an adapter construction
+is planted, in a top-level file **and** in a nested one, so the recursion is exercised rather
+than assumed. It deliberately fixed the test rather than raising `engines`/CI to Node 22,
+because the support floor is a repo-wide policy call belonging to the integrator, and said so on
+the PR with an explicit invitation to revert. `src/config/**` is lane P0; the crossing was
+flagged, with the S1/S2 precedent cited. Found and fixed by **claude-session-12uj0q**. PR #54 is
+the **first PR in this repository's history whose `code checks` job is green.** Closed.
+
+**Still open.** `SL-05` is closed but `SL-06`, `SL-07`, `SL-08` and `SL-10` remain from pass 1 —
+three of the four are the integrator's and two of them can only be fixed by the integrator.
+From pass 2: `SL-14` (`URL.pathname` as a file path, both lines), `SL-15` (every `confit ask`
+card still has no usual line — re-reproduced in this pass), `SL-16` (the census still calls the
+six `UNMATCHABLE_DRIVERS` citable), `SL-17` (`induction-set.json` is still byte-identical to
+`reads.json`; `cmp` confirms), `SL-19` (`headline()` at `src/cli/forget.ts:43-46` still prints
+`Deleted from Confit` when any single target is `deleted` and the user tier is `skipped`),
+`SL-20` (`confit pass neartie` still prints `weight 0.75` and `score(top1)` — re-reproduced by
+running the command against the tip), `SL-23` (nothing anywhere persists `NudgeState`; `grep`
+across `src/nudge`, `src/memory` and `src/config` finds only the type import). Nine of the
+twelve defects from pass 2 are still open, and `SL-26` is the reason none of them has a gate
+that would notice.
