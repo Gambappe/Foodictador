@@ -80,7 +80,18 @@ export interface EpisodeSearch {
  */
 export interface EpisodeResult {
   episodes: MemoryRow[];
+  /** How many fact rows came back — kept as a count because the logs report it as one. */
   facts: number;
+  /**
+   * The fact rows themselves (D-14).
+   *
+   * A fact is one sentence the extractor lifted from one confession; an episode is the
+   * synthesis across several. The card wants the episode. AFFINITY wants both, and mostly the
+   * facts: measured, a profile's episode was "a candid admission of a recurring pattern" — a
+   * true summary that named none of the four cuisines the diner had actually talked about, so
+   * scoring on the episode alone silently discarded what they said.
+   */
+  factRows: MemoryRow[];
   attempts: number;
 }
 
@@ -90,6 +101,7 @@ export async function searchForEpisodes(
   query: string,
 ): Promise<EpisodeResult> {
   let facts = 0;
+  let factRows: MemoryRow[] = [];
   for (let attempt = 1; attempt <= EPISODE_ATTEMPTS; attempt++) {
     const rows = await deps.client.search(scope, query, {
       topK: SEARCH_TOP_K,
@@ -97,6 +109,10 @@ export async function searchForEpisodes(
     });
     const episodes = rows.filter((row) => row.kind === 'episode' && row.content !== '');
     facts = rows.length - episodes.length;
+    // Captured on EVERY attempt, not only the one that found an episode: a pass that returned
+    // facts and no episode still saw the diner's sentences, and affinity wants them even when
+    // the card gets no claim (D-14).
+    factRows = rows.filter((row) => row.kind !== 'episode' && row.content !== '');
     if (episodes.length > 0) {
       if (attempt > 1) {
         deps.logger.line(
@@ -105,12 +121,12 @@ export async function searchForEpisodes(
             `answer is not an empty scope (M13)`,
         );
       }
-      return { episodes, facts, attempts: attempt };
+      return { episodes, facts, factRows, attempts: attempt };
     }
   }
   deps.logger.line(
     `${deps.label}: no episode after ${String(EPISODE_ATTEMPTS)} attempts over ` +
       `${String(facts)} fact(s) — the scope has nothing synthesised across records yet`,
   );
-  return { episodes: [], facts, attempts: EPISODE_ATTEMPTS };
+  return { episodes: [], facts, factRows, attempts: EPISODE_ATTEMPTS };
 }

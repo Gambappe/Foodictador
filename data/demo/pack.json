@@ -1,0 +1,861 @@
+{
+  "generatedFrom": "prng 14598366",
+  "note": "Layered ON TOP of data/seeds/reads.json, which is tuned for pass neartie and is not regenerated here.",
+  "depth": {
+    "spice_tolerance_low": 34,
+    "budget_ceiling": 26,
+    "solo_comfort": 22,
+    "portion_small": 16,
+    "gi_constraint": 8
+  },
+  "reads": [
+    {
+      "read_id": "dec0de01-0000-4000-8000-000000000001",
+      "place": "rosas_taqueria",
+      "signal": "trusted_safe_place",
+      "driver": "spice_tolerance_low",
+      "cadence": "daily",
+      "weight": 0.91
+    },
+    {
+      "read_id": "dec0de02-0000-4000-8000-000000000002",
+      "place": "golden_bao",
+      "signal": "pretends_preference",
+      "driver": "spice_tolerance_low",
+      "cadence": "monthly",
+      "weight": 0.6
+    },
+    {
+      "read_id": "dec0de03-0000-4000-8000-000000000003",
+      "place": "the_dumpling_line",
+      "signal": "never_ordered_again",
+      "driver": "spice_tolerance_low",
+      "cadence": "rarely",
+      "weight": 0.69
+    },
+    {
+      "read_id": "dec0de04-0000-4000-8000-000000000004",
+      "place": "hen_and_honey",
+      "signal": "pretends_preference",
+      "driver": "spice_tolerance_low",
+      "cadence": "weekly",
+      "weight": 0.83
+    },
+    {
+      "read_id": "dec0de05-0000-4000-8000-000000000005",
+      "place": "ash_and_rye",
+      "signal": "secret_default",
+      "driver": "spice_tolerance_low",
+      "cadence": "daily",
+      "weight": 0.56
+    },
+    {
+      "read_id": "dec0de06-0000-4000-8000-000000000006",
+      "place": "sardine_social",
+      "signal": "trusted_safe_place",
+      "driver": "spice_tolerance_low",
+      "cadence": "weekly",
+      "weight": 0.94
+    },
+    {
+      "read_id": "dec0de07-0000-4000-8000-000000000007",
+      "place": "quiet_counter",
+      "signal": "returns_despite_incident",
+      "driver": "spice_tolerance_low",
+      "cadence": "rarely",
+      "weight": 0.57
+    },
+    {
+      "read_id": "dec0de08-0000-4000-8000-000000000008",
+      "place": "cedar_meze",
+      "signal": "wanted_something_else",
+      "driver": "spice_tolerance_low",
+      "cadence": "weekly",
+      "weight": 0.9
+    },
+    {
+      "read_id": "dec0de09-0000-4000-8000-000000000009",
+      "place": "lupita_cocina",
+      "signal": "regret_after_order",
+      "driver": "spice_tolerance_low",
+      "cadence": "rarely",
+      "weight": 0.87
+    },
+    {
+      "read_id": "dec0de10-0000-4000-8000-000000000010",
+      "place": "pita_parade",
+      "signal": "pretends_preference",
+      "driver": "spice_tolerance_low",
+      "cadence": "rarely",
+      "weight": 0.87
+    },
+    {
+      "read_id": "dec0de11-0000-4000-8000-000000000011",
+      "place": "polenta_house",
+      "signal": "pretends_preference",
+      "driver": "spice_tolerance_low",
+      "cadence": "monthly",
+      "weight": 0.72
+    },
+    {
+      "read_id": "dec0de12-0000-4000-8000-000000000012",
+      "place": "bao_bar_micro",
+      "signal": "regret_after_order",
+      "driver": "spice_tolerance_low",
+      "cadence": "monthly",
+      "weight": 0.6
+    },
+    {
+      "read_id": "dec0de13-0000-4000-8000-000000000013",
+      "place": "ember_and_ash",
+      "signal": "pretends_preference",
+      "driver": "spice_tolerance_low",
+      "cadence": "daily",
+      "weight": 0.85
+    },
+    {
+      "read_id": "dec0de14-0000-4000-8000-000000000014",
+      "place": "terracotta",
+      "signal": "secret_default",
+      "driver": "spice_tolerance_low",
+      "cadence": "rarely",
+      "weight": 0.57
+    },
+    {
+      "read_id": "dec0de15-0000-4000-8000-000000000015",
+      "place": "olive_and_thorn",
+      "signal": "trusted_safe_place",
+      "driver": "spice_tolerance_low",
+      "cadence": "daily",
+      "weight": 0.63
+    },
+    {
+      "read_id": "dec0de16-0000-4000-8000-000000000016",
+      "place": "the_blue_door",
+      "signal": "trusted_safe_place",
+      "driver": "spice_tolerance_low",
+      "cadence": "weekly",
+      "weight": 0.83
+    },
+    {
+      "read_id": "dec0de17-0000-4000-8000-000000000017",
+      "place": "addis_red",
+      "signal": "never_ordered_again",
+      "driver": "spice_tolerance_low",
+      "cadence": "monthly",
+      "weight": 0.59
+    },
+    {
+      "read_id": "dec0de18-0000-4000-8000-000000000018",
+      "place": "night_market_44",
+      "signal": "pretends_preference",
+      "driver": "spice_tolerance_low",
+      "cadence": "monthly",
+      "weight": 0.82
+    },
+    {
+      "read_id": "dec0de19-0000-4000-8000-000000000019",
+      "place": "mabels_diner",
+      "signal": "returns_despite_incident",
+      "driver": "spice_tolerance_low",
+      "cadence": "weekly",
+      "weight": 0.93
+    },
+    {
+      "read_id": "dec0de20-0000-4000-8000-000000000020",
+      "place": "green_papaya",
+      "signal": "regret_after_order",
+      "driver": "spice_tolerance_low",
+      "cadence": "monthly",
+      "weight": 0.88
+    },
+    {
+      "read_id": "dec0de21-0000-4000-8000-000000000021",
+      "place": "the_furnace",
+      "signal": "returns_despite_incident",
+      "driver": "spice_tolerance_low",
+      "cadence": "monthly",
+      "weight": 0.66
+    },
+    {
+      "read_id": "dec0de22-0000-4000-8000-000000000022",
+      "place": "tortoise_tea",
+      "signal": "regret_after_order",
+      "driver": "spice_tolerance_low",
+      "cadence": "weekly",
+      "weight": 0.78
+    },
+    {
+      "read_id": "dec0de23-0000-4000-8000-000000000023",
+      "place": "nopal_verde",
+      "signal": "trusted_safe_place",
+      "driver": "spice_tolerance_low",
+      "cadence": "daily",
+      "weight": 0.74
+    },
+    {
+      "read_id": "dec0de24-0000-4000-8000-000000000024",
+      "place": "noodle_shrine",
+      "signal": "never_ordered_again",
+      "driver": "spice_tolerance_low",
+      "cadence": "daily",
+      "weight": 0.67
+    },
+    {
+      "read_id": "dec0de25-0000-4000-8000-000000000025",
+      "place": "saffron_step",
+      "signal": "trusted_safe_place",
+      "driver": "spice_tolerance_low",
+      "cadence": "monthly",
+      "weight": 0.75
+    },
+    {
+      "read_id": "dec0de26-0000-4000-8000-000000000026",
+      "place": "copper_kettle",
+      "signal": "trusted_safe_place",
+      "driver": "spice_tolerance_low",
+      "cadence": "rarely",
+      "weight": 0.73
+    },
+    {
+      "read_id": "dec0de27-0000-4000-8000-000000000027",
+      "place": "cardamom_court",
+      "signal": "trusted_safe_place",
+      "driver": "spice_tolerance_low",
+      "cadence": "monthly",
+      "weight": 0.78
+    },
+    {
+      "read_id": "dec0de28-0000-4000-8000-000000000028",
+      "place": "laksa_lane",
+      "signal": "secret_default",
+      "driver": "spice_tolerance_low",
+      "cadence": "daily",
+      "weight": 0.6
+    },
+    {
+      "read_id": "dec0de29-0000-4000-8000-000000000029",
+      "place": "clay_oven_hearth",
+      "signal": "regret_after_order",
+      "driver": "spice_tolerance_low",
+      "cadence": "monthly",
+      "weight": 0.8
+    },
+    {
+      "read_id": "dec0de30-0000-4000-8000-000000000030",
+      "place": "phos_deep",
+      "signal": "returns_despite_incident",
+      "driver": "spice_tolerance_low",
+      "cadence": "daily",
+      "weight": 0.64
+    },
+    {
+      "read_id": "dec0de31-0000-4000-8000-000000000031",
+      "place": "brine_and_shell",
+      "signal": "wanted_something_else",
+      "driver": "spice_tolerance_low",
+      "cadence": "weekly",
+      "weight": 0.91
+    },
+    {
+      "read_id": "dec0de32-0000-4000-8000-000000000032",
+      "place": "banh_mi_signal",
+      "signal": "returns_despite_incident",
+      "driver": "spice_tolerance_low",
+      "cadence": "monthly",
+      "weight": 0.62
+    },
+    {
+      "read_id": "dec0de33-0000-4000-8000-000000000033",
+      "place": "umami_dive",
+      "signal": "secret_default",
+      "driver": "spice_tolerance_low",
+      "cadence": "weekly",
+      "weight": 0.62
+    },
+    {
+      "read_id": "dec0de34-0000-4000-8000-000000000034",
+      "place": "ferment_station",
+      "signal": "regret_after_order",
+      "driver": "spice_tolerance_low",
+      "cadence": "daily",
+      "weight": 0.59
+    },
+    {
+      "read_id": "dec0de35-0000-4000-8000-000000000035",
+      "place": "phos_deep",
+      "signal": "secret_default",
+      "driver": "budget_ceiling",
+      "cadence": "rarely",
+      "weight": 0.59
+    },
+    {
+      "read_id": "dec0de36-0000-4000-8000-000000000036",
+      "place": "brine_and_shell",
+      "signal": "returns_despite_incident",
+      "driver": "budget_ceiling",
+      "cadence": "monthly",
+      "weight": 0.71
+    },
+    {
+      "read_id": "dec0de37-0000-4000-8000-000000000037",
+      "place": "banh_mi_signal",
+      "signal": "never_ordered_again",
+      "driver": "budget_ceiling",
+      "cadence": "monthly",
+      "weight": 0.78
+    },
+    {
+      "read_id": "dec0de38-0000-4000-8000-000000000038",
+      "place": "umami_dive",
+      "signal": "trusted_safe_place",
+      "driver": "budget_ceiling",
+      "cadence": "rarely",
+      "weight": 0.92
+    },
+    {
+      "read_id": "dec0de39-0000-4000-8000-000000000039",
+      "place": "ferment_station",
+      "signal": "never_ordered_again",
+      "driver": "budget_ceiling",
+      "cadence": "rarely",
+      "weight": 0.9
+    },
+    {
+      "read_id": "dec0de40-0000-4000-8000-000000000040",
+      "place": "verdant",
+      "signal": "pretends_preference",
+      "driver": "budget_ceiling",
+      "cadence": "weekly",
+      "weight": 0.56
+    },
+    {
+      "read_id": "dec0de41-0000-4000-8000-000000000041",
+      "place": "harbor_greens",
+      "signal": "pretends_preference",
+      "driver": "budget_ceiling",
+      "cadence": "rarely",
+      "weight": 0.89
+    },
+    {
+      "read_id": "dec0de42-0000-4000-8000-000000000042",
+      "place": "seoul_static",
+      "signal": "never_ordered_again",
+      "driver": "budget_ceiling",
+      "cadence": "monthly",
+      "weight": 0.69
+    },
+    {
+      "read_id": "dec0de43-0000-4000-8000-000000000043",
+      "place": "miso_hollow",
+      "signal": "wanted_something_else",
+      "driver": "budget_ceiling",
+      "cadence": "monthly",
+      "weight": 0.59
+    },
+    {
+      "read_id": "dec0de44-0000-4000-8000-000000000044",
+      "place": "chaat_corner",
+      "signal": "regret_after_order",
+      "driver": "budget_ceiling",
+      "cadence": "rarely",
+      "weight": 0.82
+    },
+    {
+      "read_id": "dec0de45-0000-4000-8000-000000000045",
+      "place": "griddle_west",
+      "signal": "pretends_preference",
+      "driver": "budget_ceiling",
+      "cadence": "rarely",
+      "weight": 0.75
+    },
+    {
+      "read_id": "dec0de46-0000-4000-8000-000000000046",
+      "place": "rosas_taqueria",
+      "signal": "returns_despite_incident",
+      "driver": "budget_ceiling",
+      "cadence": "weekly",
+      "weight": 0.74
+    },
+    {
+      "read_id": "dec0de47-0000-4000-8000-000000000047",
+      "place": "golden_bao",
+      "signal": "returns_despite_incident",
+      "driver": "budget_ceiling",
+      "cadence": "weekly",
+      "weight": 0.85
+    },
+    {
+      "read_id": "dec0de48-0000-4000-8000-000000000048",
+      "place": "the_dumpling_line",
+      "signal": "never_ordered_again",
+      "driver": "budget_ceiling",
+      "cadence": "weekly",
+      "weight": 0.7
+    },
+    {
+      "read_id": "dec0de49-0000-4000-8000-000000000049",
+      "place": "hen_and_honey",
+      "signal": "never_ordered_again",
+      "driver": "budget_ceiling",
+      "cadence": "weekly",
+      "weight": 0.65
+    },
+    {
+      "read_id": "dec0de50-0000-4000-8000-000000000050",
+      "place": "ash_and_rye",
+      "signal": "returns_despite_incident",
+      "driver": "budget_ceiling",
+      "cadence": "weekly",
+      "weight": 0.59
+    },
+    {
+      "read_id": "dec0de51-0000-4000-8000-000000000051",
+      "place": "sardine_social",
+      "signal": "secret_default",
+      "driver": "budget_ceiling",
+      "cadence": "monthly",
+      "weight": 0.6
+    },
+    {
+      "read_id": "dec0de52-0000-4000-8000-000000000052",
+      "place": "quiet_counter",
+      "signal": "regret_after_order",
+      "driver": "budget_ceiling",
+      "cadence": "monthly",
+      "weight": 0.9
+    },
+    {
+      "read_id": "dec0de53-0000-4000-8000-000000000053",
+      "place": "cedar_meze",
+      "signal": "trusted_safe_place",
+      "driver": "budget_ceiling",
+      "cadence": "daily",
+      "weight": 0.87
+    },
+    {
+      "read_id": "dec0de54-0000-4000-8000-000000000054",
+      "place": "lupita_cocina",
+      "signal": "returns_despite_incident",
+      "driver": "budget_ceiling",
+      "cadence": "monthly",
+      "weight": 0.65
+    },
+    {
+      "read_id": "dec0de55-0000-4000-8000-000000000055",
+      "place": "pita_parade",
+      "signal": "regret_after_order",
+      "driver": "budget_ceiling",
+      "cadence": "rarely",
+      "weight": 0.82
+    },
+    {
+      "read_id": "dec0de56-0000-4000-8000-000000000056",
+      "place": "polenta_house",
+      "signal": "never_ordered_again",
+      "driver": "budget_ceiling",
+      "cadence": "rarely",
+      "weight": 0.74
+    },
+    {
+      "read_id": "dec0de57-0000-4000-8000-000000000057",
+      "place": "bao_bar_micro",
+      "signal": "trusted_safe_place",
+      "driver": "budget_ceiling",
+      "cadence": "weekly",
+      "weight": 0.83
+    },
+    {
+      "read_id": "dec0de58-0000-4000-8000-000000000058",
+      "place": "ember_and_ash",
+      "signal": "secret_default",
+      "driver": "budget_ceiling",
+      "cadence": "rarely",
+      "weight": 0.76
+    },
+    {
+      "read_id": "dec0de59-0000-4000-8000-000000000059",
+      "place": "terracotta",
+      "signal": "never_ordered_again",
+      "driver": "budget_ceiling",
+      "cadence": "daily",
+      "weight": 0.9
+    },
+    {
+      "read_id": "dec0de60-0000-4000-8000-000000000060",
+      "place": "olive_and_thorn",
+      "signal": "returns_despite_incident",
+      "driver": "budget_ceiling",
+      "cadence": "monthly",
+      "weight": 0.68
+    },
+    {
+      "read_id": "dec0de61-0000-4000-8000-000000000061",
+      "place": "mabels_diner",
+      "signal": "secret_default",
+      "driver": "solo_comfort",
+      "cadence": "weekly",
+      "weight": 0.71
+    },
+    {
+      "read_id": "dec0de62-0000-4000-8000-000000000062",
+      "place": "green_papaya",
+      "signal": "secret_default",
+      "driver": "solo_comfort",
+      "cadence": "monthly",
+      "weight": 0.69
+    },
+    {
+      "read_id": "dec0de63-0000-4000-8000-000000000063",
+      "place": "the_furnace",
+      "signal": "pretends_preference",
+      "driver": "solo_comfort",
+      "cadence": "rarely",
+      "weight": 0.9
+    },
+    {
+      "read_id": "dec0de64-0000-4000-8000-000000000064",
+      "place": "tortoise_tea",
+      "signal": "returns_despite_incident",
+      "driver": "solo_comfort",
+      "cadence": "monthly",
+      "weight": 0.83
+    },
+    {
+      "read_id": "dec0de65-0000-4000-8000-000000000065",
+      "place": "nopal_verde",
+      "signal": "returns_despite_incident",
+      "driver": "solo_comfort",
+      "cadence": "monthly",
+      "weight": 0.77
+    },
+    {
+      "read_id": "dec0de66-0000-4000-8000-000000000066",
+      "place": "noodle_shrine",
+      "signal": "never_ordered_again",
+      "driver": "solo_comfort",
+      "cadence": "daily",
+      "weight": 0.8
+    },
+    {
+      "read_id": "dec0de67-0000-4000-8000-000000000067",
+      "place": "saffron_step",
+      "signal": "pretends_preference",
+      "driver": "solo_comfort",
+      "cadence": "rarely",
+      "weight": 0.79
+    },
+    {
+      "read_id": "dec0de68-0000-4000-8000-000000000068",
+      "place": "copper_kettle",
+      "signal": "wanted_something_else",
+      "driver": "solo_comfort",
+      "cadence": "weekly",
+      "weight": 0.93
+    },
+    {
+      "read_id": "dec0de69-0000-4000-8000-000000000069",
+      "place": "cardamom_court",
+      "signal": "trusted_safe_place",
+      "driver": "solo_comfort",
+      "cadence": "monthly",
+      "weight": 0.58
+    },
+    {
+      "read_id": "dec0de70-0000-4000-8000-000000000070",
+      "place": "laksa_lane",
+      "signal": "regret_after_order",
+      "driver": "solo_comfort",
+      "cadence": "weekly",
+      "weight": 0.7
+    },
+    {
+      "read_id": "dec0de71-0000-4000-8000-000000000071",
+      "place": "clay_oven_hearth",
+      "signal": "secret_default",
+      "driver": "solo_comfort",
+      "cadence": "daily",
+      "weight": 0.65
+    },
+    {
+      "read_id": "dec0de72-0000-4000-8000-000000000072",
+      "place": "phos_deep",
+      "signal": "trusted_safe_place",
+      "driver": "solo_comfort",
+      "cadence": "rarely",
+      "weight": 0.84
+    },
+    {
+      "read_id": "dec0de73-0000-4000-8000-000000000073",
+      "place": "brine_and_shell",
+      "signal": "returns_despite_incident",
+      "driver": "solo_comfort",
+      "cadence": "rarely",
+      "weight": 0.93
+    },
+    {
+      "read_id": "dec0de74-0000-4000-8000-000000000074",
+      "place": "banh_mi_signal",
+      "signal": "wanted_something_else",
+      "driver": "solo_comfort",
+      "cadence": "daily",
+      "weight": 0.91
+    },
+    {
+      "read_id": "dec0de75-0000-4000-8000-000000000075",
+      "place": "umami_dive",
+      "signal": "returns_despite_incident",
+      "driver": "solo_comfort",
+      "cadence": "rarely",
+      "weight": 0.87
+    },
+    {
+      "read_id": "dec0de76-0000-4000-8000-000000000076",
+      "place": "ferment_station",
+      "signal": "returns_despite_incident",
+      "driver": "solo_comfort",
+      "cadence": "daily",
+      "weight": 0.94
+    },
+    {
+      "read_id": "dec0de77-0000-4000-8000-000000000077",
+      "place": "verdant",
+      "signal": "never_ordered_again",
+      "driver": "solo_comfort",
+      "cadence": "weekly",
+      "weight": 0.94
+    },
+    {
+      "read_id": "dec0de78-0000-4000-8000-000000000078",
+      "place": "harbor_greens",
+      "signal": "wanted_something_else",
+      "driver": "solo_comfort",
+      "cadence": "weekly",
+      "weight": 0.94
+    },
+    {
+      "read_id": "dec0de79-0000-4000-8000-000000000079",
+      "place": "seoul_static",
+      "signal": "never_ordered_again",
+      "driver": "solo_comfort",
+      "cadence": "rarely",
+      "weight": 0.65
+    },
+    {
+      "read_id": "dec0de80-0000-4000-8000-000000000080",
+      "place": "miso_hollow",
+      "signal": "pretends_preference",
+      "driver": "solo_comfort",
+      "cadence": "daily",
+      "weight": 0.85
+    },
+    {
+      "read_id": "dec0de81-0000-4000-8000-000000000081",
+      "place": "chaat_corner",
+      "signal": "wanted_something_else",
+      "driver": "solo_comfort",
+      "cadence": "rarely",
+      "weight": 0.9
+    },
+    {
+      "read_id": "dec0de82-0000-4000-8000-000000000082",
+      "place": "griddle_west",
+      "signal": "never_ordered_again",
+      "driver": "solo_comfort",
+      "cadence": "rarely",
+      "weight": 0.7
+    },
+    {
+      "read_id": "dec0de83-0000-4000-8000-000000000083",
+      "place": "cedar_meze",
+      "signal": "trusted_safe_place",
+      "driver": "portion_small",
+      "cadence": "monthly",
+      "weight": 0.68
+    },
+    {
+      "read_id": "dec0de84-0000-4000-8000-000000000084",
+      "place": "lupita_cocina",
+      "signal": "wanted_something_else",
+      "driver": "portion_small",
+      "cadence": "monthly",
+      "weight": 0.58
+    },
+    {
+      "read_id": "dec0de85-0000-4000-8000-000000000085",
+      "place": "pita_parade",
+      "signal": "regret_after_order",
+      "driver": "portion_small",
+      "cadence": "weekly",
+      "weight": 0.8
+    },
+    {
+      "read_id": "dec0de86-0000-4000-8000-000000000086",
+      "place": "polenta_house",
+      "signal": "never_ordered_again",
+      "driver": "portion_small",
+      "cadence": "monthly",
+      "weight": 0.7
+    },
+    {
+      "read_id": "dec0de87-0000-4000-8000-000000000087",
+      "place": "bao_bar_micro",
+      "signal": "secret_default",
+      "driver": "portion_small",
+      "cadence": "rarely",
+      "weight": 0.73
+    },
+    {
+      "read_id": "dec0de88-0000-4000-8000-000000000088",
+      "place": "ember_and_ash",
+      "signal": "secret_default",
+      "driver": "portion_small",
+      "cadence": "weekly",
+      "weight": 0.59
+    },
+    {
+      "read_id": "dec0de89-0000-4000-8000-000000000089",
+      "place": "terracotta",
+      "signal": "never_ordered_again",
+      "driver": "portion_small",
+      "cadence": "rarely",
+      "weight": 0.89
+    },
+    {
+      "read_id": "dec0de90-0000-4000-8000-000000000090",
+      "place": "olive_and_thorn",
+      "signal": "pretends_preference",
+      "driver": "portion_small",
+      "cadence": "weekly",
+      "weight": 0.89
+    },
+    {
+      "read_id": "dec0de91-0000-4000-8000-000000000091",
+      "place": "the_blue_door",
+      "signal": "trusted_safe_place",
+      "driver": "portion_small",
+      "cadence": "rarely",
+      "weight": 0.7
+    },
+    {
+      "read_id": "dec0de92-0000-4000-8000-000000000092",
+      "place": "addis_red",
+      "signal": "secret_default",
+      "driver": "portion_small",
+      "cadence": "rarely",
+      "weight": 0.6
+    },
+    {
+      "read_id": "dec0de93-0000-4000-8000-000000000093",
+      "place": "night_market_44",
+      "signal": "pretends_preference",
+      "driver": "portion_small",
+      "cadence": "daily",
+      "weight": 0.85
+    },
+    {
+      "read_id": "dec0de94-0000-4000-8000-000000000094",
+      "place": "mabels_diner",
+      "signal": "wanted_something_else",
+      "driver": "portion_small",
+      "cadence": "daily",
+      "weight": 0.7
+    },
+    {
+      "read_id": "dec0de95-0000-4000-8000-000000000095",
+      "place": "green_papaya",
+      "signal": "secret_default",
+      "driver": "portion_small",
+      "cadence": "monthly",
+      "weight": 0.84
+    },
+    {
+      "read_id": "dec0de96-0000-4000-8000-000000000096",
+      "place": "the_furnace",
+      "signal": "secret_default",
+      "driver": "portion_small",
+      "cadence": "monthly",
+      "weight": 0.72
+    },
+    {
+      "read_id": "dec0de97-0000-4000-8000-000000000097",
+      "place": "tortoise_tea",
+      "signal": "wanted_something_else",
+      "driver": "portion_small",
+      "cadence": "weekly",
+      "weight": 0.79
+    },
+    {
+      "read_id": "dec0de98-0000-4000-8000-000000000098",
+      "place": "nopal_verde",
+      "signal": "regret_after_order",
+      "driver": "portion_small",
+      "cadence": "rarely",
+      "weight": 0.64
+    },
+    {
+      "read_id": "dec0de99-0000-4000-8000-000000000099",
+      "place": "seoul_static",
+      "signal": "never_ordered_again",
+      "driver": "gi_constraint",
+      "cadence": "daily",
+      "weight": 0.89
+    },
+    {
+      "read_id": "dec0de100-0000-4000-8000-000000000100",
+      "place": "miso_hollow",
+      "signal": "returns_despite_incident",
+      "driver": "gi_constraint",
+      "cadence": "rarely",
+      "weight": 0.7
+    },
+    {
+      "read_id": "dec0de101-0000-4000-8000-000000000101",
+      "place": "chaat_corner",
+      "signal": "trusted_safe_place",
+      "driver": "gi_constraint",
+      "cadence": "daily",
+      "weight": 0.57
+    },
+    {
+      "read_id": "dec0de102-0000-4000-8000-000000000102",
+      "place": "griddle_west",
+      "signal": "returns_despite_incident",
+      "driver": "gi_constraint",
+      "cadence": "weekly",
+      "weight": 0.67
+    },
+    {
+      "read_id": "dec0de103-0000-4000-8000-000000000103",
+      "place": "rosas_taqueria",
+      "signal": "pretends_preference",
+      "driver": "gi_constraint",
+      "cadence": "monthly",
+      "weight": 0.58
+    },
+    {
+      "read_id": "dec0de104-0000-4000-8000-000000000104",
+      "place": "golden_bao",
+      "signal": "wanted_something_else",
+      "driver": "gi_constraint",
+      "cadence": "weekly",
+      "weight": 0.65
+    },
+    {
+      "read_id": "dec0de105-0000-4000-8000-000000000105",
+      "place": "the_dumpling_line",
+      "signal": "never_ordered_again",
+      "driver": "gi_constraint",
+      "cadence": "weekly",
+      "weight": 0.66
+    },
+    {
+      "read_id": "dec0de106-0000-4000-8000-000000000106",
+      "place": "hen_and_honey",
+      "signal": "trusted_safe_place",
+      "driver": "gi_constraint",
+      "cadence": "monthly",
+      "weight": 0.73
+    }
+  ]
+}

@@ -61,23 +61,25 @@ describe('loadConfig', () => {
 });
 
 describe('initialFlags (the load-bearing optional-key rule)', () => {
-  it('no API key → seeded + template, exactly two log lines, no throw', () => {
+  it('no API key → seeded + template + kernel scoring, one line each, no throw', () => {
     const { lines, logger } = captureLogger();
     const flags = initialFlags(loadConfig(omit(FULL_ENV, 'ANTHROPIC_API_KEY')), logger);
     expect(flags.extraction).toBe('seeded');
     expect(flags.narrator).toBe('template');
     expect(flags.pool).toBe('live');
+    expect(flags.scoring).toBe('kernel'); // the no-key path ranks on the kernel alone (D-14)
     expect(flags.demoMode).toBe(false);
     expect(lines).toEqual([
       'flag extraction live→seeded reason=no-api-key',
       'flag narrator live→template reason=no-api-key',
+      'flag scoring live→kernel reason=no-api-key',
     ]);
   });
 
   it('with an API key → all live, zero log lines', () => {
     const { lines, logger } = captureLogger();
     const flags = initialFlags(loadConfig(FULL_ENV), logger);
-    expect(flags).toEqual({ extraction: 'live', narrator: 'live', pool: 'live', demoMode: false });
+    expect(flags).toEqual({ extraction: 'live', narrator: 'live', scoring: 'live', pool: 'live', demoMode: false });
     expect(lines).toEqual([]);
   });
 });
@@ -86,7 +88,7 @@ describe('flag store', () => {
   it('setting a flag emits exactly one line', () => {
     const { lines, logger } = captureLogger();
     const store = createFlagStore(
-      { extraction: 'live', narrator: 'live', pool: 'live', demoMode: false },
+      { extraction: 'live', narrator: 'live', scoring: 'live', pool: 'live', demoMode: false },
       logger,
     );
     store.set('narrator', 'template');
@@ -97,7 +99,7 @@ describe('flag store', () => {
   it('setting a flag to its current value emits nothing', () => {
     const { lines, logger } = captureLogger();
     const store = createFlagStore(
-      { extraction: 'live', narrator: 'live', pool: 'live', demoMode: false },
+      { extraction: 'live', narrator: 'live', scoring: 'live', pool: 'live', demoMode: false },
       logger,
     );
     store.set('pool', 'live');
@@ -107,7 +109,7 @@ describe('flag store', () => {
   it('reasons are carried and demoMode transitions log like any flag', () => {
     const { lines, logger } = captureLogger();
     const store = createFlagStore(
-      { extraction: 'live', narrator: 'live', pool: 'live', demoMode: false },
+      { extraction: 'live', narrator: 'live', scoring: 'live', pool: 'live', demoMode: false },
       logger,
     );
     store.set('pool', 'relay-only', 'xtrace-not-settling');
@@ -119,6 +121,7 @@ describe('flag store', () => {
     expect(store.get()).toEqual({
       extraction: 'live',
       narrator: 'live',
+      scoring: 'live',
       pool: 'relay-only',
       demoMode: true,
     });
@@ -127,7 +130,7 @@ describe('flag store', () => {
   it('get() returns a copy — callers cannot mutate the store', () => {
     const { logger } = captureLogger();
     const store = createFlagStore(
-      { extraction: 'live', narrator: 'live', pool: 'live', demoMode: false },
+      { extraction: 'live', narrator: 'live', scoring: 'live', pool: 'live', demoMode: false },
       logger,
     );
     const snapshot = store.get();

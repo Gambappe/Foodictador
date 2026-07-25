@@ -533,3 +533,69 @@ describe('M3 personalClaim — D-8\'s second input (M16)', () => {
     expect(scopes).toHaveLength(EPISODE_ATTEMPTS);
   });
 });
+
+/**
+ * D-14 — `personalRecall` returns what the diner SAID, not a summary of it.
+ *
+ * `personalClaim` answers "what is the one thing to print" and takes `episodes[0]`. Affinity
+ * needs the other question, and the difference is not academic: measured live, a profile whose
+ * four confessions were all about one cuisine had an episode reading "a candid admission of a
+ * recurring pattern" — true, naming no cuisine at all — so scoring on it discarded the
+ * preference the diner had stated four times.
+ */
+describe('M3 personalRecall — facts and episodes, not one synthesis (D-14)', () => {
+  it('returns the fact sentences, with the episode appended', async () => {
+    const h = harness();
+    h.rowsByScope.set(personalScope('A'), [
+      { memoryId: 'f1', kind: 'fact', content: 'The diner avoids Korean food.' },
+      { memoryId: 'f2', kind: 'fact', content: 'The diner will not return to Seoul Static.' },
+      { memoryId: 'e1', kind: 'episode', content: 'A pattern of quiet avoidance.' },
+    ]);
+    const recalled = await h.store.personalRecall('A', 'what do they order');
+    // Facts lead — they are the closest thing to their words that survives extraction — and
+    // the episode is kept because it carries the cross-record pattern no single fact states.
+    expect(recalled).toEqual([
+      'The diner avoids Korean food.',
+      'The diner will not return to Seoul Static.',
+      'A pattern of quiet avoidance.',
+    ]);
+  });
+
+  it('recalls MORE than the claim does — that is the whole reason it exists', async () => {
+    const h = harness();
+    h.rowsByScope.set(personalScope('A'), [
+      { memoryId: 'f1', kind: 'fact', content: 'Korean is the one cuisine they avoid.' },
+      { memoryId: 'e1', kind: 'episode', content: 'A candid admission of a recurring pattern.' },
+    ]);
+    const claim = await h.store.personalClaim('A', 'q');
+    const recalled = await h.store.personalRecall('A', 'q');
+    expect(claim).toBe('A candid admission of a recurring pattern.'); // names no cuisine
+    expect(recalled.join(' ')).toContain('Korean'); // the recall does
+    expect(recalled.length).toBeGreaterThan(1);
+  });
+
+  it('an empty scope recalls nothing, and that is not an error', async () => {
+    const h = harness();
+    expect(await h.store.personalRecall('A', 'q')).toEqual([]);
+  });
+
+  it('drops empty rows rather than passing blank sentences to a scorer', async () => {
+    const h = harness();
+    h.rowsByScope.set(personalScope('A'), [
+      { memoryId: 'f1', kind: 'fact', content: '' },
+      { memoryId: 'f2', kind: 'fact', content: 'A real sentence.' },
+    ]);
+    expect(await h.store.personalRecall('A', 'q')).toEqual(['A real sentence.']);
+  });
+
+  it('logs the counts, so a thin recall is attributable', async () => {
+    const h = harness();
+    h.rowsByScope.set(personalScope('A'), [
+      { memoryId: 'f1', kind: 'fact', content: 'one' },
+      { memoryId: 'e1', kind: 'episode', content: 'two' },
+    ]);
+    await h.store.personalRecall('A', 'q');
+    expect(h.lines.join('\n')).toMatch(/recalled 2 remembered sentence\(s\) for A/);
+    expect(h.lines.join('\n')).toMatch(/1 fact\(s\), 1 episode\(s\)/);
+  });
+});

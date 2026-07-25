@@ -76,6 +76,8 @@ function harness(options: {
 
   const user: UserStore = {
     personalClaim: () => Promise.resolve(''),
+    personalRecall: () => Promise.resolve([]),
+    
     writeProse: vi.fn(() => {
       calls.prose += 1;
       if (options.proseHandedOff === true) return Promise.resolve({ buffered: 0, handedOff: true });
@@ -297,6 +299,7 @@ describe('the CommandHandler adapter', () => {
         get: () => ({
           extraction: 'seeded',
           narrator: 'template',
+          scoring: 'live',
           pool: 'live',
           demoMode: true,
         }),

@@ -51,6 +51,44 @@ export const RUNNERS_UP_COUNT = 2;
 export interface AskEngineInput extends AskInput {
   poolClaim?: string;
   personalClaim?: string;
+  /**
+   * Per-place affinity in `[0, 1]`, from what the diner said in their own words (D-14).
+   *
+   * A MULTIPLIER over the kernel's score, and only over places the kernel already allowed —
+   * so it can reorder survivors and can never resurrect an exclusion. `giConstraint`, the
+   * budget ceiling, rotation and the k-floor stay exactly where they were, decided by code
+   * that cannot be talked out of them.
+   *
+   * Absent, or absent for a place, means `1`: the kernel score unchanged. That is not a
+   * degraded ranking, it is the ranking this product gave before affinity existed, which is
+   * what makes the no-model path correct rather than merely tolerable.
+   *
+   * The kernel stays PURE (§1): it multiplies a number it is handed. Obtaining that number
+   * is the caller's I/O, in `src/llm/scorer.ts`.
+   */
+  affinity?: Readonly<Record<string, number>>;
+}
+
+/**
+ * Kernel score × affinity, clamped and defaulting to 1.
+ *
+ * Clamped because the number comes from a model: a score of `4` or `-2` would silently
+ * outrank every constraint-respecting place, and the kernel must not be the thing that
+ * trusts it. Out-of-range is clamped rather than rejected — a bad affinity should cost the
+ * ranking its nuance, never the diner their recommendation.
+ */
+export function applyAffinity(
+  ranked: readonly RankedPlace[],
+  affinity: AskEngineInput['affinity'],
+): RankedPlace[] {
+  if (affinity === undefined) return [...ranked];
+  return [...ranked]
+    .map((entry) => {
+      const raw = affinity[entry.place.id];
+      const factor = typeof raw === 'number' && Number.isFinite(raw) ? Math.min(1, Math.max(0, raw)) : 1;
+      return { ...entry, score: entry.score * factor };
+    })
+    .sort((a, b) => b.score - a.score || a.place.id.localeCompare(b.place.id));
 }
 
 interface AskPlanBase {
@@ -163,14 +201,17 @@ export function planAsk(input: AskEngineInput): AskPlan {
   const exclusions = input.corpus.flatMap((place) =>
     exclusionsFor(place, input.usual, input.reads),
   );
-  const ranked = scorePlaces({
-    reads: input.reads,
-    usual: input.usual,
-    log: input.log,
-    corpus: input.corpus,
-    context,
-    now: input.now,
-  });
+  const ranked = applyAffinity(
+    scorePlaces({
+      reads: input.reads,
+      usual: input.usual,
+      log: input.log,
+      corpus: input.corpus,
+      context,
+      now: input.now,
+    }),
+    input.affinity,
+  );
 
   const scores: Record<string, number> = {};
   for (const entry of ranked) scores[entry.place.id] = entry.score;

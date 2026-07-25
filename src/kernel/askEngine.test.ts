@@ -48,6 +48,7 @@ const usual: UsualProfile = {
 const flags: Flags = {
   extraction: 'live',
   narrator: 'live',
+  scoring: 'live',
   pool: 'live',
   demoMode: false,
 };

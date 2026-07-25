@@ -50,6 +50,7 @@ import { createProseBuffer, type ProseBuffer } from '../memory/proseBuffer.js';
 import { createLiveExtractor } from '../llm/extractor.js';
 import { createFetchModelClient, createLiveNarrator } from '../llm/narrator.js';
 import { templateNarrator } from '../llm/template.js';
+import { createScorer, type Scorer } from '../llm/scorer.js';
 import type { AppConfig } from './env.js';
 import { createFlagStore, initialFlags, type FlagStore } from './flagStore.js';
 import type { Logger } from './logger.js';
@@ -82,6 +83,12 @@ export interface AdapterGraph {
   poolView: PoolView;
   extractor: Extractor;
   narrator: Narrator;
+  /**
+   * Affinity over the kernel's survivors (D-14). Always present; it returns `{}` under
+   * `scoring: kernel`, which is what no ANTHROPIC_API_KEY produces — so the no-key path is
+   * the kernel ranking unchanged rather than a missing dependency to branch on.
+   */
+  scorer: Scorer;
   flags: FlagStore;
   logger: Logger;
   settleWindowSeconds: number;
@@ -133,6 +140,13 @@ export function liveGraph(config: AppConfig, logger: Logger, existing?: FlagStor
       ? templateNarrator
       : createLiveNarrator({ client: modelClient, flags, logger });
 
+  // No key means no affinity, and that is a complete answer rather than a hole: the scorer
+  // returns `{}` and the kernel ranking stands (D-14).
+  const scorer: Scorer =
+    modelClient === null
+      ? { affinity: () => Promise.resolve({}) }
+      : createScorer({ client: modelClient, flags, logger });
+
   return {
     client,
     pool,
@@ -143,6 +157,7 @@ export function liveGraph(config: AppConfig, logger: Logger, existing?: FlagStor
     poolView,
     extractor,
     narrator,
+    scorer,
     flags,
     logger,
     settleWindowSeconds: config.settleWindowSeconds,
@@ -185,7 +200,7 @@ export function fixtureGraph(options: FixtureGraphOptions): AdapterGraph {
 
   const flags =
     options.flags ??
-    createFlagStore({ extraction: 'live', narrator: 'live', pool: 'live', demoMode: true }, logger);
+    createFlagStore({ extraction: 'live', narrator: 'live', scoring: 'live', pool: 'live', demoMode: true }, logger);
 
   const client = new StubMemoryClient();
   const relay = new StubRelay(now);
@@ -214,6 +229,9 @@ export function fixtureGraph(options: FixtureGraphOptions): AdapterGraph {
     settings,
     poolView,
     extractor: new StubExtractor(),
+    // The fixture graph opens no socket, so there is no model to score with — which is the
+    // same shape as a no-key laptop, and the same correct answer.
+    scorer: { affinity: () => Promise.resolve({}) },
     // The real L1 narrator, not StubNarrator: template copy is the default production
     // path when no key is present, so the gate should exercise it.
     narrator: templateNarrator,

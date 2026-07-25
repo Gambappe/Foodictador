@@ -76,7 +76,7 @@ describe('fixture coherence', () => {
   });
 
   it('default flags are all-live with demoMode off', () => {
-    expect(DEFAULT_FLAGS).toEqual({ extraction: 'live', narrator: 'live', pool: 'live', demoMode: false });
+    expect(DEFAULT_FLAGS).toEqual({ extraction: 'live', narrator: 'live', scoring: 'live', pool: 'live', demoMode: false });
   });
 });
 

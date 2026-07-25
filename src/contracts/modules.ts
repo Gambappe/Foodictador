@@ -206,6 +206,14 @@ export interface UserStore {
    * that a thin one is attributable rather than mysterious.
    */
   personalClaim(profile: string, query: string): Promise<string>;
+  /**
+   * The diner's remembered sentences — facts and episodes, not one synthesis (D-14).
+   *
+   * `personalClaim` answers "what is the one thing to print"; this answers "what did they
+   * actually say". Affinity needs the second: an episode is a summary, and a summary of four
+   * confessions about one cuisine was measured naming no cuisine at all.
+   */
+  personalRecall(profile: string, query: string): Promise<string[]>;
   usual(profile: string): Promise<UsualProfile | null>;
   /** The only write path for off-limits topics — G2, X7 and U4 all go through here. */
   setUsual(profile: string, usual: UsualProfile): Promise<void>;

@@ -27,7 +27,9 @@
     "gate0": "tsx scripts/gate0.ts",
     "gate:cli": "bash scripts/gate-cli.sh",
     "dev": "vite",
-    "preflight": "node scripts/preflight.mjs"
+    "preflight": "node scripts/preflight.mjs",
+    "demo:pack": "node scripts/demo/gen-demo-pack.mjs",
+    "demo": "node scripts/demo/showcase.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
