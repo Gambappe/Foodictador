@@ -128,6 +128,12 @@ This forces a two-call write, because the job id does not exist until the pool i
 
 **D-2 — Exact XTrace endpoint paths and payloads.** The design doc names `DELETE /v1/memories/{id}` and `POST /v1/memories/trigger` and nothing else. M1 confirms ingest/search against the live API and records what it found in `src/memory/README.md`. Everything downstream depends only on the `MemoryClient` interface, so a surprise there costs one task, not the build.
 
+**D-5 — Six of the eleven drivers cannot reach a card, and this one needs a product decision.** Found while implementing K6. A pool citation claims something about *this* user, so a cohort only qualifies if its driver is evidenced in their `UsualProfile`. That profile (frozen at P0.2) carries spice tolerance, budget band, portion preference, solo comfort and gi constraint — and nothing corresponding to `allergy_constraint`, `sensory_shift`, `companion_constraint`, `emotional_exclusion`, `acclaim_skeptic` or `crowd_aversion`. Those six drivers are therefore inert: reads carrying them enter the pool, count in a census, and can never be cited.
+
+That includes **`companion_constraint`, the driver in design v0.8 §7's own worked example** of a pooled read, and `emotional_exclusion`, which §1 names as a motivating case ("the excellent restaurant a breakup made permanently unvisitable"). So the gap is not an edge case; it removes several of the doc's own headline examples from the product.
+
+K6 ships the honest version — the five mappable drivers, with the other six exported as `UNMATCHABLE_DRIVERS` and asserted in a test so the gap is visible in CI rather than buried. Resolving it is a decision, not an implementation detail: either extend `UsualProfile` (a contract change, and the seed/profile tasks S2/S4 would need to set the new fields), or derive driver relevance from the user's *own* reads instead of their Usual — which is arguably truer to "you tell it once; it remembers", but is new behaviour rather than a fix. **S2's near-tie tuning depends on which way this goes**, so it wants deciding before S2 is claimed.
+
 **D-4 — Two deliberate divergences from the design doc's own wording.** Both are naming, not behaviour, and both are recorded here because §0 says the design doc wins unless a divergence is declared. (1) Design v0.8 §6 gives `/stats` a field called `oldest_unverified_age`; P0.4 implements `oldest_entry_age_seconds`, because the relay tracks no verification state and a name implying it would mislead every future reader. (2) Design v0.8 §11 calls gate zero part of the app's hour zero; here it is `npm run gate0`, a script outside the CLI, because it must run before the CLI exists. Overrule either and the only cost is a rename.
 
 **D-3 — Gate zero has not been run.** Design v0.8 §11 blocks build day on it. P0.5 is the runner; running it needs live credentials. If it fails, the sole-store decision `[E9]` reopens and this DAG changes shape — so P0.5 is sequenced as early as M1 allows, and G5 will not pass without a recorded gate-zero result.
@@ -273,8 +279,8 @@ Format: **Owns** (files you may touch) · **Depends** · **Build** · **Acceptan
 **K4 — Ask scoring**
 - **Owns:** `src/kernel/score.ts`, `src/kernel/constants.ts` + test
 - **Depends:** P0.2, K6
-- **Build:** plan v1.0 §3.4 verbatim, including the polarity table and the `0.40/0.25/0.20/0.15` weights. **Depends on K6 because `pool(p)` sums over cohorts matched to the Usual** — call `Cohorts.matched`, don't re-derive cohorts here. Pure: `(reads, usual, log, corpus, context) → Array<{place, score, parts}>`, stable sort with a documented tie-break (place slug ascending) so runs are reproducible. Hard-constraint filtering (gi, allergy, budget > band+1) happens here.
-  `constants.ts` holds every tunable, including `KFLOOR = 5` and `COUNTING_K = 200` (see M2).
+- **Build:** plan v1.0 §3.4 verbatim, including the polarity table and the `0.40/0.25/0.20/0.15` weights. **Depends on K6 because `pool(p)` sums over cohorts matched to the Usual** — call `matched`, don't re-derive cohorts here. Note that `CohortStat` is a summary and carries no per-read signal, so compute `pool(p)` from the raw reads filtered by the drivers `matched` returns. Pure: `(reads, usual, log, corpus, context) → Array<{place, score, parts}>`, stable sort with a documented tie-break (place slug ascending) so runs are reproducible. Hard-constraint filtering (gi, allergy, budget > band+1) happens here.
+  `constants.ts` holds the scoring tunables, including `COUNTING_K = 200` (see M2). **`KFLOOR` is not one of them** — K6 exports it from `src/kernel/cohorts.ts`, because it is a privacy invariant from design v0.8 §7 rather than a knob, and it belongs with the code that enforces it. Import it; do not declare a second copy.
 - **Acceptance:** a fixture case asserts an exact score to 4 decimals; reordering the input corpus does not change output order; a place violating an allergy constraint never appears; `parts` sums to `score` within floating-point tolerance.
 
 **K5 — Copy linter**
@@ -287,6 +293,7 @@ Format: **Owns** (files you may touch) · **Depends** · **Build** · **Acceptan
 - **Owns:** `src/kernel/cohorts.ts` + test
 - **Depends:** P0.2
 - **Build:** `census(reads) → CohortStat[]` and `matched(usual, reads, kFloor = KFLOOR)`. **Dedup on `read_id` before counting** (`[E20]`) — the same read arrives from both the pool and the relay. Two distinct reads with identical other fields are two cohort members and must **not** be merged. A cohort below `kFloor` is never returned as citable; it is returned as a `cohortMiss` candidate instead.
+  Also exports, beyond the frozen `Cohorts` interface: **`missed(usual, reads, kFloor)`** for the cohort-miss candidates — the interface has no room for them and folding them into `matched` would make citing a miss a one-field mistake — plus **`KFLOOR`** (see K4) and **`UNMATCHABLE_DRIVERS`** (see §4 D-5). The `Cohorts` stub in `src/contracts/stubs/` implements only the two frozen methods, so a task mock-starting against the stub does not get `missed`: import `src/kernel/cohorts.js` directly for it.
 - **Acceptance:** the case that motivated `[E20]` — four reads plus one duplicate of one of them must **not** satisfy k≥5; five reads with identical `place`/`signal`/`driver` but distinct `read_id`s **must**.
 
 ### Lane M — memory and transport
