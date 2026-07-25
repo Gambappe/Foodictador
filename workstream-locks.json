@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T08:59:41.512Z",
+  "updated_at": "2026-07-25T08:59:43.136Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -496,12 +496,12 @@
       ],
       "mock_start_ok": false,
       "note": "This is the task the old plan called D1. Nothing else creates profiles, so S2, X3, X7 and G4 all sit downstream. B is the near-tie account, so B's profile and S2's seed are tuned together.",
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "fable-session-0dd9z8",
+      "branch": "feat/s4-demo-profiles",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T07:37:34.268Z"
+      "claimed_at": "2026-07-25T08:59:43.136Z",
+      "updated_at": "2026-07-25T08:59:43.136Z"
     },
     "S2": {
       "title": "Seed generator: 220 reads, every demo driver k in [5,9] across distinct places, near-tie tuned against profile B, deterministic from a fixed PRNG seed; emits reads.json, manifest.json and induction-set.json",
