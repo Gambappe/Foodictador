@@ -71,5 +71,7 @@ export const CHIP_LABELS = {
 export const MEMORY_RECEIPT = {
   sent: 'written',
   held: 'held on this device until a few of yours can be sent together',
+  /** Safe, but this screen's own action did not send it — see SL-49. */
+  handedOff: 'written, alongside another confession being sent at the same time',
   failed: 'not written',
 } as const;

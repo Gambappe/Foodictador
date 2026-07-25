@@ -283,3 +283,33 @@ export interface NudgeState {
   armed: boolean;
   lastFiredDay: string | null; // local-timezone day key (N1)
 }
+
+/**
+ * What happened to a confession's prose — ONE value, not three fields (SL-61).
+ *
+ * This replaces `wrote.prose: boolean` + `proseBuffered: number` + `proseHandedOff: boolean`:
+ * three parallel fields describing one outcome with four states, which every renderer had to
+ * recombine correctly and three of them did not.
+ *
+ *   SL-42  the UI printed `written` from `wrote.prose` alone — true for buffered prose too
+ *   SL-49  `buffered: 0` was read as "this call sent it", also true when another process did
+ *   SL-56  `--json` carried neither extra field, so a machine caller could not tell at all
+ *
+ * None of those were careless. Each renderer was correct about the fields it looked at and
+ * wrong about the one it did not, which is what a state space split across parallel fields
+ * produces — the invalid combinations are representable, so eventually one gets rendered.
+ *
+ * As a discriminated union there are no invalid combinations to render, and a `switch` with an
+ * `assertNever` default makes ADDING a state a compile error at every surface rather than a
+ * silently unhandled case. That is the property worth having: the next state cannot be
+ * introduced quietly.
+ */
+export type ProseOutcome =
+  /** In XTrace, sent by THIS call. The only state that may say "sent". */
+  | { state: 'sent' }
+  /** On local disk, waiting for a batch. `waiting` includes this one. */
+  | { state: 'held'; waiting: number }
+  /** A concurrent `confess` took the batch this confession is in — safe, but not sent by us. */
+  | { state: 'handed_off' }
+  /** Not recorded. `detail` is the reason, and it is never empty. */
+  | { state: 'failed'; detail: string };

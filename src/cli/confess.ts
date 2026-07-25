@@ -18,6 +18,8 @@
  *     labelled `strength` in prose and stays `weight` in the JSON payload.
  */
 
+import { assertNever } from '../contracts/assertNever.js';
+import type { ProseOutcome } from '../contracts/types.js';
 import { createInterface } from 'node:readline/promises';
 import type { Extractor } from '../contracts/modules.js';
 import type { Read } from '../contracts/types.js';
@@ -86,11 +88,17 @@ export function chipLines(chips: Chips): string[] {
   ];
 }
 
+/**
+ * The three targets that really are binary — a relay write either happened or it did not.
+ *
+ * `prose` is deliberately absent: it has four states and lives in `ProseOutcome` (SL-61).
+ * Keeping a `prose: boolean` here would let a careless caller ask the old question and get
+ * the old wrong answer.
+ */
 interface WroteFlags {
   relay: boolean;
   pool: boolean;
   job: boolean;
-  prose: boolean;
 }
 
 /**
@@ -103,24 +111,37 @@ interface WroteFlags {
  * and D-10 accepts the loss anyway, but a receipt that overstates what happened is the same
  * defect as `forget` printing "Deleted from Confit" over two skipped targets.
  */
-function targetLines(wrote: WroteFlags, proseBuffered: number, handedOff: boolean): string[] {
+function targetLines(wrote: WroteFlags, prose: ProseOutcome): string[] {
   const mark = (ok: boolean): string => (ok ? 'ok' : 'FAILED');
-  const memory = !wrote.prose
-    ? 'FAILED (your words were not recorded)'
-    : handedOff
-      ? // Another `confess` running at the same time took this confession in its batch. Not
-        // lost, but THIS process sent nothing, and `ok (sent)` here was measured printing 9
-        // times in 60 from a process that had sent nothing at all (SL-49).
-        'ok     (your words went with a batch another confession was sending)'
-      : proseBuffered === 0
-        ? 'ok     (your words, sent to your tier only)'
-        : `held   (with ${proseBuffered} of yours — sent together, or on the next sweep)`;
   return [
     `  relay          ${mark(wrote.relay)}   (makes it visible on other devices now)`,
     `  pool           ${mark(wrote.pool)}   (settles over the next few minutes)`,
     `  ingest handle  ${mark(wrote.job)}   (best-effort; the sweeper falls back without it)`,
-    `  your memory    ${memory}`,
+    `  your memory    ${memoryLine(prose)}`,
   ];
+}
+
+/**
+ * The `your memory` line — one exhaustive switch over one value (SL-61).
+ *
+ * It used to combine three parallel fields, and every defect in this line came from combining
+ * them wrongly: `written` for buffered prose (SL-42), `sent` from a process that sent nothing
+ * (SL-49). With a union there is no combination to get wrong, and the `assertNever` default
+ * means a fifth state cannot be added without this switch failing to compile.
+ */
+function memoryLine(prose: ProseOutcome): string {
+  switch (prose.state) {
+    case 'sent':
+      return 'ok     (your words, sent to your tier only)';
+    case 'held':
+      return `held   (with ${String(prose.waiting)} of yours — sent together, or on the next sweep)`;
+    case 'handed_off':
+      return 'ok     (your words went with a batch another confession was sending)';
+    case 'failed':
+      return 'FAILED (your words were not recorded)';
+    default:
+      return assertNever(prose, 'confess: your-memory receipt');
+  }
 }
 
 export async function confess(deps: ConfessDeps, input: ConfessInput): Promise<CommandResult> {
@@ -189,7 +210,7 @@ export async function confess(deps: ConfessDeps, input: ConfessInput): Promise<C
       ...preview,
       '',
       `Added to the pot as ${result.read_id}.`,
-      ...targetLines(result.wrote, result.proseBuffered, result.proseHandedOff),
+      ...targetLines(result.wrote, result.prose),
       ...result.warnings.map((warning) => `  ! ${warning}`),
       ...(pooled ? [] : ['', 'This read is NOT pooled — the relay write failed.']),
     ],
@@ -202,8 +223,9 @@ export async function confess(deps: ConfessDeps, input: ConfessInput): Promise<C
       // `--json` is the machine surface, and it omitted the field that says whether the
       // confession actually reached XTrace — so a caller reading the payload could not tell
       // sent from held, while the human receipt could (SL-56).
-      prose_buffered: result.proseBuffered,
-      prose_handed_off: result.proseHandedOff,
+      // The machine surface carries the SAME value the prose line is rendered from, so a
+      // caller cannot reach a different conclusion from the same run (SL-56, SL-61).
+      prose: result.prose,
       warnings: result.warnings,
       pooled,
     },
