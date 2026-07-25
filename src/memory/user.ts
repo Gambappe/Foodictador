@@ -228,6 +228,36 @@ export function createUserStore(deps: UserStoreDeps): UserStoreHandle {
      * Episodes only. A bare fact is one sentence the extractor lifted from one confession;
      * an episode is the synthesis across several, which is the thing worth putting on a card.
      */
+    /**
+     * The diner's own remembered sentences — facts first, then episodes (D-14).
+     *
+     * Distinct from `personalClaim`, which returns ONE episode for the card. Affinity needs
+     * what was actually said, and an episode is a summary that can lose it: measured, a
+     * profile whose four confessions were all about one cuisine had an episode reading "a
+     * candid admission of a recurring pattern" — true, and naming no cuisine at all, so
+     * scoring on it discarded the preference the diner had stated four times.
+     *
+     * Facts lead because they are the closest thing to the diner's words that survives
+     * extraction. The episode is appended rather than dropped: it carries the cross-record
+     * pattern no single fact states.
+     */
+    async personalRecall(profile: string, query: string): Promise<string[]> {
+      const result = await searchForEpisodes(
+        { ...deps, label: `user ${profile} recall` },
+        personalScope(profile),
+        query,
+      );
+      const texts = [
+        ...result.factRows.map((row) => row.content),
+        ...result.episodes.map((row) => row.content),
+      ].filter((t) => t.trim() !== '');
+      deps.logger.line(
+        `user: recalled ${String(texts.length)} remembered sentence(s) for ${profile} ` +
+          `(${String(result.factRows.length)} fact(s), ${String(result.episodes.length)} episode(s))`,
+      );
+      return texts;
+    },
+
     async personalClaim(profile: string, query: string): Promise<string> {
       const result = await searchForEpisodes(
         { ...deps, label: `user ${profile}` },

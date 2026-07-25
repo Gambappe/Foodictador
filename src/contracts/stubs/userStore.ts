@@ -10,6 +10,14 @@ export class StubUserStore implements UserStore {
     return Promise.resolve(this.personalClaimText);
   }
 
+  /** The remembered sentences, not a synthesis (D-14). Deterministic, like the claim above. */
+  personalRecall(_profile: string, _query: string): Promise<string[]> {
+    return Promise.resolve([
+      'The diner orders the mild option and calls it a preference.',
+      'The diner returns to the taqueria despite the hygiene notice.',
+    ]);
+  }
+
   private readonly usuals = new Map<string, UsualProfile>();
   private readonly logs = new Map<string, MealLogEntry[]>();
   private readonly prose = new Map<string, string[]>();

@@ -138,7 +138,10 @@ export interface AskDeps {
    * what the no-key demo runs and what this product did before affinity existed.
    */
   scorer?: Scorer;
-  /** The diner's own words, for affinity. Absent or empty means no affinity is requested. */
+  /**
+   * The diner's remembered sentences, for affinity — facts and episodes from their own scope.
+   * Absent or empty means no affinity is requested, which is the no-key path.
+   */
   confessions?: () => Promise<readonly string[]>;
 }
 
@@ -248,12 +251,12 @@ export async function runAsk(deps: AskDeps): Promise<CommandResult> {
       : await deps.scorer.affinity({
           candidates: kernelRanked.map((entry) => entry.place),
           usual,
-          // The personal claim IS what the diner has told us, already fetched for the card.
-          // Using it costs no second call and makes the card's personal line the explanation
-          // for the ranking rather than a sentence sitting beside it.
-          confessions: claims.personal === undefined || claims.personal.trim() === ''
-            ? await confessionsFor(deps)
-            : [claims.personal],
+          // The RECALLED sentences, not the claim (D-14). Scoring on the claim was measured
+          // discarding what the diner said: a profile whose four confessions were all about
+          // one cuisine had an episode reading "a candid admission of a recurring pattern" —
+          // true, naming no cuisine, so the preference never reached the scorer. Facts are the
+          // closest thing to their words that survives extraction.
+          confessions: await confessionsFor(deps),
         });
   const ranked = applyAffinity(kernelRanked, affinity);
   const pick = ranked[0];
@@ -354,5 +357,7 @@ export const askHandler: CommandHandler = async (context: CommandContext) => {
     // Affinity over the kernel's survivors (D-14). Under `scoring: kernel` — which is what
     // no ANTHROPIC_API_KEY produces — this returns `{}` and the ranking is the kernel's.
     scorer: graph.scorer,
+    // Facts and episodes, not the single synthesised claim — see the note at the call site.
+    confessions: () => graph.user.personalRecall(profile, PERSONAL_QUERY),
   });
 };
