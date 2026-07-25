@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Confit</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <!--
+      The entry is app.tsx itself: U1 owns app.tsx, routes.tsx and tokens.css, and a
+      separate main.tsx would be a file no task's Owns list names. app.tsx mounts only
+      when #root exists, so importing it from a test renders nothing on its own.
+    -->
+    <script type="module" src="/src/ui/app.tsx"></script>
+  </body>
+</html>

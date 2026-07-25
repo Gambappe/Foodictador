@@ -1,0 +1,21 @@
+/**
+ * Design tokens for the UI shell (U1).
+ *
+ * Channel triples rather than hex, so Tailwind's `<alpha-value>` works against every
+ * token and a screen can dim a colour without inventing a second one.
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --confit-ground: 250 249 246; /* warm off-white; the card sits on this */
+  --confit-ink: 26 24 22;
+  --confit-muted: 120 113 108;
+  --confit-pot: 22 101 82; /* what the pool writes into */
+  --confit-refusal: 140 46 38; /* the blocked-topic state, never a success colour */
+}
+
+body {
+  @apply bg-ground text-ink font-sans antialiased;
+}
