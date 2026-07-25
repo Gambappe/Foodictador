@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T09:35:59.389Z",
+  "updated_at": "2026-07-25T09:36:10.199Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -206,13 +206,13 @@
         "M1"
       ],
       "mock_start_ok": false,
-      "note": "HARDENED post-merge (PR #22 review -> fix #37): settings records now carry monotonic written_at, reads select newest (duplicates from the settle window are benign); topK 50. TWO QUESTIONS FOR THE INTEGRATOR: (1) null-usual semantics on the write path — 'profile not found' vs 'no off-limits topics' are currently the same value to callers; recommend X2 refuse confess on null (exit 3, provision first) rather than defaulting to writable. (2) Whether a bounded similarity query reliably retrieves a known-key record in a prose-heavy scope — substrate question for gate zero / D-2, belongs in src/memory/README.md (M1's file).",
+      "note": "HARDENED twice post-merge: #37 (written_at newest-wins, PR #22 review) and #46 (SL-04: parseUsualProfile/parseMealLogEntry replace the typeof predicate and bare cast — domain-checked clean objects, malformed records/entries skipped with a log line, garbage cannot shadow older valid records). OPEN FOR INTEGRATOR: (1) null-usual semantics on the write path (recommend X2 refuses confess on null, exit 3); (2) known-key retrieval reliability of bounded similarity search — gate-zero/D-2 item for src/memory/README.md.",
       "status": "done",
       "owner": "claude-session-12uj0q",
       "branch": "claude/app-design-task-impl-12uj0q",
       "pr": "https://github.com/Gambappe/Foodictador/pull/22",
       "claimed_at": "2026-07-25T08:43:41.460Z",
-      "updated_at": "2026-07-25T09:11:34.125Z"
+      "updated_at": "2026-07-25T09:36:10.199Z"
     },
     "M4": {
       "title": "Relay client: typed routes incl. setJob, parseRead before sending, bounded backoff on 5xx and network only",
