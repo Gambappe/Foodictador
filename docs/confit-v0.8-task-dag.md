@@ -139,6 +139,23 @@ K6 ships the honest version — the five mappable drivers, with the other six ex
 
 The same missing field breaks a second thing, found while implementing K4: plan v1.0 §3.4's hard-constraint list is `gi, allergy, budget > band+1`, and the **allergy** constraint is equally unimplementable. K4 filters on gi and budget and says so; K4's acceptance no longer claims otherwise. One contract change fixes both.
 
+**D-7 — The relay is the durable pool. `[E9]`'s sole store is retired by evidence.** Decided by the product owner after gate zero's first contact with the live substrate (see `docs/gate0-results.md`).
+
+XTrace does not store payloads, it extracts them. A read ingested as JSON came back as five prose sentences — *"User's place is rosas_taqueria."* — and no query returns the object that went in, because the object never existed in the store. `PoolStore.writeRead`/`readsForDriver` were therefore not merely lossy but impossible, and everything consuming `Read[]` from the pool was built on that impossibility.
+
+**The relay becomes the authoritative store for reads.** It already holds exact six-field objects, keyed by `read_id`. XTrace keeps the role §8 measures it as genuinely strong at — induction across many reads — and reads are ingested there as prose *for that purpose only*, never to be read back as structure.
+
+Consequences, all of which are code changes rather than opinions:
+
+- **The sweeper must never drop an entry.** `[E21]`'s verified-drop existed because the relay was a buffer covering the settle window; against a durable relay the same code is data loss. M7 becomes an **induction backfill**: ensure each read reached XTrace for induction, retry those that did not, and delete nothing. `oldest_entry_age_seconds` stops meaning "stuck" and starts meaning "oldest read", which is not an alarm.
+- **`SETTLE_WINDOW_SECONDS` stops gating correctness.** A read is durable the moment the relay accepts it, so nothing waits on XTrace to settle. The measured 13 seconds (versus §14's 5–8 minutes) stops being load-bearing either way.
+- **`PoolView` stops being a union.** The relay is canonical; there is nothing to union it against and nothing to dedup. K6's `read_id` dedup stays as a cheap invariant, not as the thing standing between the floor and a miscount.
+- **The relay needs real durability.** P0.4 built it as an in-memory `Map`, correct for a settle-window buffer and not for a store of record. It needs persistence, atomic writes, and a restart that loses nothing — registered as **P0.8**, with the read-path changes as **M9**.
+- **`[E12]`'s correctness risk is downgraded.** XTrace's measured 11/16 retention costs *induction quality*, not data. That was the single largest risk in design v0.8 §12 and it stops being one.
+- **`[E26]`'s side-channel gets worse and needs re-reading.** The relay now holds every read for ever rather than for minutes, so arrival ordering is no longer a minutes-long exposure. Coarse timestamps move from the `[prod]` list to required.
+
+**Design v0.8 is superseded on this point.** `[E9]` (single substrate), `[E14]` (relay as transport, not memory), `[E21]` (verified-drop) and `[E12]` (durability as a correctness risk) all describe an architecture this decision replaces. A v0.9 revision should absorb it; until then this entry is authoritative and the design doc's §6 is not.
+
 **D-6 — `AskEngine` is declared, stubbed, and implemented by nobody.** Found while implementing K4. `src/contracts/modules.ts` declares `AskEngine.ask(input) → Card`, P0.2 ships a fixture stub for it, and no task in lane K builds it: K1 is the read validator, K2 off-limits, K3 rotation, K4 scoring, K5 the linter, K6 cohorts. Meanwhile X3's spec has the CLI doing exactly that job — "assemble the card — candidates from the corpus, reads from `PoolView`, cohort counts from K6, suppressions from K3, scores from K4, copy from L3."
 
 That directly contradicts §1's "no behaviour may live in a front end", and it would leave the UI lane (U3) with a choice between importing from `src/cli/**` and reimplementing the assembly. It also splits ownership of the card's shape across two lanes, which is how the two front ends drift apart.
