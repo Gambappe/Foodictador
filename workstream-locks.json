@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T12:23:07.775Z",
+  "updated_at": "2026-07-25T12:23:31.067Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -1008,13 +1008,13 @@
         "P0.8"
       ],
       "mock_start_ok": false,
-      "note": "Under D-8 XTrace is the confession's home, which makes ~11/16 non-deterministic retention a ~30% silent loss of the user's own memory — and X2's consent copy tells them their words went to their private Confit memory. Undetectable today: verifyPendingProse clears an item when jobStatus === 'complete' (src/memory/user.ts:258), but 'complete' means the extraction JOB finished, not that the memory is retrievable, which is precisely the case retention drops. Guide R5 prescribes polling until retrievable and re-ingesting; that is IMPOSSIBLE in a CLI today because  is an in-process array that dies with the process (M3's docblock) and confess exits immediately. Build a durable spool (the relay is atomic since P0.8) that holds the raw text until a SEARCH confirms it, then deletes it — a spool, NOT a second permanent copy, so the confession's home stays XTrace as D-8 requires. Guide R5 flags re-ingest-recovers-a-dropped-record as UNTESTED: measure it before depending on it.",
+      "note": "Under D-8 XTrace is the confession's home, which makes ~11/16 non-deterministic retention a ~30% silent loss of the user's own memory — and X2's consent copy tells them their words went to their private Confit memory. UNDETECTABLE today: verifyPendingProse clears an item when jobStatus === complete (src/memory/user.ts:258), but complete means the extraction JOB finished, not that the memory is retrievable, which is precisely the case retention drops. Guide R5 prescribes polling until retrievable and re-ingesting; that is IMPOSSIBLE in a CLI today because the pending queue is an in-process array that dies with the process (M3's own docblock) and confess exits immediately. Build a durable spool — the relay is atomic since P0.8 — holding the raw text until a SEARCH confirms XTrace has it, then delete it. A spool, NOT a second permanent copy, so the confession's home stays XTrace as D-8 requires. Guide R5 flags whether re-ingest recovers a dropped record as UNTESTED: measure it before depending on it.",
       "status": "available",
       "owner": null,
       "branch": null,
       "pr": null,
       "claimed_at": null,
-      "updated_at": "2026-07-25T12:23:06.122Z"
+      "updated_at": "2026-07-25T12:23:31.067Z"
     }
   }
 }
