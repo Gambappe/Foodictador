@@ -48,9 +48,18 @@ each confession arrived.
 
 ---
 
-## Deploying the relay (Tailscale)
+## Deploying the relay
 
-On the cloud box, once — needs Docker and nothing else.
+**On fly.io — the chosen path — follow `docs/deploy-flyio.md`.** It is a step-by-step list
+an agent can execute top to bottom. fly's private network replaces the Tailscale sidecar
+entirely: the app gets no public IP and laptops reach it with `fly proxy`, which is the
+same security property with far less setup and no second account.
+
+The Tailscale + Docker Compose path below remains valid for a generic cloud box.
+
+### Generic cloud box (Tailscale + Docker Compose)
+
+Needs Docker and nothing else.
 
 **1. Make a Tailscale auth key** in the admin console (Settings → Keys). Tick *Ephemeral*
 off (you want the node to survive a restart) and *Reusable* on if you may redeploy. If you
@@ -137,11 +146,40 @@ XTRACE_API_KEY=<key>
 SETTLE_WINDOW_SECONDS=480
 ```
 
-**Operator laptop only, additionally**
+**Scripted demo (the configured mode): do NOT set `ANTHROPIC_API_KEY` anywhere**
 
 ```bash
-ANTHROPIC_API_KEY=<key>
+CONFIT_SCRIPTED=1
 ```
+
+The demo runs on the seeded profiles, so template copy and seeded chips are the *intent*,
+not a degradation — deterministic output is worth more here than model copy, and the spend
+is exactly zero. `CONFIT_SCRIPTED=1` tells pre-flight that, so an absent key reads as a
+pass rather than a warning.
+
+**Leave the key unset rather than setting flags.** The CLI goes live *by default*; the
+flags are what you'd have to remember to set, on all three laptops, every session. A flag
+can be forgotten. An absent key cannot spend. Pre-flight warns if `CONFIT_SCRIPTED=1` and
+a key is present together, for exactly that reason.
+
+The template card is genuinely good — this is L1 output, with no model involved:
+
+> ▸ Mabel's Diner
+> Mabel's Diner — people with your real spice tolerance keep steering the same way. 7 of
+> them now.
+
+<details>
+<summary>If you later want live model copy (live audience confessions)</summary>
+
+Set `ANTHROPIC_API_KEY` on the operator laptop and drop `CONFIT_SCRIPTED`. Pre-flight then
+makes a one-token call to prove the key actually works — a key that authenticates but has
+no credit balance returns HTTP 400 at call time, and the narrator would burn a doomed
+round-trip per card before flipping to template after three failures.
+
+You need this only if people are confessing live: seeded extraction keyword-matches a
+small canned set and falls back to its *first* entry, so an unmatched confession produces
+chips that do not reflect what the person actually said.
+</details>
 
 Models are pinned in code: `claude-haiku-4-5` for chip extraction, `claude-sonnet-5` for
 card copy. Budget one Haiku call per confession and one Sonnet call per `ask`.

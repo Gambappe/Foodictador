@@ -70,6 +70,11 @@ if (Test-Path $envFile) {
     '$env:XTRACE_API_KEY = ""'
     ''
     '$env:SETTLE_WINDOW_SECONDS = "480"'
+    ''
+    '# Scripted demo: template copy and seeded chips are the INTENT, so ANTHROPIC_API_KEY'
+    '# is deliberately absent. The CLI goes live by DEFAULT -- a flag can be forgotten, an'
+    '# absent key cannot spend. Pre-flight reads this and passes rather than warning.'
+    '$env:CONFIT_SCRIPTED = "1"'
   )
   if ($Operator) {
     $lines += @(
