@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T11:51:40.366Z",
+  "updated_at": "2026-07-25T11:51:42.015Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -953,6 +953,21 @@
       "pr": null,
       "claimed_at": null,
       "updated_at": "2026-07-25T11:46:52.304Z"
+    },
+    "M14": {
+      "title": "Pool ingests as prose, not JSON (guide R4) — ships WITH M12's conv_id batching; neither half works alone",
+      "phase": "M",
+      "depends_on": [
+        "M2"
+      ],
+      "mock_start_ok": false,
+      "note": "Dependency is M2, not M12: these two land in ONE change because an episode needs both several messages in a conversation AND prose worth summarising. R4: 'Structured notation extracted 0 facts from 8 complete records. Render structured data to sentences first.' src/memory/pool.ts sends JSON.stringify(read). Before D-7 that had to stay verbatim because readsForDriver parsed it back; D-7 deleted that path, so the payload is free and nothing depends on its shape. Fact count is NOT the argument (measured 19 from JSON vs 9 from prose) — quality is: the JSON-derived induced claim contained 'noodle_shrine' verbatim (L4), the prose one said \"Rosa's Taqueria\".",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T11:51:42.015Z"
     }
   }
 }
