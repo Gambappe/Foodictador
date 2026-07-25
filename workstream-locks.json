@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T09:36:10.199Z",
+  "updated_at": "2026-07-25T09:36:21.729Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -758,12 +758,12 @@
       ],
       "mock_start_ok": false,
       "note": "Registered after the initial seed, found while implementing X2. Every X command takes its adapters injected — right for testing, and it left nobody responsible for production assembly. fixtureGraph() is what lets gate:cli run the whole flow with no network and no API key. X2-X7 and G5 all need this; it is not in their depends_on because it was registered later, so treat it as a prerequisite for wiring any command into X1's registry.",
-      "status": "claimed",
+      "status": "in_review",
       "owner": "claude-session-014n6NYRN6Rb",
       "branch": "claude/upload-code-artifact-zop9uz",
       "pr": null,
       "claimed_at": "2026-07-25T09:28:45.271Z",
-      "updated_at": "2026-07-25T09:28:45.271Z"
+      "updated_at": "2026-07-25T09:36:21.729Z"
     }
   }
 }
