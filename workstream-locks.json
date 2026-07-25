@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T13:55:23.101Z",
+  "updated_at": "2026-07-25T14:03:38.563Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -1171,13 +1171,13 @@
         "M17"
       ],
       "mock_start_ok": false,
-      "note": "THE WORK, per D-10. Buffer confession prose locally and ingest it as ONE grouped POST so the personal synthesis spans several confessions instead of paraphrasing one. MEASURED TWICE: (1) profile A after 7 confessions had 18 rows, 8 episodes, 8 DISTINCT conv_ids, every episode in single-conversation register, because writeProse calls client.ingest which mints a fresh conv_id per call; (2) the obvious fix fails — 4 SEPARATE POSTs sharing ONE conv_id gave per-POST paraphrases with 1 distinct conv_id coming back, so episodes are generated per INGEST CALL, not per accumulated conversation. R4 batch-by-session-or-day means one POST with several messages, which is what M12 did for the pool. LOCAL buffer, not the relay: no cross-device requirement (only ever flushed by a process on the machine that wrote it), and the relay single shared token must not hold raw confessions. Losing the buffer is acceptable (D-10), so NO atomic writes, NO retrievability verification, NO stuck-item escalation. Flush policy decided in-task: size threshold plus the existing sweep command, which already owns deferred substrate work. MUST ALSO FIX: confess prints 'your memory ok (your words, your tier only)' — untrue for a buffered confession at the moment it is printed. Deferral is not loss, but the receipt has to say which.",
-      "status": "claimed",
+      "note": "Built and pushed. Batching verified live: 4 confessions produced 1 conv_id and 1 episode synthesising all four (was 8 confessions, 8 episodes, 8 conv_ids). Buffer is local, plain writeFileSync, clears before the caller ingests -- the loss D-10 sanctions. Dead verifyPendingProse/dropUnconfirmedProse deleted (no production caller, and they cleared on job completion rather than memory survival). confess receipt now distinguishes held from sent. offLimits guard hardened: batching had made its zero-row assertion tautological. Gate green except gate zero, which is blocked by design on G7.",
+      "status": "in_review",
       "owner": "claude-session-014n6NYRN6Rb",
       "branch": "claude/upload-code-artifact-zop9uz",
-      "pr": null,
+      "pr": "65",
       "claimed_at": "2026-07-25T13:43:04.090Z",
-      "updated_at": "2026-07-25T13:43:04.090Z"
+      "updated_at": "2026-07-25T14:03:38.563Z"
     },
     "L5": {
       "title": "The card is now too long: with all three D-8 inputs live, the reason line alone is a 17-place paragraph",
