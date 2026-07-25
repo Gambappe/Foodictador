@@ -1,7 +1,7 @@
 # Confit demo runbook
 
 Three laptops, one cloud-hosted relay. This is an operations document — read it before
-demo day, follow it on demo day. It is not executable; `scripts/preflight.sh` is the part
+demo day, follow it on demo day. It is not executable; `npm run preflight` is the part
 that enforces rather than explains.
 
 **The one thing to internalise:** every failure that ruins this demo is silent. A cohort
@@ -45,6 +45,71 @@ each confession arrived.
 > What remains by design: a live poller diffing open snapshots still sees new arrivals as
 > they happen. Design v0.8 §7 accepted and disclosed that for the slice — it needs no
 > timestamp to work, and closing it means closing the open surface entirely.
+
+---
+
+## Deploying the relay (Tailscale)
+
+On the cloud box, once — needs Docker and nothing else.
+
+**1. Make a Tailscale auth key** in the admin console (Settings → Keys). Tick *Ephemeral*
+off (you want the node to survive a restart) and *Reusable* on if you may redeploy. If you
+use the `tag:confit-relay` tag the compose file advertises, create that tag in your ACL
+policy first — `tailscaled` refuses a key whose tag does not exist.
+
+**2. Bring it up.**
+
+```bash
+git clone <repo> && cd infra/relay
+export TS_AUTHKEY=tskey-auth-...
+export RELAY_TOKEN=...          # the same value every laptop uses
+docker compose up -d
+docker compose logs -f relay    # expect: relay: listening on :8787 (durable → …)
+```
+
+**There is no `ports:` stanza in the compose file, and that is the point.** Nothing is
+published to the host, so the relay is on no public interface. It shares the Tailscale
+container's network namespace, which makes it reachable at `confit-relay:8787` from the
+tailnet and from nowhere else. If you ever find yourself adding `ports:` to make something
+work, stop — that undoes the entire security posture.
+
+**3. On each laptop**, join the same tailnet and point at the box:
+
+```bash
+tailscale up
+export RELAY_URL=http://confit-relay:8787   # MagicDNS; or use the tailnet IP
+npm run preflight
+```
+
+If preflight cannot reach the relay it will tell you to check `tailscale status` first —
+on this topology the tunnel is a likelier culprit than the box.
+
+### Why Tailscale rather than a public listener with TLS
+
+The operator token travels as an `x-relay-token` header on *every* request. P0.9 closed
+the ordering side channel on the open read view, but the token is still a shared bearer
+secret, and on conference wifi over plain HTTP it is readable. Tailscale encrypts it end
+to end and is outbound-only, so venue client isolation cannot block the laptops. A public
+box with a TLS proxy would also work; this is fewer moving parts and keeps the relay off
+the internet entirely.
+
+### The volume is the demo
+
+`relay-data` holds the snapshot. Under D-7 a read exists verbatim there and nowhere else —
+XTrace extracts prose rather than storing objects. **Losing that volume loses every
+confession, permanently.** `docker compose down` keeps it; `docker compose down -v`
+destroys it. Back it up if the demo content matters afterwards:
+
+```bash
+docker run --rm -v confit_relay-data:/d -v "$PWD":/b alpine \
+  tar czf /b/relay-backup.tgz -C /d .
+```
+
+The image is two-stage: it compiles from source rather than trusting a `dist/` someone
+built on a laptop, and the runtime layer is node plus ~2.5 MB of `dist/` with **no
+`node_modules` at all** — the compiled relay imports nothing outside node builtins. Tests
+are deleted before the runtime layer, since they are the only thing that would drag
+`vitest` into the image.
 
 ---
 
@@ -123,8 +188,12 @@ means something is wrong.
 ### T−1h — pre-flight, on every laptop
 
 ```bash
-bash scripts/preflight.sh
+npm run preflight
 ```
+
+Node, not bash — two of the three laptops are Windows and Git Bash is not a dependency
+worth adding to a machine whose job is to run one command on stage. Identical output and
+exit code on macOS and Windows.
 
 Must exit 0. It checks node ≥ 20, `dist/`, credentials, relay reachability, that the pool
 is not empty, and then the two invariants:
@@ -181,11 +250,13 @@ on stage.
    A read with no recorded handle — confessed before the ledger existed, or whose ingest
    job never succeeded — is reported `skipped` rather than dressed up as deleted. If
    asked, the accurate answer is "yes, and it tells you when it couldn't."
-2. **The settle window is still an estimate.** `SETTLE_WINDOW_SECONDS=480` was meant to
-   be *measured*. G7's rewritten gate zero records claim 1 (the relay survives a kill
-   losing nothing) as a **PASS**, but the two claims needing live credentials — deletion
-   by handle, and induction yielding a usable claim — are still outstanding, and nothing
-   has measured the real settle time against the live substrate.
+2. **The settle window is still an estimate**, even though gate zero now passes.
+   `docs/gate0-results.md` records **PASS** on all three D-7 claims against the live
+   substrate — the relay survives a kill losing nothing, deletion deletes by handle, and
+   induction yields a claim that grounds in a seeded place name. What it does *not* do is
+   measure the settle time: `SETTLE_WINDOW_SECONDS=480` remains a guess, and it is what
+   the sweeper's re-ingest timing and the seed's "warm no earlier than" both key off. If
+   induction looks cold at T−1h, seeding earlier is the lever, not a smaller number here.
 3. **A live poller still sees arrivals as they happen.** P0.9 closed the reconstruct-any-
    past-day channel, not this one; §7 accepted it for the slice. If your relay is
    reachable by the audience, someone watching it in real time can correlate an arrival

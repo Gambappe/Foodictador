@@ -1,0 +1,68 @@
+# The relay on a cloud box, reachable only over Tailscale (DEPLOY.1).
+#
+#   cd infra/relay
+#   export TS_AUTHKEY=tskey-auth-...      # from the Tailscale admin console
+#   export RELAY_TOKEN=...                # the same value every laptop uses
+#   docker compose up -d
+#
+# **There is no `ports:` stanza anywhere in this file, and that is the point.** Nothing is
+# published to the host, so nothing is on the public internet. The relay shares the
+# Tailscale container's network namespace, so it is reachable at `confit-relay:8787` from
+# any machine on the tailnet and from nowhere else.
+#
+# That matters because the operator token travels as an `x-relay-token` header on every
+# request. P0.9 closed the ordering side channel on the open read view, but the token is
+# still a shared bearer secret — on conference wifi over plain HTTP it would be readable.
+# Tailscale encrypts it end to end, and it is outbound-only, so venue client isolation
+# cannot block the laptops from reaching the box.
+
+name: confit
+
+services:
+  tailscale:
+    image: tailscale/tailscale:stable
+    container_name: confit-tailscale
+    hostname: confit-relay # laptops reach the relay at http://confit-relay:8787 via MagicDNS
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY:?set TS_AUTHKEY — generate one in the Tailscale admin console}
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_USERSPACE: "false"
+      # Tag the node so an ACL can restrict who reaches it. Create the tag first, or
+      # tailscaled refuses the key.
+      TS_EXTRA_ARGS: --advertise-tags=tag:confit-relay
+    volumes:
+      # Persisted so a restart does not burn a fresh node in your tailnet each time.
+      - tailscale-state:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - net_admin
+      - sys_module
+    restart: unless-stopped
+
+  relay:
+    build:
+      # Context is the repo root: the image compiles from source rather than trusting a
+      # dist/ someone built on a laptop.
+      context: ../..
+      dockerfile: infra/relay/Dockerfile
+    container_name: confit-relay
+    # Shares the Tailscale namespace. This is what makes the relay tailnet-only, and it
+    # is why `ports:` must never appear on this service.
+    network_mode: service:tailscale
+    depends_on:
+      tailscale:
+        condition: service_started
+    environment:
+      RELAY_TOKEN: ${RELAY_TOKEN:?set RELAY_TOKEN — the same value every laptop uses}
+      RELAY_DUMP_PATH: /var/lib/confit/relay.json
+      RELAY_PORT: "8787"
+    volumes:
+      # THE store of record (D-7). A read exists verbatim here and nowhere else — XTrace
+      # extracts prose rather than storing objects. Losing this volume loses every
+      # confession, permanently. Back it up if the demo content matters afterwards.
+      - relay-data:/var/lib/confit
+    restart: unless-stopped
+
+volumes:
+  relay-data:
+  tailscale-state:
