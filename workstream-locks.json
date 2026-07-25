@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T11:16:02.750Z",
+  "updated_at": "2026-07-25T11:37:37.338Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -907,6 +907,21 @@
       "pr": "https://github.com/Gambappe/Foodictador/pull/59",
       "claimed_at": "2026-07-25T10:58:24.706Z",
       "updated_at": "2026-07-25T11:16:02.749Z"
+    },
+    "M12": {
+      "title": "Induction cannot synthesise across reads: every pool ingest is its own one-message conversation, so 'episodes' are per-read paraphrases",
+      "phase": "M",
+      "depends_on": [
+        "M2"
+      ],
+      "mock_start_ok": false,
+      "note": "MEASURED, not inferred. src/memory/client.ts:121 sets conv_id: confit-${scope}-${randomUUID()} — a FRESH conversation per ingest. XTrace episodes summarise a conversation; a conversation is one read; so inducedClaim returns a paraphrase of ONE read presented on the card as a pool-level insight. Probed 8 reads through the real API: the induced claim came back 'The session centers on a weekly visit to noodle_shrine that ended in regret...' — one read, not a crowd. Design v0.8 §8's differentiator is cross-record synthesis over many people's confessions, and it has never actually been exercised. Fix is small (group pool ingests under a shared or rotating conv_id) but it is a substrate-behaviour question: measure facts+episodes for grouped vs ungrouped before committing. This is the ONLY remaining XTrace role after D-7 and M11, so it decides whether the integration carries anything.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T11:37:37.336Z"
     }
   }
 }
