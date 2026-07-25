@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T10:13:44.707Z",
+  "updated_at": "2026-07-25T10:26:42.824Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -669,13 +669,13 @@
         "X2"
       ],
       "mock_start_ok": false,
-      "note": null,
-      "status": "claimed",
+      "note": "Confess screen: two beats (prose → five editable/strikeable chips), [E27] consent copy above the button, refusal naming all three destinations per [E24]. L2 and M5 injected as ports; the acceptance drives the REAL writeRead/userStore/poolStore, so 'issues no writes' is counted rows, not an unasserted mock. Striking a chip disables the pot press ([E25]: six fields closed, so a withheld field means no read to pool). Red-verified by 4 mutations, listed in the test docblock. Merged as #54. NOTE FOR INTEGRATOR: routes.tsx still points at the U1 placeholder for /confess — wiring it needs a profile choice and an L2 client, both outside the U lane.",
+      "status": "done",
       "owner": "claude-session-12uj0q",
       "branch": "claude/app-design-task-impl-12uj0q",
       "pr": null,
       "claimed_at": "2026-07-25T10:10:11.173Z",
-      "updated_at": "2026-07-25T10:10:11.173Z"
+      "updated_at": "2026-07-25T10:26:42.823Z"
     },
     "U3": {
       "title": "Ask card: pick, reason line, cohort citation, rotation/usual lines, cohort-miss variant, degraded-pool disclosure, runners-up",
