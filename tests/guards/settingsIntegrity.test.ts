@@ -191,7 +191,10 @@ describe('G6: the off-limits list survives the substrate', () => {
     expect(seen.result).toEqual({ blocked: true });
   });
 
-  it('an unreadable profile fails CLOSED at the caller — never silently writable', async () => {
+  // Named for what it asserts, not for what would be reassuring (SL-35). The previous
+  // title claimed "fails CLOSED … never silently writable" over three assertions whose
+  // content is that the write went through. The refusal is X2's, and it is pinned there.
+  it('an unreadable profile returns null rather than an invented empty profile — and the caller, not the store, is what must refuse', async () => {
     const s = substrate();
     const writer = createUserStore({ client: s.client, logger: createLogger(() => {}), now: tickingClock() });
     s.holdSettle(); // written, durable, and invisible to every reader

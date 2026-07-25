@@ -29,7 +29,7 @@ import { createPoolStore } from '../../memory/pool.js';
 import { createUserStore } from '../../memory/user.js';
 import { writeRead } from '../../memory/writeRead.js';
 import { ConfessScreen } from './ConfessScreen.js';
-import { CONSENT, REFUSAL } from './copy.js';
+import { CHIP_LABELS, CONSENT, REFUSAL } from './copy.js';
 
 afterEach(cleanup);
 
@@ -111,7 +111,12 @@ describe('U2: the two beats', () => {
     await reachChips();
     expect(screen.getByLabelText<HTMLInputElement>('place').value).toBe(CHIPS.place);
     expect(screen.getByLabelText<HTMLSelectElement>('signal').value).toBe(CHIPS.signal);
-    expect(screen.getByLabelText<HTMLInputElement>('weight').value).toBe(String(CHIPS.weight));
+    // Labelled "strength", never "weight" (SL-28): the schema field keeps its name, the
+    // diner never reads a word design v0.8 §9 forbids the product using.
+    expect(screen.getByLabelText<HTMLInputElement>(CHIP_LABELS.weight).value).toBe(
+      String(CHIPS.weight),
+    );
+    expect(CHIP_LABELS.weight).toBe('strength');
 
     await userEvent.selectOptions(screen.getByLabelText('cadence'), 'weekly');
     expect(screen.getByLabelText<HTMLSelectElement>('cadence').value).toBe('weekly');

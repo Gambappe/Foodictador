@@ -178,11 +178,20 @@ function allowedNames(ranked: RankedPlace[]): string[] {
   ]);
 }
 
-/** The first name-shaped run in `line` that matches nothing the model was given. */
+/**
+ * The first name-shaped run in `line` that matches nothing the model was given.
+ *
+ * `name.includes(run)` only — a run may be a fragment of a real candidate ("Rosa's" for
+ * "Rosa's Taqueria"), but a run that merely *contains* one is a different venue. That
+ * second disjunct used to be here and it was a hole (SL-32): the pick's name is always
+ * allowed, so "Rosa's Taqueria Downtown Annex" passed as grounded while naming a place
+ * that does not exist. Extending a real name is precisely how a plausible invention
+ * looks.
+ */
 function offCorpusRun(line: string, allowed: string[]): string | null {
   for (const match of line.matchAll(NAME_RUN)) {
     const run = match[0];
-    if (!allowed.some((name) => name.includes(run) || run.includes(name))) return run;
+    if (!allowed.some((name) => name.includes(run))) return run;
   }
   return null;
 }

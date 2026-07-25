@@ -10,11 +10,19 @@ export const TEST_ROOTS = ['src', 'scripts', 'infra', 'tests'] as const;
 export const NODE_TEST_GLOBS = TEST_ROOTS.map((root) => `${root}/**/*.test.ts`);
 
 /**
- * UI tests are `.tsx` only, so the split is a file extension rather than a path. A
- * `src/ui/**` test that needs the filesystem — U1's node:*-purity check reads source
- * text — stays a `.test.ts` and runs under node, where `node:fs` exists.
+ * UI tests are `.tsx`, so the split is a file extension rather than a path. A `src/ui/**`
+ * test that needs the filesystem — U1's node:*-purity check reads source text — stays a
+ * `.test.ts` and runs under node, where `node:fs` exists.
+ *
+ * Every root, not just `src/ui` (SL-31). The first version was `['src/ui/**\/*.test.tsx']`,
+ * which meant a `.test.tsx` anywhere else — a rendered guard under `tests/guards/`, say —
+ * matched neither project: typechecked, never run, and invisible in the count. That is
+ * `C4` again, where `scripts/**` was missing from the include and four tasks' tests were
+ * silently skipped. `src/index.test.ts` now walks the roots and asserts every test file on
+ * disk is matched by one of these globs, so the next axis of this bug is a red build
+ * rather than a quieter one.
  */
-export const UI_TEST_GLOBS = ['src/ui/**/*.test.tsx'];
+export const UI_TEST_GLOBS = TEST_ROOTS.map((root) => `${root}/**/*.test.tsx`);
 
 export default defineConfig({
   test: {
