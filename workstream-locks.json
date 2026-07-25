@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T18:17:30.801Z",
+  "updated_at": "2026-07-25T18:36:49.358Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -1202,13 +1202,13 @@
         "P0.8"
       ],
       "mock_start_ok": false,
-      "note": "Merged #77: bin/confit.mjs, scripts/preflight.sh, install.sh + install.ps1, docs/demo-runbook.md, eslint block for bin/**/*.mjs. Preflight verified against a live relay in three states (unconfigured/pool-empty/seeded) and re-verified after P0.9's header auth. REMAINING: (1) the env.ts change so relay-only stops requiring XTrace creds it never uses — makes AppConfig's xtrace fields nullable, reaches wiring.ts and the frozen contract stubs, deliberately not rushed; (2) the relay's container/compose + service unit, BLOCKED on the owner choosing Tailscale/WireGuard vs a TLS-terminating proxy. P0.9 landing means that choice is now operational rather than a release blocker, but TLS is still mandatory because the operator token travels as an x-relay-token header on every request.",
+      "note": "Merged #77 and #79. SHIPPED: bin/confit.mjs; npm run preflight (Node, not bash — two of three laptops are Windows); install.sh + install.ps1; docs/demo-runbook.md; infra/relay/Dockerfile + docker-compose.yml with a Tailscale sidecar and NO ports: stanza, so the relay is tailnet-only by construction; .dockerignore; eslint block for bin/**/*.mjs. Runtime layer has no node_modules (2.5MB dist only) — verified by running the relay from a clean copy: healthcheck exits 0, POST accepted, SIGKILL then restart logs 'restored 1 entries'. NOT VERIFIED: the image build itself — this sandbox has the docker CLI but no daemon, so someone must run 'docker compose up -d' once on the real box. REMAINING: the env.ts change so relay-only stops requiring XTrace creds it never uses (makes AppConfig xtrace fields nullable; reaches wiring.ts and the frozen contract stubs). NOTE: gate zero now PASSES all three D-7 claims (#78), but nothing measures the settle window — 480 is still a guess and the runbook says so.",
       "status": "in_review",
       "owner": "claude-session-12uj0q",
       "branch": "claude/app-design-task-impl-12uj0q",
       "pr": null,
       "claimed_at": "2026-07-25T18:04:59.755Z",
-      "updated_at": "2026-07-25T18:17:30.800Z"
+      "updated_at": "2026-07-25T18:36:49.357Z"
     }
   }
 }
