@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T10:33:38.936Z",
+  "updated_at": "2026-07-25T10:39:22.705Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -720,13 +720,13 @@
         "X7"
       ],
       "mock_start_ok": false,
-      "note": "Every action maps to an existing confit pass operation — the panel is a view over the CLI, not a second implementation.",
-      "status": "claimed",
+      "note": "PR #55. Panel is a registry of real CLI command paths + a renderer; actions.test.ts checks each entry against COMMANDS itself (not a copy) and drives every offered flag value through X7's runFlags. The view-not-reimplementation half is caught by a doctored-payload test: a self-inconsistent census (k=2 citable, k=90 below floor) must be repeated verbatim, so recomputing citable from k>=KFLOOR fails. Sweeper status is 'confit sweep --once' — X4 owns oldest_entry_age_seconds and no pass subcommand reports it; calling relay.stats() from the UI would have broken U1's rule instead. Red-verified by 6 mutations. Also realigns src/ui/purity.test.ts with eslint's existing src/ui/**/*.test.ts exemption — they disagreed as soon as a second node-project test existed under src/ui. Declared in the PR since purity.test.ts is outside U5's Owns.",
+      "status": "in_review",
       "owner": "claude-session-12uj0q",
       "branch": "claude/app-design-task-impl-12uj0q",
       "pr": null,
       "claimed_at": "2026-07-25T10:27:11.726Z",
-      "updated_at": "2026-07-25T10:27:11.726Z"
+      "updated_at": "2026-07-25T10:39:22.704Z"
     },
     "K7": {
       "title": "AskEngine: compose K4's ranking, K6's cohorts and K3's suppressions into the card minus copy, plus the NarratorFacts L3 needs",
