@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T08:51:19.970Z",
+  "updated_at": "2026-07-25T08:51:40.211Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -276,12 +276,12 @@
       ],
       "mock_start_ok": false,
       "note": "Two verification paths, both required (D-1): poll ingest_job_id when present, else search the pool for the read_id — setJob is best-effort so the fallback is not optional. The never-drop-unverified test is the point of this task.",
-      "status": "claimed",
+      "status": "done",
       "owner": "fable-session-0dd9z8",
       "branch": "feat/m7-settle-sweeper",
       "pr": null,
       "claimed_at": "2026-07-25T08:49:35.346Z",
-      "updated_at": "2026-07-25T08:49:35.346Z"
+      "updated_at": "2026-07-25T08:51:40.210Z"
     },
     "M8": {
       "title": "Deletion by read_id across pool scope, user scope and relay, with a per-target report",
