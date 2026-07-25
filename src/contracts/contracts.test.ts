@@ -8,6 +8,7 @@ import {
   type Read,
 } from './types.js';
 import { DEFAULT_FLAGS } from './flags.js';
+import { KFLOOR } from '../kernel/cohorts.js';
 import {
   FIXTURE_NOW,
   cannedConfessions,
@@ -18,7 +19,6 @@ import {
   sampleUsual,
 } from './fixtures/index.js';
 import {
-  StubAskEngine,
   StubCohorts,
   StubExtractor,
   StubMemoryClient,
@@ -214,32 +214,38 @@ describe('every stub constructs and answers every method', () => {
     expect(drivers).toEqual(['solo_comfort', 'spice_tolerance_low']); // budget_ceiling k=4 excluded
   });
 
-  it('StubAskEngine: deterministic card with citation, runners-up and scores', () => {
-    const engine = new StubAskEngine();
-    const card = engine.ask({
-      reads: poolBaseline,
-      usual: sampleUsual,
-      log: sampleMealLog,
-      corpus: corpusFixture,
-      flags: DEFAULT_FLAGS,
-      now: FIXTURE_NOW,
+  it('the stub floor IS the privacy floor: StubCohorts default equals KFLOOR (SL-06)', () => {
+    const cohorts = new StubCohorts();
+    const atFloor = poolBaseline.filter((r) => r.driver === 'spice_tolerance_low'); // k=5
+    expect(KFLOOR).toBe(5);
+    expect(cohorts.matched(sampleUsual, atFloor).map((c) => c.driver)).toEqual([
+      'spice_tolerance_low',
+    ]);
+    expect(cohorts.matched(sampleUsual, atFloor.slice(1))).toEqual([]); // k=4 never matched
+  });
+
+  it('StubNarrator never renders a sub-floor citation (SL-06)', async () => {
+    const narrator = new StubNarrator();
+    const ranked = corpusFixture.slice(0, 1).map((place) => ({
+      place,
+      score: 0.6,
+      parts: { pool: 0.3, usual: 0.15, rotation: 0.1, context: 0.05 },
+    }));
+    const subFloor = await narrator.write(ranked, {
+      citation: { driver: 'budget_ceiling', k: 2 },
+      suppressions: [],
+      usualNotes: [],
+      degradedPool: false,
     });
-    expect(card.pick.id).toBe(corpusFixture[0]?.id);
-    expect(card.poolCitation?.k).toBeGreaterThanOrEqual(5);
-    expect(card.runnersUp).toHaveLength(2);
-    expect(Object.keys(card.scores)).toHaveLength(corpusFixture.length);
-    const missCard = engine.ask({
-      reads: [],
-      usual: sampleUsual,
-      log: [],
-      corpus: corpusFixture,
-      flags: DEFAULT_FLAGS,
-      now: FIXTURE_NOW,
-      degradedPool: true,
+    expect(subFloor.reasonLine).not.toMatch(/2 of them/);
+    expect(subFloor.reasonLine).not.toMatch(/budget ceiling/);
+    const atFloor = await narrator.write(ranked, {
+      citation: { driver: 'budget_ceiling', k: KFLOOR },
+      suppressions: [],
+      usualNotes: [],
+      degradedPool: false,
     });
-    expect(missCard.poolCitation).toBeUndefined();
-    expect(missCard.cohortMiss).toBeDefined();
-    expect(missCard.degradedPool).toBe(true);
+    expect(atFloor.reasonLine).toMatch(new RegExp(`${KFLOOR} of them`));
   });
 
   it('StubNudge: never fires, but state transitions are faithful', () => {

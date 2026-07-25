@@ -9,6 +9,7 @@ import {
   CARD_COPY_SCHEMA,
   NARRATOR_MODEL,
   createLiveNarrator,
+  FLIP_AFTER_CONSECUTIVE_FAILURES,
   type ModelRequest,
   type ModelResponse,
 } from './narrator.js';
@@ -224,13 +225,48 @@ describe('L3 live narrator', () => {
     expect(requests).toHaveLength(0);
   });
 
-  it('a transport failure degrades the flag to template with one logged transition', async () => {
-    const { narrator, flags, lines } = harness([new Error('connect ECONNREFUSED')]);
+  it('ONE transport failure templates this card only — the flag stays live (D2)', async () => {
+    // A single 429 is a bad moment, not an unavailable service. The old behaviour
+    // (flip on the first error) silently degraded every later card off one blip.
+    const { narrator, flags, lines } = harness([
+      new Error('connect ECONNREFUSED'),
+      textResponse({ reasonLine: `${pickName()} — back on the next call.` }),
+    ]);
     const copy = await narrator.write(ranked(), facts());
     const template = await new TemplateNarrator().write(ranked(), facts());
     expect(copy).toEqual(template);
-    expect(flags.get().narrator).toBe('template');
-    expect(lines.some((l) => l.includes('flag narrator live→template'))).toBe(true);
+    expect(flags.get().narrator).toBe('live'); // NOT flipped
+    expect(lines.some((l) => l.includes('transport error (1/'))).toBe(true);
+    const next = await narrator.write(ranked(), facts()); // and the next call goes live
+    expect(next.reasonLine).toContain(pickName());
+  });
+
+  it(`${FLIP_AFTER_CONSECUTIVE_FAILURES} consecutive transport failures flip the flag exactly once`, async () => {
+    const { narrator, flags, lines } = harness([
+      new Error('boom 1'),
+      new Error('boom 2'),
+      new Error('boom 3'),
+    ]);
+    await narrator.write(ranked(), facts());
+    await narrator.write(ranked(), facts());
+    expect(flags.get().narrator).toBe('live'); // two in a row: still live
+    await narrator.write(ranked(), facts());
+    expect(flags.get().narrator).toBe('template'); // third flips
+    expect(lines.filter((l) => l.includes('flag narrator live→template'))).toHaveLength(1);
+  });
+
+  it('a success between failures resets the counter (D2)', async () => {
+    const { narrator, flags } = harness([
+      new Error('boom 1'),
+      new Error('boom 2'),
+      textResponse({ reasonLine: `${pickName()} — recovered.` }),
+      new Error('boom 3'),
+    ]);
+    await narrator.write(ranked(), facts());
+    await narrator.write(ranked(), facts());
+    await narrator.write(ranked(), facts()); // success resets the count
+    await narrator.write(ranked(), facts()); // failure is 1-of-3 again
+    expect(flags.get().narrator).toBe('live');
   });
 
   it('sends structured output config and the strict schema on every attempt', async () => {

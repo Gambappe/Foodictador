@@ -15,7 +15,6 @@
 
 import type {
   AskContext,
-  Card,
   CardCopy,
   CohortStat,
   Driver,
@@ -208,9 +207,12 @@ export interface AskInput {
   degradedPool?: boolean;
 }
 
-export interface AskEngine {
-  ask(input: AskInput): Card;
-}
+/*
+ * D-6 resolution (SL-08): there is deliberately NO AskEngine interface any more. A
+ * synchronous `ask() → Card` was unimplementable — `reasonLine` is written by a
+ * narrator — and the living assembly is `runAsk` (src/cli/ask.ts) over the kernel
+ * pieces. `AskInput` remains as the shared input shape.
+ */
 
 // ---- lane N — nudge ----
 

@@ -239,6 +239,11 @@ function violation(copy: CardCopy, ranked: RankedPlace[]): string | null {
   return null;
 }
 
+/** Transport failures in a row before the narrator flag flips (D2 on PR #14):
+ * one 429 is a bad moment, not an unavailable service — a single blip must not
+ * silently degrade every later card. */
+export const FLIP_AFTER_CONSECUTIVE_FAILURES = 3;
+
 export interface LiveNarratorDeps {
   client: ModelClient;
   flags: FlagStore;
@@ -247,6 +252,9 @@ export interface LiveNarratorDeps {
 
 export function createLiveNarrator(deps: LiveNarratorDeps): Narrator {
   const template = new TemplateNarrator();
+  // D2: template THIS call on a transport error; flip the flag only after
+  // FLIP_AFTER_CONSECUTIVE_FAILURES in a row; any success resets the count.
+  let consecutiveFailures = 0;
 
   return {
     async write(ranked: RankedPlace[], facts: NarratorFacts): Promise<CardCopy> {
@@ -269,12 +277,15 @@ export function createLiveNarrator(deps: LiveNarratorDeps): Narrator {
         let response: ModelResponse;
         try {
           response = await deps.client.complete(request);
+          consecutiveFailures = 0;
         } catch (error) {
-          // Ask assembly unavailable — flip the flag (one logged line) and degrade.
-          deps.flags.set('narrator', 'template', 'model-unavailable');
+          consecutiveFailures += 1;
           deps.logger.line(
-            `narrator degraded to template: ${error instanceof Error ? error.message : String(error)}`,
+            `narrator transport error (${consecutiveFailures}/${FLIP_AFTER_CONSECUTIVE_FAILURES}), templating this card: ${error instanceof Error ? error.message : String(error)}`,
           );
+          if (consecutiveFailures >= FLIP_AFTER_CONSECUTIVE_FAILURES) {
+            deps.flags.set('narrator', 'template', 'model-unavailable');
+          }
           return template.write(ranked, facts);
         }
 

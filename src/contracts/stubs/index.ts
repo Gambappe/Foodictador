@@ -9,5 +9,4 @@ export { StubExtractor } from './extractor.js';
 export { StubNarrator } from './narrator.js';
 export { StubRotation } from './rotation.js';
 export { StubCohorts, driversForUsual } from './cohorts.js';
-export { StubAskEngine } from './askEngine.js';
 export { StubNudge } from './nudge.js';
