@@ -25,6 +25,10 @@ function fakes(init: {
   entries: RelayEntry[];
   jobs?: Record<string, IngestJobStatus>;
   failSetJob?: boolean;
+  /** Job ids whose jobStatus call throws — the substrate refusing to answer (SL-58). */
+  jobStatusThrowsFor?: string[];
+  /** Read ids whose backfill ingest throws — the other half of SL-58. */
+  writeReadThrowsFor?: string[];
   /** M10: what a succeeded job's result carries, per job id. */
   jobResults?: Record<string, MemoryRow[]>;
   setPoolMemoriesFails?: boolean;
@@ -78,6 +82,9 @@ function fakes(init: {
 
   const pool: PoolStore = {
     writeRead(read): Promise<JobHandle> {
+      if (init.writeReadThrowsFor?.includes(read.read_id) === true) {
+        return Promise.reject(new Error('xtrace: ingest failed with status 429'));
+      }
       calls.writeRead += 1;
       ingested.push(read);
       jobSeq += 1;
@@ -97,7 +104,12 @@ function fakes(init: {
     ingestBatch: () => Promise.reject(new Error('unused')),
     search: () => Promise.reject(new Error('unused')),
     remove: () => Promise.reject(new Error('unused')),
-    jobStatus: (jobId) => Promise.resolve(jobs[jobId] ?? 'unknown'),
+    jobStatus: (jobId) => {
+      if (init.jobStatusThrowsFor?.includes(jobId) === true) {
+        return Promise.reject(new Error('xtrace: jobStatus failed with status 429'));
+      }
+      return Promise.resolve(jobs[jobId] ?? 'unknown');
+    },
     jobResult: (jobId) => {
       calls.jobResult += 1;
       return Promise.resolve(init.jobResults?.[jobId] ?? []);
@@ -350,5 +362,62 @@ describe('M7 the ingest ledger (M10)', () => {
     expect(report.ledgered).toBe(0);
     expect(f.log.some((l) => /could not record pool handles/.test(l))).toBe(true);
     expect(f.log.some((l) => /forget will report skipped/.test(l))).toBe(true);
+  });
+});
+
+/**
+ * SL-58 — one entry's substrate failure must not end the pass.
+ *
+ * Found by running `confit sweep --once` against a seeded relay: the sweeper polls `jobStatus`
+ * once per settled entry, the burst tripped a `429`, and the error threw straight through the
+ * loop. `internal error`, exit 3, nothing confirmed and no handles recorded — for the 220
+ * healthy entries as much as the rate-limited one.
+ *
+ * A sweep is a best-effort reconciliation. The honest response to "the substrate would not
+ * answer about this one" is to count it unconfirmed, say so, and carry on.
+ *
+ * Red-verified: removing the try/catch around `jobStatus` makes both of these reject.
+ */
+describe('M7 a failing job check does not end the sweep', () => {
+  it('counts the unanswerable entry as pending and still processes the rest', async () => {
+    const f = fakes({
+      entries: [settled('r-bad', 'job-bad'), settled('r-ok', 'job-ok')],
+      jobs: { 'job-ok': 'complete' },
+      jobStatusThrowsFor: ['job-bad'],
+    });
+    const report = await f.sweeper.sweepOnce(NOW);
+    expect(report.pooled).toBe(1); // the healthy entry was still confirmed
+    expect(report.pending).toBe(1); // and the failure is visible, not swallowed
+    expect(f.calls.drop).toEqual([]); // D-7: nothing is ever dropped
+  });
+
+  it('names the entry and the reason, rather than failing silently', async () => {
+    const f = fakes({
+      entries: [settled('r-bad', 'job-bad')],
+      jobStatusThrowsFor: ['job-bad'],
+    });
+    await f.sweeper.sweepOnce(NOW);
+    const line = f.log.find((l) => l.includes('could not check')) ?? '';
+    expect(line).toContain('r-bad');
+    expect(line).toContain('429');
+    expect(line).toMatch(/sweep continues/);
+  });
+});
+
+describe('M7 a failing BACKFILL does not end the sweep either (SL-58)', () => {
+  it('counts the un-ingestable entry as pending and backfills the rest', async () => {
+    // The second half, found by re-running the crashed command after fixing the first: the
+    // status check was guarded, and then `ingest failed with status 429` threw out of the
+    // backfill — after six successful re-ingests, which the thrown pass discarded too.
+    const f = fakes({
+      entries: [settled('r-bad', 'job-bad'), settled('r-ok', 'job-ok')],
+      jobs: { 'job-bad': 'failed', 'job-ok': 'failed' },
+      writeReadThrowsFor: ['r-bad'],
+    });
+    const report = await f.sweeper.sweepOnce(NOW);
+    expect(report.reingested).toBe(1); // the healthy one still went
+    expect(report.pending).toBe(1); // the failure is counted, not swallowed
+    expect(f.calls.drop).toEqual([]);
+    expect(f.log.some((l) => /could not re-ingest r-bad/.test(l))).toBe(true);
   });
 });

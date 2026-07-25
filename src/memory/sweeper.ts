@@ -82,7 +82,26 @@ export function createSweeper(deps: SweeperDeps) {
         if (ageSeconds <= deps.settleWindowSeconds) continue; // still settling — not ours yet
 
         if (entry.ingest_job_id !== undefined) {
-          const verdict = classify(await deps.client.jobStatus(entry.ingest_job_id));
+          // One entry's substrate failure must not end the pass. It did: a single 429 out of
+          // `jobStatus` threw through the loop and the command exited 3 with `internal error`,
+          // so nothing was confirmed and no handles were recorded — for 220 healthy entries as
+          // well as the one that failed. A sweep is a best-effort reconciliation; the honest
+          // response to "the substrate would not answer about this one" is to count it
+          // unconfirmed, say so, and carry on to the rest.
+          let status: IngestJobStatus;
+          try {
+            status = await deps.client.jobStatus(entry.ingest_job_id);
+          } catch (error) {
+            pending += 1;
+            deps.logger.line(
+              `sweeper: could not check ${entry.read.read_id} (job ${entry.ingest_job_id}) — ` +
+                `counted unconfirmed, sweep continues: ${
+                  error instanceof Error ? error.message : String(error)
+                }`,
+            );
+            continue;
+          }
+          const verdict = classify(status);
           if (verdict === 'pooled') {
             pooled += 1;
             // The ingest ledger (M10). This is the FIRST moment the handles exist: they come
@@ -125,7 +144,23 @@ export function createSweeper(deps: SweeperDeps) {
         // Either the ingest failed, or the entry was never annotated at all
         // (setJob is best-effort, D-1). Re-ingest from the entry's own six
         // fields and re-annotate so the next pass polls the fresh job.
-        const handle = await deps.pool.writeRead(entry.read);
+        //
+        // Guarded like the status check above, and for the same reason (SL-58): a backfill is
+        // per-entry work, so one entry's rejection is not a reason to abandon the others. It
+        // was — `ingest failed with status 429` threw out of the pass after six successful
+        // re-ingests, discarding those six from the report as well. Counted `pending` because
+        // that is what it is: still unconfirmed, and a later pass will try again.
+        let handle;
+        try {
+          handle = await deps.pool.writeRead(entry.read);
+        } catch (error) {
+          pending += 1;
+          deps.logger.line(
+            `sweeper: could not re-ingest ${entry.read.read_id} — counted unconfirmed, sweep ` +
+              `continues: ${error instanceof Error ? error.message : String(error)}`,
+          );
+          continue;
+        }
         reingested += 1;
         deps.logger.line(
           `sweeper: re-ingested ${entry.read.read_id} (job ${handle.jobId}) — unpooled after ${Math.round(ageSeconds)}s`,
