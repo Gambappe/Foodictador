@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T07:37:34.303Z",
+  "updated_at": "2026-07-25T07:42:54.869Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -8,12 +8,12 @@
       "depends_on": [],
       "mock_start_ok": false,
       "note": null,
-      "status": "available",
-      "owner": null,
-      "branch": null,
+      "status": "claimed",
+      "owner": "claude-session-014n6NYRN6Rb",
+      "branch": "claude/upload-code-artifact-zop9uz",
       "pr": null,
-      "claimed_at": null,
-      "updated_at": "2026-07-25T07:37:34.268Z"
+      "claimed_at": "2026-07-25T07:42:54.868Z",
+      "updated_at": "2026-07-25T07:42:54.868Z"
     },
     "P0.2": {
       "title": "Contracts freeze v0.8: types (Read = exactly six fields, READ_KEYS), flags, module interfaces, working fixture stubs",
