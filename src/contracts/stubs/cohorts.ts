@@ -1,5 +1,6 @@
 import type { Cohorts } from '../modules.js';
 import type { CohortStat, Driver, Read, UsualProfile } from '../types.js';
+import { KFLOOR } from '../../kernel/cohorts.js';
 
 /** Usual trait → driver mapping, carried from plan v1.0 §7 Lane B. */
 export function driversForUsual(usual: UsualProfile): Driver[] {
@@ -29,7 +30,7 @@ export class StubCohorts implements Cohorts {
     }));
   }
 
-  matched(usual: UsualProfile, reads: Read[], kFloor = 5): CohortStat[] {
+  matched(usual: UsualProfile, reads: Read[], kFloor: number = KFLOOR): CohortStat[] {
     const wanted = new Set(driversForUsual(usual));
     return this.census(reads).filter((stat) => wanted.has(stat.driver) && stat.k >= kFloor);
   }
