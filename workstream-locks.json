@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T15:35:59.037Z",
+  "updated_at": "2026-07-25T16:17:43.337Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -1116,9 +1116,9 @@
       "status": "done",
       "owner": "claude-routine-inspiring-carson",
       "branch": "claude/inspiring-carson-7ryzny",
-      "pr": null,
+      "pr": "https://github.com/Gambappe/Foodictador/pull/66",
       "claimed_at": "2026-07-25T12:48:44.518Z",
-      "updated_at": "2026-07-25T12:52:08.910Z"
+      "updated_at": "2026-07-25T16:17:43.316Z"
     },
     "N2": {
       "title": "SL-23: NudgeState is never persisted anywhere",
