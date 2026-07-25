@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T12:48:44.518Z",
+  "updated_at": "2026-07-25T12:49:58.816Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -931,13 +931,13 @@
         "K5"
       ],
       "mock_start_ok": false,
-      "note": "SL-01's class, on the one copy path nothing checks. src/cli/ask.ts:141 assigns inducedClaim straight from the substrate into NarratorFacts and onto the card; grep finds no lint() or CATALOG involvement anywhere on that path. G3 lints the catalog, which by definition does not cover text XTrace wrote. MEASURED: ingesting reads as JSON (what pool.writeRead sends today) produced the claim 'The session centers on a weekly visit to noodle_shrine that ended in regret after ordering something too spicy' — noodle_shrine, verbatim, onto a card. Run inducedClaim through K5's lint and drop it on a hit (the ask path already drops it silently on error, so the degrade path exists). Prose-rendered ingests did NOT leak an id, so M12 mitigates but does not fix this — a linter is still required because the text is not ours.",
-      "status": "available",
-      "owner": null,
+      "note": "DONE in PR #61, alongside M11 — because M11 made ask reachable, which made this defect live rather than theoretical. The first working live card printed: 'The key context was that the driver was \"spice_tolerance_low\"'. template.ts interpolates the induced claim INTO a linted template, so the sentence around it is checked and the claim never was, and it is the only text on a card Confit did not write. Linted at the boundary in ask.ts rather than in template.ts, because both narrators consume facts.inducedClaim and only the source covers both. Dropped rather than scrubbed: a claim that failed the linter is one we do not understand well enough to edit. Two checks — K5's lexicon, plus a raw-identifier shape test, since an enum token is not a banned WORD.",
+      "status": "done",
+      "owner": "claude-session-014n6NYRN6Rb",
       "branch": null,
-      "pr": null,
+      "pr": "https://github.com/Gambappe/Foodictador/pull/61",
       "claimed_at": null,
-      "updated_at": "2026-07-25T11:37:39.103Z"
+      "updated_at": "2026-07-25T12:49:58.816Z"
     },
     "M13": {
       "title": "Trust nothing about search params: the API accepts unknown fields with 200, so episode_slots may be a no-op — do the reservation client-side (R3)",
