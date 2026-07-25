@@ -51,15 +51,22 @@ describe('M1 MemoryClient', () => {
     expect(search?.body?.['top_k']).toBe(40);
   });
 
-  it('no overload permits omitting the scope', () => {
-    const { transport } = recordingTransport(okResponses);
-    const client = createMemoryClient(transport);
-    // @ts-expect-error — ingest requires (scope, payload)
-    void client.ingest('just-a-payload');
-    // @ts-expect-error — search requires (scope, query, opts)
-    void client.search('query-without-scope', { topK: 5, episodeSlots: 1 });
-    // @ts-expect-error — remove requires (scope, memoryId)
-    void client.remove('memory-id-without-scope');
+  it('no overload permits omitting the scope (compile-time only)', () => {
+    // The mistyped calls live in a function that is deliberately NEVER invoked:
+    // `npm run typecheck` still checks the body, so each @ts-expect-error fails the
+    // build if an overload ever permits omitting the scope — but nothing executes.
+    // (Invoking them was the M1 defect: @ts-expect-error suppresses the compile
+    // error yet the call still runs, and search exploded on `opts.topK` as an
+    // unhandled rejection.)
+    const compileTimeOnly = (client: ReturnType<typeof createMemoryClient>): void => {
+      // @ts-expect-error — ingest requires (scope, payload)
+      void client.ingest('just-a-payload');
+      // @ts-expect-error — search requires (scope, query, opts)
+      void client.search('query-without-scope', { topK: 5, episodeSlots: 1 });
+      // @ts-expect-error — remove requires (scope, memoryId)
+      void client.remove('memory-id-without-scope');
+    };
+    expect(compileTimeOnly).toBeInstanceOf(Function); // declared, never called
   });
 
   it('ingest returns the pollable handle and jobStatus maps the states', async () => {
