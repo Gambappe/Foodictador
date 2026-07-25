@@ -60,6 +60,8 @@ function fakeSubstrate() {
     jobStatus(jobId) {
       return Promise.resolve(jobStatuses.get(jobId) ?? 'unknown');
     },
+    // M10's ledger is not what this suite is about; no handles is a valid job result.
+    jobResult: () => Promise.resolve([]),
   };
 
   return {

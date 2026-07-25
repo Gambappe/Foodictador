@@ -31,6 +31,8 @@ function substrate() {
       return Promise.resolve();
     },
     jobStatus: () => Promise.resolve('complete' as const),
+    // M10's ledger is not what this suite is about; no handles is a valid job result.
+    jobResult: () => Promise.resolve([]),
   };
   return { client, count: (scope: string) => (rows.get(scope) ?? []).length };
 }
@@ -43,6 +45,7 @@ function recordingRelay() {
       return Promise.resolve();
     },
     setJob: () => Promise.resolve(),
+    setPoolMemories: () => Promise.resolve(),
     list: () => Promise.resolve([]),
     drop: () => Promise.resolve(),
     stats: () => Promise.resolve({ count: 0, oldest_entry_age_seconds: 0 }),

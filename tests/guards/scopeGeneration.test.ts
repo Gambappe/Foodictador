@@ -57,6 +57,8 @@ function scopeSpy() {
       return Promise.resolve();
     },
     jobStatus: () => Promise.resolve('complete' as const),
+    // M10's ledger is not what this suite is about; no handles is a valid job result.
+    jobResult: () => Promise.resolve([]),
   };
   return { client, scopes };
 }
@@ -143,6 +145,8 @@ describe('M15: nothing reaches the substrate outside the generation', () => {
       search: () => Promise.resolve([]),
       remove: () => Promise.resolve(),
       jobStatus: () => Promise.resolve('complete' as const),
+      // M10's ledger is not what this suite is about; no handles is a valid job result.
+      jobResult: () => Promise.resolve([]),
     };
     const pool = createPoolStore({
       client,

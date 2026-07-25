@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { MemoryClient, PoolStore, Relay } from '../contracts/modules.js';
-import type { IngestJobStatus, JobHandle, Read, RelayEntry, RelayStats } from '../contracts/types.js';
+import type { IngestJobStatus, JobHandle, MemoryRow, Read, RelayEntry, RelayStats } from '../contracts/types.js';
 import { createLogger } from '../config/logger.js';
 import { sampleRead } from '../contracts/fixtures/index.js';
 import { createSweeper } from './sweeper.js';
@@ -25,12 +25,21 @@ function fakes(init: {
   entries: RelayEntry[];
   jobs?: Record<string, IngestJobStatus>;
   failSetJob?: boolean;
+  /** M10: what a succeeded job's result carries, per job id. */
+  jobResults?: Record<string, MemoryRow[]>;
+  setPoolMemoriesFails?: boolean;
 }) {
   const entries = [...init.entries];
   const ingested: Read[] = [];
   const jobs = { ...(init.jobs ?? {}) };
   const log: string[] = [];
-  const calls = { writeRead: 0, setJob: 0, drop: [] as string[] };
+  const calls = {
+    writeRead: 0,
+    setJob: 0,
+    drop: [] as string[],
+    setPoolMemories: [] as Array<{ readId: string; ids: string[] }>,
+    jobResult: 0,
+  };
   let jobSeq = 0;
 
   const relay: Relay = {
@@ -40,6 +49,13 @@ function fakes(init: {
       calls.setJob += 1;
       const entry = entries.find((e) => e.read.read_id === readId);
       if (entry) entry.ingest_job_id = jobId;
+      return Promise.resolve();
+    },
+    setPoolMemories(readId, memoryIds) {
+      if (init.setPoolMemoriesFails) return Promise.reject(new Error('relay down'));
+      calls.setPoolMemories.push({ readId, ids: [...memoryIds] });
+      const entry = entries.find((e) => e.read.read_id === readId);
+      if (entry) entry.pool_memories = [...memoryIds];
       return Promise.resolve();
     },
     list: () => Promise.resolve(entries.map((e) => ({ ...e }))),
@@ -82,6 +98,10 @@ function fakes(init: {
     search: () => Promise.reject(new Error('unused')),
     remove: () => Promise.reject(new Error('unused')),
     jobStatus: (jobId) => Promise.resolve(jobs[jobId] ?? 'unknown'),
+    jobResult: (jobId) => {
+      calls.jobResult += 1;
+      return Promise.resolve(init.jobResults?.[jobId] ?? []);
+    },
   };
 
   const sweeper = createSweeper({
@@ -93,6 +113,15 @@ function fakes(init: {
   });
 
   return { sweeper, entries, ingested, jobs, calls, log };
+}
+
+/** An entry old enough to be past the settle window, annotated with a job. */
+function settled(id: string, jobId: string): RelayEntry {
+  return {
+    read: read(id),
+    received_at: new Date(Date.parse(NOW) - (WINDOW + 60) * 1000).toISOString(),
+    ingest_job_id: jobId,
+  };
 }
 
 function read(id: string, driver: Read['driver'] = 'solo_comfort'): Read {
@@ -264,8 +293,62 @@ describe('M7 confirmation and backfill', () => {
       pooled: 0,
       reingested: 0,
       pending: 0,
+        ledgered: 0,
       stored: 0,
       oldestStoredAgeSeconds: 0,
     });
+  });
+});
+
+describe('M7 the ingest ledger (M10)', () => {
+  it('records the pool handles when a job succeeds, and counts them', async () => {
+    // The FIRST moment the handles exist: they come from the job's result, and at write time
+    // the job is still pending. Before this, `forget` reported `skipped` for the pool scope on
+    // every read ever confessed, because there was no handle to delete by.
+    const f = fakes({
+      entries: [settled('r1', 'job-1')],
+      jobs: { 'job-1': 'complete' },
+      jobResults: {
+        'job-1': [
+          { memoryId: 'mem-a', kind: 'fact', content: 'derived one' },
+          { memoryId: 'mem-b', kind: 'fact', content: 'derived two' },
+        ],
+      },
+    });
+    const report = await f.sweeper.sweepOnce(NOW);
+    expect(report.pooled).toBe(1);
+    expect(report.ledgered).toBe(2);
+    expect(f.calls.setPoolMemories).toEqual([{ readId: 'r1', ids: ['mem-a', 'mem-b'] }]);
+  });
+
+  it('does not re-read the result for an entry that already has handles', async () => {
+    // One job, one result. Re-reading it every pass would spend a live call per swept read per
+    // pass for a value that cannot change.
+    const f = fakes({
+      entries: [{ ...settled('r1', 'job-1'), pool_memories: ['mem-a'] }],
+      jobs: { 'job-1': 'complete' },
+      jobResults: { 'job-1': [{ memoryId: 'mem-a', kind: 'fact', content: 'x' }] },
+    });
+    const report = await f.sweeper.sweepOnce(NOW);
+    expect(report.pooled).toBe(1);
+    expect(f.calls.jobResult).toBe(0);
+    expect(report.ledgered).toBe(0);
+  });
+
+  it('a failure recording handles is logged and does not fail the sweep', async () => {
+    // Best-effort, like setJob: losing the handles costs `forget` a strong deletion, not a
+    // read. But never silently (§1) — an operator seeing `forget` skip the pool needs the
+    // reason to exist somewhere.
+    const f = fakes({
+      entries: [settled('r1', 'job-1')],
+      jobs: { 'job-1': 'complete' },
+      jobResults: { 'job-1': [{ memoryId: 'mem-a', kind: 'fact', content: 'x' }] },
+      setPoolMemoriesFails: true,
+    });
+    const report = await f.sweeper.sweepOnce(NOW);
+    expect(report.pooled).toBe(1); // the sweep still reports the read as pooled
+    expect(report.ledgered).toBe(0);
+    expect(f.log.some((l) => /could not record pool handles/.test(l))).toBe(true);
+    expect(f.log.some((l) => /forget will report skipped/.test(l))).toBe(true);
   });
 });

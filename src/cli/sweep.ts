@@ -60,6 +60,7 @@ function reportLines(report: SweepReport, heading: string): string[] {
     `  pooled (confirmed):   ${report.pooled}`,
     `  re-ingested:          ${report.reingested}`,
     `  PENDING (unconfirmed): ${report.pending}`,
+    `  pool handles recorded: ${report.ledgered}`,
     `  reads stored:         ${report.stored}`,
     `  oldest_stored_age_seconds: ${report.oldestStoredAgeSeconds}`,
   ];
@@ -75,6 +76,7 @@ export function sweepPayload(report: SweepReport): Record<string, unknown> {
     pooled: report.pooled,
     reingested: report.reingested,
     pending: report.pending,
+    ledgered: report.ledgered,
     stored: report.stored,
     oldest_stored_age_seconds: report.oldestStoredAgeSeconds,
   };
@@ -139,6 +141,7 @@ export function createSweepCommand(deps: SweepCommandDeps): CommandHandler {
       pooled: 0,
       reingested: 0,
       pending: 0,
+      ledgered: 0,
       stored: 0,
       oldestStoredAgeSeconds: 0,
     };

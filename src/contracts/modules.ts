@@ -60,6 +60,18 @@ export interface MemoryClient {
   search(scope: string, query: string, opts: SearchOpts): Promise<MemoryRow[]>;
   remove(scope: string, memoryId: string): Promise<void>;
   jobStatus(jobId: string): Promise<IngestJobStatus>;
+  /**
+   * The memory ids a succeeded ingest created — the ingest ledger's source (M10).
+   *
+   * Measured live: a succeeded job's result carries
+   * `memories_created: [{id, type, text}]`. Returns `[]` for a job that has not succeeded, or
+   * one whose result carries nothing — absence of handles is not an error, it is the normal
+   * state of a job still running.
+   *
+   * Separate from `jobStatus` because the sweeper polls status often and only needs the result
+   * once, on the transition to succeeded.
+   */
+  jobResult(jobId: string): Promise<MemoryRow[]>;
 }
 
 /**
@@ -189,6 +201,14 @@ export interface Relay {
   put(read: Read): Promise<void>;
   /** Best-effort job annotation (DAG §4 D-1) — an entry with no job id is not broken. */
   setJob(readId: string, jobId: string): Promise<void>;
+  /**
+   * Records the XTrace memory ids this read's pool ingest created — the ingest ledger (M10).
+   *
+   * Best-effort like `setJob`: a failure costs `forget` its pool handles, which is a weaker
+   * deletion promise, not a lost read. Written by the sweeper rather than the write path,
+   * because the handles come from the job RESULT and the job is still pending at write time.
+   */
+  setPoolMemories(readId: string, memoryIds: readonly string[]): Promise<void>;
   list(since?: string): Promise<RelayEntry[]>;
   drop(readId: string): Promise<void>;
   stats(): Promise<RelayStats>;

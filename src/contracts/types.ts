@@ -223,6 +223,19 @@ export interface RelayEntry {
   read: Read;
   received_at: string;
   ingest_job_id?: string;
+  /**
+   * XTrace memory ids the pool ingest of this read created — the ingest ledger (M10).
+   *
+   * `forget` could delete the relay entry and nothing else, reporting `skipped` for both
+   * XTrace scopes: the prose XTrace derives is not keyed by `read_id`, so there was no handle
+   * to delete by. The handles DO exist — a succeeded job's result carries
+   * `memories_created: [{id, type, text}]` — but only after the job completes, which is why
+   * they are recorded here by the sweeper rather than at write time.
+   *
+   * Absent means "not captured yet", which is different from "none exist"; `forget` says which
+   * rather than reporting a clean deletion it did not perform.
+   */
+  pool_memories?: string[];
 }
 
 export interface RelayStats {
@@ -254,6 +267,14 @@ export interface SweepReport {
   stored: number;
   /** Age of the oldest stored read. Store age — for a health signal use `pending`. */
   oldestStoredAgeSeconds: number;
+  /**
+   * XTrace pool handles recorded this pass — the ingest ledger (M10).
+   *
+   * Captured on the transition to a succeeded job, because that is the first moment they
+   * exist. An operator seeing `forget` report `skipped` for the pool scope is looking at a
+   * read whose sweep never got here, and this is the number that says so.
+   */
+  ledgered: number;
 }
 
 export interface NudgeState {

@@ -111,6 +111,16 @@ export function createRelayClient(config: RelayClientConfig): Relay {
       const entry: RelayEntry = { read, received_at: receivedAt };
       const jobId = record['ingest_job_id'];
       if (typeof jobId === 'string' && jobId !== '') entry.ingest_job_id = jobId;
+      // The ingest ledger (M10). This parser builds a FRESH object rather than spreading, which
+      // is right — it is the boundary, and unknown fields must not travel inward. The cost is
+      // that a new field is invisible until it is named here, and this one was: the handles
+      // were on the entry, `curl` showed them, and `forget` still reported `skipped` because
+      // they never survived the parse.
+      const poolMemories = record['pool_memories'];
+      if (Array.isArray(poolMemories)) {
+        const ids = poolMemories.filter((id): id is string => typeof id === 'string' && id !== '');
+        if (ids.length > 0) entry.pool_memories = ids;
+      }
       return entry;
     } catch (error) {
       config.logger.line(
@@ -130,6 +140,16 @@ export function createRelayClient(config: RelayClientConfig): Relay {
       await request('POST', `/reads/${encodeURIComponent(readId)}/ingest-job`, {
         token: config.token,
         ingest_job_id: jobId,
+      });
+    },
+
+    async setPoolMemories(readId: string, memoryIds: readonly string[]): Promise<void> {
+      // The ingest ledger (M10). Best-effort like setJob and for the same reason: a failure
+      // here costs `forget` its pool handles, which is a weaker deletion promise — not a lost
+      // read. The sweeper logs it and carries on.
+      await request('POST', `/reads/${encodeURIComponent(readId)}/memories`, {
+        token: config.token,
+        pool_memories: [...memoryIds],
       });
     },
 

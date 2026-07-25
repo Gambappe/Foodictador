@@ -39,6 +39,7 @@ function report(overrides: Partial<SweepReport> = {}): SweepReport {
     pooled: 2,
     reingested: 1,
     pending: 4,
+    ledgered: 0,
     stored: 3,
     oldestStoredAgeSeconds: 512,
     ...overrides,

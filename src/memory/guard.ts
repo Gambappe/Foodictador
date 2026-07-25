@@ -39,6 +39,7 @@ export function guardRelay(relay: Relay): Relay {
     put: async (read) => relay.put(assertWriteBody(read)),
     seed: async (reads) => relay.seed(reads.map((read) => assertWriteBody(read))),
     setJob: (readId, jobId) => relay.setJob(readId, jobId),
+    setPoolMemories: () => Promise.resolve(),
     list: (since) => relay.list(since),
     drop: (readId) => relay.drop(readId),
     stats: () => relay.stats(),

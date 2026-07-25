@@ -31,6 +31,8 @@ function fakeClient(rows: MemoryRow[]) {
     jobStatus() {
       return Promise.resolve('complete' as const);
     },
+    // M10's ledger is not what this suite is about; no handles is a valid job result.
+    jobResult: () => Promise.resolve([]),
     ingestBatch(scope, payloads, convId) {
       batches.push({ scope, payloads: [...payloads], convId });
       return Promise.resolve({ jobId: `batch-${batches.length}` });

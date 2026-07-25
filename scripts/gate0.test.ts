@@ -54,6 +54,8 @@ function fakeSubstrate(opts: {
       return Promise.resolve();
     },
     jobStatus: () => Promise.resolve('complete'),
+    // M10's ledger is not what this suite is about; no handles is a valid job result.
+    jobResult: () => Promise.resolve([]),
     // gate zero ingests one record at a time by design — its protocol is per-read.
     ingestBatch: () => Promise.reject(new Error('gate zero does not batch')),
   };

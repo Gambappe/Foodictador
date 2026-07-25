@@ -203,5 +203,34 @@ export function createMemoryClient(transport: HttpTransport): MemoryClient {
       if (status === 'pending' || status === 'running') return 'pending';
       return 'unknown';
     },
+
+    /**
+     * The handles a succeeded ingest created (M10).
+     *
+     * Measured live on `GET /v1/memories/jobs/{id}`: `result.memories_created` is
+     * `[{id, type, text}]` once `status` is `succeeded`, and `result` is `null` before that.
+     * A job still running is not an error here — it is the normal case, and returning `[]`
+     * lets the sweeper poll without branching on shape.
+     */
+    async jobResult(jobId: string): Promise<MemoryRow[]> {
+      const json = await call(
+        { method: 'GET', path: `/v1/memories/jobs/${encodeURIComponent(jobId)}` },
+        'jobResult',
+      );
+      const result = asRecord(json, 'jobResult')['result'];
+      if (typeof result !== 'object' || result === null) return [];
+      const created = (result as Record<string, unknown>)['memories_created'];
+      if (!Array.isArray(created)) return [];
+      const rows: MemoryRow[] = [];
+      for (const raw of created) {
+        if (typeof raw !== 'object' || raw === null) continue;
+        const row = raw as Record<string, unknown>;
+        const kind = row['type'];
+        const id = row['id'];
+        if (typeof id !== 'string' || (kind !== 'fact' && kind !== 'episode')) continue;
+        rows.push({ memoryId: id, kind, content: typeof row['text'] === 'string' ? row['text'] : '' });
+      }
+      return rows;
+    },
   };
 }

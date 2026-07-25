@@ -174,3 +174,57 @@ describe('M4 relay client, against a live P0.4 instance', () => {
     expect(logLines.filter((l) => l.includes('skipping malformed entry'))).toHaveLength(2);
   });
 });
+
+describe('M4 the ingest ledger survives the boundary parse (M10)', () => {
+  it('carries pool_memories inward', async () => {
+    // Caught live, not by a test. `parseEntry` builds a FRESH entry rather than spreading the
+    // wire object — correct, because unknown fields must not travel inward — and the cost is
+    // that a NEW field is invisible until it is named there. It was: the handles were on the
+    // entry, `curl` showed them, the sweep reported recording them, and `forget` still said
+    // `no pool handles recorded`. Nothing was broken except the parse.
+    const relay = createRelayClient({
+      url: 'http://relay.test',
+      token: 't',
+      logger: createLogger(() => undefined),
+      fetchFn: () =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify([
+              {
+                read: sampleRead,
+                received_at: '2026-07-25T19:00:00.000Z',
+                ingest_job_id: 'job-1',
+                pool_memories: ['mem-a', 'mem-b'],
+              },
+            ]),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+        ),
+    });
+    const entries = await relay.list();
+    expect(entries[0]?.pool_memories).toEqual(['mem-a', 'mem-b']);
+  });
+
+  it('a malformed ledger is dropped, not carried inward as junk', async () => {
+    const relay = createRelayClient({
+      url: 'http://relay.test',
+      token: 't',
+      logger: createLogger(() => undefined),
+      fetchFn: () =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify([
+              {
+                read: sampleRead,
+                received_at: '2026-07-25T19:00:00.000Z',
+                pool_memories: [42, '', null],
+              },
+            ]),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+        ),
+    });
+    const entries = await relay.list();
+    expect(entries[0]?.pool_memories).toBeUndefined();
+  });
+});

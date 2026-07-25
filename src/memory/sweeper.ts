@@ -73,6 +73,9 @@ export function createSweeper(deps: SweeperDeps) {
       let pooled = 0;
       let reingested = 0;
       let pending = 0;
+      // Handles recorded this pass (M10). Counted so an operator can see the ledger filling —
+      // a `forget` that reports `skipped` for the pool is explained by this being 0.
+      let ledgered = 0;
 
       for (const entry of entries) {
         const ageSeconds = (nowMs - Date.parse(entry.received_at)) / 1000;
@@ -82,6 +85,31 @@ export function createSweeper(deps: SweeperDeps) {
           const verdict = classify(await deps.client.jobStatus(entry.ingest_job_id));
           if (verdict === 'pooled') {
             pooled += 1;
+            // The ingest ledger (M10). This is the FIRST moment the handles exist: they come
+            // from the job's result, and at write time the job is still pending — which is why
+            // `forget` used to report `skipped` for both XTrace scopes with no handle to delete
+            // by. Captured once; an entry that already has them is not re-read.
+            if (entry.pool_memories === undefined) {
+              try {
+                const created = await deps.client.jobResult(entry.ingest_job_id);
+                if (created.length > 0) {
+                  await deps.relay.setPoolMemories(
+                    entry.read.read_id,
+                    created.map((row) => row.memoryId),
+                  );
+                  ledgered += created.length;
+                }
+              } catch (error) {
+                // Best-effort, like setJob and for the same reason: losing the handles costs
+                // `forget` a strong deletion, not a read. Never silent (§1).
+                deps.logger.line(
+                  `sweeper: could not record pool handles for ${entry.read.read_id} — forget ` +
+                    `will report skipped for the pool scope: ${
+                      error instanceof Error ? error.message : String(error)
+                    }`,
+                );
+              }
+            }
             continue;
           }
           if (verdict === 'pending') {
@@ -122,6 +150,7 @@ export function createSweeper(deps: SweeperDeps) {
         pooled,
         reingested,
         pending,
+        ledgered,
         stored: stats.count,
         oldestStoredAgeSeconds: stats.oldest_entry_age_seconds,
       };

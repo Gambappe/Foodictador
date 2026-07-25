@@ -54,6 +54,7 @@ function harness(options: {
       return Promise.resolve();
     }),
     setJob: vi.fn(() => Promise.resolve()),
+    setPoolMemories: () => Promise.resolve(),
     list: vi.fn(() => Promise.resolve([])),
     drop: vi.fn(() => Promise.resolve()),
     stats: vi.fn(() => Promise.resolve({ count: 0, oldest_entry_age_seconds: 0 })),

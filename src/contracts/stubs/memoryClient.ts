@@ -12,6 +12,8 @@ import type { IngestJobStatus, JobHandle, MemoryRow, SearchOpts } from '../types
 export class StubMemoryClient implements MemoryClient {
   private readonly rows = new Map<string, MemoryRow[]>();
   private readonly jobs = new Map<string, IngestJobStatus>();
+  /** job id → the rows that ingest created, so M10's ledger works with no network. */
+  private readonly created = new Map<string, MemoryRow[]>();
   private seq = 0;
 
   /** conv_id → the payloads sent under it, in order. */
@@ -23,19 +25,23 @@ export class StubMemoryClient implements MemoryClient {
     this.rows.set(scope, [...(this.rows.get(scope) ?? []), row]);
     const jobId = `job-${this.seq}`;
     this.jobs.set(jobId, 'complete');
+    this.created.set(jobId, [row]);
     return Promise.resolve({ jobId });
   }
 
   ingestBatch(scope: string, payloads: readonly string[], convId: string): Promise<JobHandle> {
     this.conversations.set(convId, [...(this.conversations.get(convId) ?? []), ...payloads]);
+    const rows: MemoryRow[] = [];
     for (const payload of payloads) {
       this.seq += 1;
       const row: MemoryRow = { memoryId: `mem-${this.seq}`, kind: 'fact', content: payload };
+      rows.push(row);
       this.rows.set(scope, [...(this.rows.get(scope) ?? []), row]);
     }
     this.seq += 1;
     const jobId = `job-${this.seq}`;
     this.jobs.set(jobId, 'complete');
+    this.created.set(jobId, rows);
     return Promise.resolve({ jobId });
   }
 
@@ -52,5 +58,10 @@ export class StubMemoryClient implements MemoryClient {
 
   jobStatus(jobId: string): Promise<IngestJobStatus> {
     return Promise.resolve(this.jobs.get(jobId) ?? 'unknown');
+  }
+
+  /** Handles for a job this stub minted, so M10's ledger can be exercised without a network. */
+  jobResult(jobId: string): Promise<MemoryRow[]> {
+    return Promise.resolve(this.created.get(jobId) ?? []);
   }
 }
