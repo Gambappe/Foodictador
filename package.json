@@ -1,0 +1,29 @@
+{
+  "name": "confit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Confit — the whisper network for what to eat. CLI-first core; see docs/confit-design-v0.8.md.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "confit": "tsx src/cli/main.ts",
+    "gate0": "tsx scripts/gate0.ts",
+    "gate:cli": "bash scripts/gate-cli.sh"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.1.1",
+    "eslint": "^10.8.0",
+    "tsx": "^4.23.1",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.65.0",
+    "vitest": "^4.1.10"
+  }
+}
