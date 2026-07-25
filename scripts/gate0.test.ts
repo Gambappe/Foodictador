@@ -54,6 +54,8 @@ function fakeSubstrate(opts: {
       return Promise.resolve();
     },
     jobStatus: () => Promise.resolve('complete'),
+    // gate zero ingests one record at a time by design — its protocol is per-read.
+    ingestBatch: () => Promise.reject(new Error('gate zero does not batch')),
   };
   return client;
 }

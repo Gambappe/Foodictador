@@ -18,7 +18,6 @@
  */
 
 import type { SweepReport } from '../contracts/types.js';
-import { liveGraph } from '../config/wiring.js';
 import { createSweeper } from '../memory/sweeper.js';
 import type { CommandContext, CommandHandler } from './main.js';
 import { EXIT, type CommandResult } from './render.js';
@@ -147,7 +146,7 @@ export function createSweepCommand(deps: SweepCommandDeps): CommandHandler {
 
 /** The production handler: real relay, pool, and sweeper from config. */
 export const sweepCommand: CommandHandler = (context: CommandContext) => {
-  const graph = liveGraph(context.config, context.logger, context.flags);
+  const graph = context.graph;
   const sweeper = createSweeper({
     relay: graph.relay,
     pool: graph.pool,

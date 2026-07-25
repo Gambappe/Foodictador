@@ -27,7 +27,16 @@ import { DEMO_CONTEXT, DRIVERS } from '../contracts/types.js';
 import type { Flags } from '../contracts/flags.js';
 import type { Logger } from '../config/logger.js';
 import { UNMATCHABLE_DRIVERS, matched, missed } from '../kernel/cohorts.js';
+
+/**
+ * `snake_case` between lowercase letters — an enum token, whatever its spelling.
+ * Matches the assertion the acceptance gate makes about card lines, deliberately, so the
+ * guard and the check agree on what "a raw identifier" means.
+ */
+const RAW_IDENTIFIER = /[a-z]+_[a-z]+/;
 import { lint } from '../kernel/copylint.js';
+import { DRIVER_PHRASES } from '../llm/catalog.js';
+import type { UsualNoteKey } from '../kernel/askEngine.js';
 import { suppressions } from '../kernel/rotation.js';
 import { scorePlaces } from '../kernel/score.js';
 import { EXIT, type CommandResult } from './render.js';
@@ -62,17 +71,27 @@ function contextFor(flags: Flags, now: string, solo: boolean): AskContext {
 }
 
 /** One pre-linted usual note, or none — never an unlinted string into the card. */
-function usualNote(pick: Place, deps: AskDeps, solo: boolean): string[] {
+/**
+ * The usual note, as a CATALOG KEY — not a sentence.
+ *
+ * This returned `'A seat for one, no audience — your usual shape.'` and the line never
+ * once reached a card (defect SL-15). `usualLineFor` filters its input against
+ * `USUAL_PHRASES`, a closed key vocabulary, because an unfiltered pass-through is how a
+ * raw identifier got onto a card in the first place (SL-01) and how `'toString'` threw
+ * (SL-18). A full sentence is not a key, so `Object.hasOwn` dropped it, `phrases.length`
+ * was zero, and `copy.usualLine` came back `undefined` on **every** card `confit ask`
+ * printed — one of the four lines design v0.8 §5 specifies, silently absent, with no
+ * error anywhere.
+ *
+ * Emitting the key instead puts the wording in the catalog, where G3 lints it and where
+ * K7's `askEngine` already puts its own notes. The place-aware condition is kept: the
+ * note is only true if the pick can actually seat one.
+ */
+function usualNote(pick: Place, solo: boolean): UsualNoteKey[] {
   if (!solo) return [];
   const seated =
     pick.tags.includes('counter_seating') || pick.tags.includes('solo_friendly');
-  if (!seated) return [];
-  const note = 'A seat for one, no audience — your usual shape.';
-  if (!lint(note).ok) {
-    deps.logger.line('ask: usual note failed the linter and was dropped');
-    return [];
-  }
-  return [note];
+  return seated ? ['solo_comfortable'] : [];
 }
 
 export async function runAsk(deps: AskDeps): Promise<CommandResult> {
@@ -127,7 +146,31 @@ export async function runAsk(deps: AskDeps): Promise<CommandResult> {
   let inducedClaim: string | undefined;
   if (deps.inducedClaim !== undefined && !degraded) {
     try {
-      inducedClaim = await deps.inducedClaim('what people quietly regret near here');
+      const claim = await deps.inducedClaim('what people quietly regret near here');
+      // LINT THE SUBSTRATE'S PROSE (defect L4).
+      //
+      // The induced claim is the only text on a card that Confit did not write. G3 lints the
+      // catalog, and `reason_induced_cited` interpolates this value INTO a linted template —
+      // so the sentence around it is checked and the sentence itself never was. Seen live on
+      // the first real card after M11 made `ask` reachable: "The key context was that the
+      // driver was "spice_tolerance_low"" — K5's banned lexicon, in front of a user.
+      //
+      // Dropped rather than scrubbed. A claim that failed the linter is a claim we do not
+      // understand well enough to edit, and the card is already built to stand without one:
+      // the catch below is the same degrade path.
+      const verdict = lint(claim);
+      if (!verdict.ok) {
+        deps.logger.line(
+          `ask: induced claim dropped — it carries ${verdict.hits.join(', ')} (K5 lexicon)`,
+        );
+      } else if (RAW_IDENTIFIER.test(claim)) {
+        // Belt and braces on the failure that actually happened: an enum token is not in
+        // K5's lexicon, it is a shape. M14 stops us FEEDING ids to the extractor, but the
+        // pool holds pre-M14 records (M15) and the claim is not ours either way.
+        deps.logger.line('ask: induced claim dropped — it carries a raw identifier');
+      } else {
+        inducedClaim = claim;
+      }
     } catch (error) {
       deps.logger.line(
         `ask: induction unavailable, card proceeds without it: ${error instanceof Error ? error.message : String(error)}`,
@@ -140,7 +183,7 @@ export async function runAsk(deps: AskDeps): Promise<CommandResult> {
     ...(miss ? { cohortMiss: { driver: miss.driver } } : {}),
     ...(inducedClaim !== undefined ? { inducedClaim } : {}),
     suppressions: suppressed,
-    usualNotes: usualNote(pick.place, deps, usual.soloComfort),
+    usualNotes: usualNote(pick.place, usual.soloComfort),
     degradedPool: degraded,
   };
   const copy = await deps.narrator.write(ranked, facts);
@@ -159,7 +202,14 @@ export async function runAsk(deps: AskDeps): Promise<CommandResult> {
 
   const lines: string[] = [`▸ ${card.pick.name}`, card.reasonLine];
   if (card.poolCitation) {
-    lines.push(`[${card.poolCitation.driver.replaceAll('_', ' ')} × ${card.poolCitation.k}]`);
+    // DRIVER_PHRASES, not the token with its underscores swapped for spaces. That
+    // produced `[spice tolerance low × 8]` one line under the *correct* prose rendering
+    // of the same driver (defect SL-30) — the K5 banned-lexicon failure of SL-01,
+    // reappearing on the one surface no test was reading. U3's AskCard already renders
+    // the phrase; this now matches it.
+    lines.push(
+      `[people with ${DRIVER_PHRASES[card.poolCitation.driver]} · ${card.poolCitation.k} of them]`,
+    );
   } else if (copy.cohortMissLine !== undefined) {
     lines.push(copy.cohortMissLine);
   }
@@ -183,7 +233,6 @@ export async function runAsk(deps: AskDeps): Promise<CommandResult> {
 
 // ---- integration wiring (the handler main.ts registers) ----
 
-import { liveGraph } from '../config/wiring.js';
 import type { CommandContext, CommandHandler } from './main.js';
 import { loadCorpus } from '../../scripts/seed/validate-corpus.js';
 
@@ -191,7 +240,7 @@ import { loadCorpus } from '../../scripts/seed/validate-corpus.js';
 export const askHandler: CommandHandler = async (context: CommandContext) => {
   const profile = context.argv.values['profile'];
   if (profile === undefined) throw new Error('ask: --profile survived validation unset');
-  const graph = liveGraph(context.config, context.logger, context.flags);
+  const graph = context.graph;
   return runAsk({
     profile,
     userStore: graph.user,

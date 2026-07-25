@@ -26,6 +26,9 @@ export function assertWriteBody(value: unknown): Read {
 export function guardPoolStore(store: PoolStore): PoolStore {
   return {
     writeRead: async (read) => store.writeRead(assertWriteBody(read)),
+    // The batch path validates every body too. A guard that covered only the single-read
+    // write would be bypassed by the path that sends the most reads.
+    writeReads: async (reads) => store.writeReads(reads.map(assertWriteBody)),
     inducedClaim: (query) => store.inducedClaim(query),
   };
 }

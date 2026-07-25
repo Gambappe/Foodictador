@@ -24,6 +24,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { MemoryClient, Relay } from '../../contracts/modules.js';
 import type { MemoryRow, ProposedRead, Read } from '../../contracts/types.js';
 import { sampleUsual } from '../../contracts/fixtures/index.js';
+import { StubSettingsStore } from '../../contracts/stubs/index.js';
 import { createLogger } from '../../config/logger.js';
 import { createPoolStore } from '../../memory/pool.js';
 import { createUserStore } from '../../memory/user.js';
@@ -54,6 +55,7 @@ function substrate() {
     },
     search: (scope, query) =>
       Promise.resolve((rows.get(scope) ?? []).filter((r) => r.content.includes(query))),
+    ingestBatch: () => Promise.reject(new Error('unused — single ingests only in this suite')),
     remove: () => Promise.resolve(),
     jobStatus: () => Promise.resolve('complete' as const),
   };
@@ -81,8 +83,8 @@ function recordingRelay() {
 function realHarness(offLimits: string[]) {
   const s = substrate();
   const logger = createLogger(() => {});
-  const user = createUserStore({ client: s.client, logger });
-  const pool = createPoolStore({ client: s.client, logger });
+  const user = createUserStore({ client: s.client, settings: new StubSettingsStore(), logger });
+  const pool = createPoolStore({ client: s.client, logger, placeName: (id: string) => id.replaceAll('_', ' ') });
   const { relay, entries } = recordingRelay();
 
   const view = render(

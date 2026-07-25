@@ -69,11 +69,16 @@ function fakes(init: {
       jobs[jobId] = 'pending';
       return Promise.resolve({ jobId });
     },
+    // The sweeper backfills ONE read at a time by design — it recovers individual
+    // entries, and a batch path here would group unrelated reads that happened to fail
+    // together. Rejecting proves it is never called.
+    writeReads: () => Promise.reject(new Error('the sweeper must backfill per read')),
     inducedClaim: () => Promise.reject(new Error('unused')),
   };
 
   const client: MemoryClient = {
     ingest: () => Promise.reject(new Error('unused')),
+    ingestBatch: () => Promise.reject(new Error('unused')),
     search: () => Promise.reject(new Error('unused')),
     remove: () => Promise.reject(new Error('unused')),
     jobStatus: (jobId) => Promise.resolve(jobs[jobId] ?? 'unknown'),

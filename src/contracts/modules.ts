@@ -46,6 +46,17 @@ import type { Flags } from './flags.js';
  */
 export interface MemoryClient {
   ingest(scope: string, payload: string): Promise<JobHandle>;
+  /**
+   * Several messages in ONE conversation, under a caller-chosen `convId`.
+   *
+   * Not a convenience wrapper. XTrace's episodes are conversation summaries, so an isolated
+   * one-message ingest can only ever produce a paraphrase of that one message — measured:
+   * ungrouped reads yielded *"The session consisted of a single structured signal about
+   * Harbor Greens"*, while the same twelve reads in one conversation yielded a claim spanning
+   * four places. Cross-record synthesis is the one job XTrace kept after D-7, and grouping is
+   * the precondition for it (M12; operational guide R4).
+   */
+  ingestBatch(scope: string, payloads: readonly string[], convId: string): Promise<JobHandle>;
   search(scope: string, query: string, opts: SearchOpts): Promise<MemoryRow[]>;
   remove(scope: string, memoryId: string): Promise<void>;
   jobStatus(jobId: string): Promise<IngestJobStatus>;
@@ -62,10 +73,55 @@ export interface MemoryClient {
  * synthesis over the prose it derived.
  */
 export interface PoolStore {
-  /** Feeds the induction index. The returned job is what the sweeper confirms against. */
+  /**
+   * Feeds the induction index with ONE read. The returned job is what the sweeper confirms
+   * against.
+   *
+   * A single read is its own conversation, so this path cannot produce cross-record
+   * synthesis — that is a property of the substrate, not a bug here. It is the live-confession
+   * path and it exists so a confession is fed at all; `writeReads` is what induction is
+   * actually built on, and the guide's R5 says to seed ahead of time rather than ingest live.
+   */
   writeRead(read: Read): Promise<JobHandle>;
+  /**
+   * Many reads, grouped into conversations so episodes can span them (M12/M14).
+   * Returns one handle per conversation, not per read.
+   */
+  writeReads(reads: readonly Read[]): Promise<JobHandle[]>;
   /** The INDUCTION query. The only read path XTrace can actually serve. */
   inducedClaim(query: string): Promise<string>;
+}
+
+/**
+ * Durable per-profile settings — the DECLARED half of DAG §4 D-8.
+ *
+ * A plain keyed store, because that is the primitive the settings path actually needs and
+ * never had. XTrace offers no addressing, no upsert and no byte fidelity, so M3 built three
+ * prostheses for them — a `kind` tag used as a search query, `written_at` ordering to pick
+ * between duplicates XTrace's missing upsert guarantees, and a JSON body to survive
+ * extraction. All three failed at once, because extraction drops the tag AND the JSON:
+ * `usual()` returned null on every live read, which took out `confit ask` and `confit
+ * confess` together.
+ *
+ * D-8's rule is what makes this a different interface rather than a fixed one: the user
+ * ASSERTED these facts and expects them honoured exactly. `offLimits` and `giConstraint` are
+ * allergy and medical data, and `~11/16` non-deterministic retention is not a quality
+ * question when a dropped topic means a confession that should have been blocked is written
+ * to the pool.
+ *
+ * Values are `unknown` on the way out on purpose: the caller parses at the boundary (§1), so
+ * a store that round-trips garbage cannot launder it into a type.
+ */
+export interface SettingsStore {
+  /**
+   * `null` means absent. Not ambiguous in practice: every value this store holds is an
+   * object or an array, so nothing stores a bare `null` for the reading to collide with.
+   * Typed `unknown` rather than `unknown | null` because `unknown` already admits null —
+   * the contract is in this sentence, not in the union.
+   */
+  get(profile: string, key: string): Promise<unknown>;
+  /** Overwrites. There is no merge: the caller owns the whole value for a key. */
+  put(profile: string, key: string, value: unknown): Promise<void>;
 }
 
 export interface UserStore {

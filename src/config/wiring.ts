@@ -27,12 +27,20 @@ import type {
   Relay,
   UserStore,
 } from '../contracts/modules.js';
-import { StubExtractor, StubMemoryClient, StubRelay } from '../contracts/stubs/index.js';
+import {
+  StubExtractor,
+  StubMemoryClient,
+  StubRelay,
+  StubSettingsStore,
+} from '../contracts/stubs/index.js';
 import { createMemoryClient, createFetchTransport } from '../memory/client.js';
 import { createPoolStore } from '../memory/pool.js';
+import { placeNames } from '../memory/readProse.js';
+import { loadCorpus } from '../../scripts/seed/validate-corpus.js';
 import { createPoolView } from '../memory/poolView.js';
 import { createRelayClient } from '../memory/relay.js';
 import { createUserStore } from '../memory/user.js';
+import { createSettingsClient } from '../memory/settings.js';
 import { createLiveExtractor } from '../llm/extractor.js';
 import { createFetchModelClient, createLiveNarrator } from '../llm/narrator.js';
 import { templateNarrator } from '../llm/template.js';
@@ -74,8 +82,13 @@ export function liveGraph(config: AppConfig, logger: Logger, existing?: FlagStor
   const client = createMemoryClient(
     createFetchTransport({ baseUrl: config.xtraceBaseUrl, apiKey: config.xtraceApiKey }),
   );
-  const pool = createPoolStore({ client, logger });
-  const user = createUserStore({ client, logger });
+  // The corpus is read once per graph, not per write: the pool renders reads as prose and
+  // needs place NAMES, because feeding the extractor an id puts the id back on a card (L4).
+  const pool = createPoolStore({ client, logger, placeName: placeNames(loadCorpus()) });
+  // Settings ride the relay, which P0.8 made atomic and fsynced-before-acknowledged — the
+  // guarantee an allergy list needs, and the one XTrace does not offer (D-8).
+  const settings = createSettingsClient({ url: config.relayUrl, token: config.relayToken, logger });
+  const user = createUserStore({ client, settings, logger });
   const relay = createRelayClient({ url: config.relayUrl, token: config.relayToken, logger });
   const poolView = createPoolView({ relay, flags, logger });
 
@@ -112,6 +125,14 @@ export interface FixtureGraphOptions {
   logger: Logger;
   /** Pinned so a fixture run is reproducible; defaults to the demo's evening. */
   now?: () => Date;
+  /**
+   * The caller's flag store, for the same reason `liveGraph` takes one: X1 puts a
+   * FlagStore on the CommandContext, and a graph that made its own would mean
+   * `pass flags --set` mutated one store while every adapter read another. The CLI
+   * acceptance gate drives real commands against this graph, so the toggle has to
+   * be the same toggle.
+   */
+  flags?: FlagStore;
 }
 
 /**
@@ -134,15 +155,18 @@ export function fixtureGraph(options: FixtureGraphOptions): AdapterGraph {
   const { logger } = options;
   const now = options.now ?? ((): Date => new Date('2026-07-25T19:00:00.000Z'));
 
-  const flags = createFlagStore(
-    { extraction: 'live', narrator: 'live', pool: 'live', demoMode: true },
-    logger,
-  );
+  const flags =
+    options.flags ??
+    createFlagStore({ extraction: 'live', narrator: 'live', pool: 'live', demoMode: true }, logger);
 
   const client = new StubMemoryClient();
   const relay = new StubRelay(now);
-  const pool = createPoolStore({ client, logger });
-  const user = createUserStore({ client, logger });
+  // The corpus is read once per graph, not per write: the pool renders reads as prose and
+  // needs place NAMES, because feeding the extractor an id puts the id back on a card (L4).
+  const pool = createPoolStore({ client, logger, placeName: placeNames(loadCorpus()) });
+  // A Map, not the HTTP client: this graph must build with no config and open no socket.
+  // Faithful rather than a pretence — a keyed store IS a Map, which is M11's whole argument.
+  const user = createUserStore({ client, settings: new StubSettingsStore(), logger });
   const poolView = createPoolView({ relay, flags, logger });
 
   return {

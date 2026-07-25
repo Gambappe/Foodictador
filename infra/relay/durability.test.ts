@@ -167,6 +167,29 @@ describe('P0.8: the store persists before it returns, not after', () => {
     expect(store.stats().count).toBe(0);
   });
 
+  it('a persist failure rolls back a SETTING too, not just a read', () => {
+    // D-8 put declared settings in this store, and they ride on the same mutate().
+    // Rolling back only `entries` meant a failed settingsPut threw at the caller and
+    // left the value in memory, where the next successful mutation would persist it:
+    // "your change failed", then the change takes effect. For an allergy list that is
+    // the worst inversion available.
+    let fail = false;
+    const store = new RelayStore({
+      persist: () => {
+        if (fail) throw new Error('disk full');
+      },
+    });
+    store.settingsPut('A', 'allergies', ['peanut']);
+    fail = true;
+    expect(() => store.settingsPut('A', 'allergies', ['peanut', 'shellfish'])).toThrow();
+    expect(store.settingsGet('A', 'allergies')).toEqual(['peanut']);
+
+    // And the rejected value must not reappear on the next write that does persist.
+    fail = false;
+    store.put(read('r1'));
+    expect(store.settingsGet('A', 'allergies')).toEqual(['peanut']);
+  });
+
   it('a persist failure on a later write does not lose the earlier ones', () => {
     let fail = false;
     const store = new RelayStore({
@@ -180,16 +203,58 @@ describe('P0.8: the store persists before it returns, not after', () => {
     expect(store.list().map((e) => e.read.read_id)).toEqual(['r1']);
   });
 
-  it('persists on setJob, drop, seed and reset too — not just put', () => {
+  it('persists on setJob, drop, seed, reset and settingsPut — not just put', () => {
     const snapshots: string[] = [];
     const store = new RelayStore({ persist: (s) => snapshots.push(s) });
     store.put(read('r1'));
     store.setJob('r1', 'job-1');
     store.seed([read('r2'), read('r3')]);
     store.drop('r2');
+    store.settingsPut('A', 'usual', { offLimits: ['shellfish'] });
     store.reset();
-    expect(snapshots).toHaveLength(5);
-    expect(JSON.parse(String(snapshots.at(-1)))).toEqual({ entries: [] });
+    expect(snapshots).toHaveLength(6);
+    // `reset` clears reads. It does NOT clear settings, and it must not: `pass reset` empties
+    // the pool between demos, and silently wiping a user's declared allergies with it would
+    // be the worst possible reading of "reset" (D-8).
+    expect(JSON.parse(String(snapshots.at(-1)))).toEqual({
+      entries: [],
+      settings: { 'A\u0000usual': { offLimits: ['shellfish'] } },
+    });
+  });
+
+  it('settings survive a restore, and a pre-settings snapshot restores as empty', () => {
+    const written: string[] = [];
+    const first = new RelayStore({ persist: (s) => written.push(s) });
+    first.settingsPut('A', 'usual', { offLimits: ['shellfish'], giConstraint: true });
+    first.settingsPut('B', 'meal_log', [{ dishId: 'pho', placeId: 'phos_deep', at: '2026-07-01' }]);
+
+    const revived = new RelayStore();
+    revived.restore(String(written.at(-1)));
+    expect(revived.settingsGet('A', 'usual')).toEqual({
+      offLimits: ['shellfish'],
+      giConstraint: true,
+    });
+    expect(revived.settingsGet('B', 'meal_log')).toHaveLength(1);
+    expect(revived.settingsGet('A', 'meal_log')).toBeNull();
+    // One profile cannot read another's key, and an absent key is null rather than a throw.
+    expect(revived.settingsGet('C', 'usual')).toBeNull();
+
+    // A snapshot written before settings existed has no `settings` field at all. Restoring
+    // it must mean "no settings", not a crash on boot — which for this store would mean
+    // refusing to start (see the corrupt-snapshot path).
+    const old = new RelayStore();
+    expect(() => old.restore('{"entries":[]}')).not.toThrow();
+    expect(old.settingsGet('A', 'usual')).toBeNull();
+  });
+
+  it('a NUL in a profile id cannot forge another profile\'s key', () => {
+    // The keys are `profile\u0000key`. A naive `profile + ':' + key` join lets the profile
+    // id `A:usual` collide with profile `A`'s `usual` — writing one would overwrite the
+    // other's allergy list.
+    const store = new RelayStore();
+    store.settingsPut('A', 'usual', { real: true });
+    store.settingsPut('A\u0000usual', 'x', { forged: true });
+    expect(store.settingsGet('A', 'usual')).toEqual({ real: true });
   });
 
   it('does not rewrite the snapshot for a setJob on an unknown read', () => {

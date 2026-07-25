@@ -21,6 +21,7 @@ function fakes(init: {
 
   const client: MemoryClient = {
     ingest: () => Promise.reject(new Error('unused')),
+    ingestBatch: () => Promise.reject(new Error('unused')),
     search(scope, _query, _opts) {
       // Recorded, not rejected: the assertion that forget performs NO search is
       // more useful than a fake that crashes when it does.

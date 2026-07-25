@@ -12,6 +12,7 @@ import {
   type ConfessDeps,
 } from './confess.js';
 import type { CommandContext } from './main.js';
+import { fixtureGraph } from '../config/wiring.js';
 import { parseArgv } from './args.js';
 
 const chips: Omit<Read, 'read_id'> = {
@@ -62,6 +63,9 @@ function harness(options: {
       if (options.poolFails === true) throw new Error('pool down');
       return Promise.resolve({ jobId: 'job-pool' });
     }),
+    // A live confession is one read, so confess must NOT batch — batching exists for the
+    // seed path, where many reads share a conversation (M12).
+    writeReads: vi.fn(() => Promise.reject(new Error('confess writes one read'))),
     inducedClaim: vi.fn(() => Promise.resolve('')),
   };
 
@@ -288,6 +292,9 @@ describe('the CommandHandler adapter', () => {
         set: () => undefined,
       },
       logger: createLogger(() => undefined),
+      // Present only to satisfy CommandContext; this suite injects its own deps into
+      // createConfessHandler. Fixture stores, never a live graph.
+      graph: fixtureGraph({ logger: createLogger(() => undefined) }),
     };
   }
 

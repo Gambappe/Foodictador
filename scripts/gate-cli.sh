@@ -64,6 +64,19 @@ if [ "$GATE0_ONLY" -eq 0 ]; then
   step 'lint'      npm run --silent lint
   step 'tests'     npm run --silent test
   step 'build'     npm run --silent build
+
+  # The CLI, as a process.
+  #
+  # tests/guards/acceptance.test.ts drives every DAG §7 step through `run()` in-process,
+  # which is where the real assertions live. What it cannot see is the entrypoint: whether
+  # the built artifact boots at all, whether the self-execution guard fires, whether the
+  # exit code reaches the shell. This script used to invoke no subcommand whatsoever
+  # (defect SL-26), so a `dist/` that could not start would still have shown a green gate.
+  #
+  # No credentials: `--help` and a bad invocation are both answered before any config is
+  # loaded, so this stays inside G5's no-network requirement.
+  step 'cli boots'        node dist/src/cli/main.js --help
+  step 'cli rejects junk' bash -c '! node dist/src/cli/main.js --nonsense-flag'
   rm -rf dist
 
   if [ ${#failed[@]} -gt 0 ]; then

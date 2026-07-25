@@ -20,6 +20,7 @@ import {
   seedHandler,
 } from './pass-ops.js';
 import { loadConfig, createFlagStore, createLogger, initialFlags } from '../config/index.js';
+import { liveGraph, type AdapterGraph } from '../config/wiring.js';
 import type { AppConfig, FlagStore, Logger } from '../config/index.js';
 import {
   UsageError,
@@ -49,6 +50,20 @@ export interface CommandContext {
   config: AppConfig;
   flags: FlagStore;
   logger: Logger;
+  /**
+   * Every adapter, built once per invocation.
+   *
+   * It lives here rather than being constructed inside each handler because that is what
+   * makes the CLI *testable from the outside*. Six handlers used to call
+   * `liveGraph(context.config, …)` themselves, which meant no caller could put fixture
+   * stores behind a real command — and so the gate named "the CLI acceptance run"
+   * re-implemented all seven of its steps against the layer underneath the commands and
+   * never invoked one (defect SL-26). With the graph injected, `run(['ask','--profile','B'],
+   * { makeGraph: fixtureGraph })` drives the real dispatcher with no network.
+   *
+   * `wiring.test.ts` fails the build if a command reaches for `liveGraph` again.
+   */
+  graph: AdapterGraph;
 }
 
 export type CommandHandler = (context: CommandContext) => Promise<CommandResult>;
@@ -290,6 +305,14 @@ export interface RunDeps {
   err?: Sink;
   /** Injected in tests so no environment is required. */
   loadConfig?: () => AppConfig;
+  /**
+   * Builds the adapter graph. Defaults to `liveGraph`; the acceptance gate passes
+   * `fixtureGraph` so real commands run with no network and no credentials.
+   *
+   * It receives the FlagStore `run` already made, so `pass flags --set` and the adapters
+   * share one store — see `AdapterGraph`'s note in `wiring.ts`.
+   */
+  makeGraph?: (config: AppConfig, logger: Logger, flags: FlagStore) => AdapterGraph;
 }
 
 /**
@@ -354,11 +377,16 @@ export async function run(argv: readonly string[], deps: RunDeps = {}): Promise<
   const handler = spec.handler ?? placeholder(spec);
   let result: CommandResult;
   try {
+    // One flag store and one graph per invocation, both shared: the graph reads the same
+    // store `pass flags --set` writes.
+    const flags = createFlagStore(initialFlags(config, logger), logger);
+    const makeGraph = deps.makeGraph ?? liveGraph;
     result = await handler({
       argv: parsed,
       config,
-      flags: createFlagStore(initialFlags(config, logger), logger),
+      flags,
       logger,
+      graph: makeGraph(config, logger, flags),
     });
   } catch (error) {
     // An unexpected throw is a bug, not an outcome. It must NOT surface as exit 1:
@@ -382,5 +410,22 @@ const invokedDirectly =
   process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
 
 if (invokedDirectly) {
+  // `confit pass census | head -3` closes the pipe partway through a write, and Node
+  // surfaces that as an asynchronous 'error' event on the stream — not a throw, so a
+  // try/catch around `write` does nothing. Unhandled, it turns an ordinary shell idiom
+  // into a stack trace and exit 1, which `gate:cli` would read as "ran, answer was no".
+  //
+  // Installed here rather than inside `run()` on purpose: `run` takes injected sinks and
+  // must not touch process streams, or a test would mutate global state to assert output.
+  // Only visible by running the built binary in a pipeline, which nothing did until the
+  // acceptance gate started booting `dist/src/cli/main.js` (defect SL-26).
+  for (const stream of [process.stdout, process.stderr]) {
+    stream.on('error', (error: NodeJS.ErrnoException) => {
+      // EPIPE only. A full disk or a closed fd is a real problem, and swallowing it
+      // would lose output with no sign.
+      if (error.code !== 'EPIPE') throw error;
+      process.exitCode = 0;
+    });
+  }
   process.exitCode = await run(process.argv.slice(2));
 }

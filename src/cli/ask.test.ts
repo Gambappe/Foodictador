@@ -24,6 +24,7 @@ async function askWith(overrides?: {
   usual?: UsualProfile;
   degraded?: boolean;
   log?: typeof sampleMealLog;
+  inducedClaim?: () => Promise<string>;
 }) {
   const logLines: string[] = [];
   const userStore = new StubUserStore();
@@ -38,9 +39,11 @@ async function askWith(overrides?: {
     flags: { ...DEFAULT_FLAGS, narrator: 'template', demoMode: true },
     logger: createLogger((line) => logLines.push(line)),
     now: FIXTURE_NOW,
-    inducedClaim: () => Promise.resolve('Hygiene complaints under-predict loyalty here.'),
+    inducedClaim:
+      overrides?.inducedClaim ??
+      (() => Promise.resolve('Hygiene complaints under-predict loyalty here.')),
   };
-  return { result: await runAsk(deps), logLines };
+  return { result: await runAsk(deps), logLines, lines: logLines };
 }
 
 describe('X3 confit ask', () => {
@@ -51,7 +54,14 @@ describe('X3 confit ask', () => {
     expect(card.poolCitation).toBeDefined();
     expect(card.poolCitation?.k).toBeGreaterThanOrEqual(5);
     expect(card.poolCitation?.driver).toBe('solo_comfort'); // k=6 beats k=5, deterministic
-    expect(result.lines.some((l) => l.includes('solo comfort × 6'))).toBe(true);
+    // The rendered chip carries the DRIVER_PHRASES wording and the count. This assertion
+    // used to require `solo comfort × 6` — the enum token with its underscore swapped for
+    // a space — which meant a test was actively LOCKING IN defect SL-30 rather than
+    // missing it. K5's banned lexicon applies to what reaches a card, and a test that
+    // demands the banned form is worse than no test.
+    expect(result.lines.some((l) => l.includes('a seat for one by choice'))).toBe(true);
+    expect(result.lines.some((l) => l.includes('6 of them'))).toBe(true);
+    for (const line of result.lines) expect(line).not.toMatch(/solo comfort|solo_comfort/);
   });
 
   it('a driver matching only a k=4 cohort produces the cohort-miss line, exit 0', async () => {
@@ -135,5 +145,38 @@ describe('X3 confit ask', () => {
     });
     expect(result.exit ?? EXIT.ok).toBe(EXIT.ok);
     expect(logLines.some((l) => l.includes('induction unavailable'))).toBe(true);
+  });
+});
+
+describe('X3 ask — the induced claim is the one card line Confit did not write (L4)', () => {
+  it('drops a claim carrying a raw identifier, and keeps the rest of the card', async () => {
+    // Seen live on the first real card after M11 made `ask` reachable: the claim read
+    // 'The key context was that the driver was "spice_tolerance_low"', and `template.ts`
+    // interpolates it into a LINTED template — so the sentence around it was checked and
+    // the sentence itself never was. K5's banned lexicon, in front of a user.
+    const { result } = await askWith({
+      inducedClaim: () =>
+        Promise.resolve('The key context was that the driver was "spice_tolerance_low".'),
+    });
+    for (const line of result.lines) expect(line, line).not.toMatch(/[a-z]+_[a-z]+/);
+    // Dropped, not scrubbed — and the card still stands, because it is built to.
+    const card = result.data['card'] as { reasonLine: string; poolCitation?: unknown };
+    expect(card.reasonLine.length).toBeGreaterThan(0);
+    expect(card.poolCitation).toBeDefined();
+  });
+
+  it('drops a claim carrying K5 banned lexicon', async () => {
+    const { result, lines } = await askWith({
+      inducedClaim: () => Promise.resolve('People here are on a 3-day streak of good choices.'),
+    });
+    expect(result.lines.join('\n')).not.toContain('3-day streak');
+    expect(lines.some((l) => l.includes('induced claim dropped'))).toBe(true);
+  });
+
+  it('keeps a clean claim — the guard is not simply refusing everything', async () => {
+    const claim =
+      'People who eat here most weeks tend to regret the order and blame the kitchen.';
+    const { result } = await askWith({ inducedClaim: () => Promise.resolve(claim) });
+    expect(result.lines.join('\n')).toContain('regret the order');
   });
 });

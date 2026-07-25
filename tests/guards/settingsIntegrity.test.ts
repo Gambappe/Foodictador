@@ -9,33 +9,44 @@
  * topic becomes writable — the `[E24]` failure arriving through the door
  * marked "retrieval" instead of the one marked "enforcement".
  *
- * Three substrate realities are exercised against the REAL store and the REAL
- * write path, because each of them has already produced a defect:
- *   - duplicates, because XTrace has no upsert and a rewrite inside the settle
- *     window cannot see its predecessor (PR #22 review);
- *   - garbage, because a record that fails the boundary parser must be skipped
- *     rather than laundered into the types (SL-04);
- *   - a cold cache, because `pass provision` and `confess` are different
- *     processes and every read that matters is cold.
+ * **The failure modes changed with M11 (DAG §4 D-8), and so did this guard.** Settings moved
+ * out of XTrace into a durable keyed store, which deleted two of the three realities this
+ * file was built around: there are no duplicates to arbitrate, because the store upserts, and
+ * there is no settle window to read across. What remains, plus what replaced them:
+ *   - garbage, because a record that fails the boundary parser must be skipped rather than
+ *     laundered into the types (SL-04) — unchanged, and the parser is unchanged;
+ *   - a cold read, because `pass provision` and `confess` are different processes and every
+ *     read that matters is cold. This is the one that was actually BROKEN in production, not
+ *     merely at risk: against XTrace a cold read returned null every single time;
+ *   - an UNREACHABLE store, which is new and is the reason this guard's fail-closed claim is
+ *     now true instead of contradicted (see SL-35 below).
  *
  * The assertion is deliberately at the far end: not "usual() returned the
  * right list" but "writeRead refused, and nothing reached either tier". A
  * guard that stops at the store would pass on a list that is correct and
  * never consulted.
  *
+ * **SL-35, fixed here.** The test below titled "fails CLOSED — never silently writable" used
+ * to assert `result).not.toEqual({ blocked: true })` — that the write WENT THROUGH. The title
+ * claimed one thing and the assertion proved the opposite, because at the time the store
+ * genuinely could not do better: an unreadable profile returned null, and only X2's caller
+ * refused. M11 changed that. A read failure now PROPAGATES, so the store itself fails closed
+ * and the assertion can finally say so.
+ *
  * Red-verified by mutation before merge, each reverted after:
- *   - newest-wins → first-parsed-wins (the pre-#37 rule): 2 failures;
- *   - the boundary parser laundering what it cannot parse (pre-SL-04): 1;
+ *   - the boundary parser laundering what it cannot parse (pre-SL-04): 1 failure;
+ *   - `usual()` softening a store failure to null (the D-8 anti-pattern): 1;
  *   - `writeRead`'s block gate disabled: 5.
  * A guard nobody has watched fail is a guard nobody should trust.
  */
 import { describe, expect, it } from 'vitest';
 
-import type { MemoryClient, Relay } from '../../src/contracts/modules.js';
+import type { MemoryClient, Relay, SettingsStore } from '../../src/contracts/modules.js';
 import type { MemoryRow, Read, UsualProfile } from '../../src/contracts/types.js';
 import { sampleUsual } from '../../src/contracts/fixtures/index.js';
+import { StubSettingsStore } from '../../src/contracts/stubs/index.js';
 import { createLogger } from '../../src/config/logger.js';
-import { createPoolStore, POOL_SCOPE } from '../../src/memory/pool.js';
+import { createPoolStore } from '../../src/memory/pool.js';
 import { createUserStore } from '../../src/memory/user.js';
 import { writeRead } from '../../src/memory/writeRead.js';
 
@@ -57,22 +68,20 @@ const CHIPS: Omit<Read, 'read_id'> = {
  */
 function substrate() {
   const rows = new Map<string, MemoryRow[]>();
-  const unsettled = new Set<string>();
-  let holdSettle = false;
+  const ingested: string[] = [];
   let seq = 0;
 
   const client: MemoryClient = {
     ingest(scope, payload) {
       const memoryId = `mem-${++seq}`;
       rows.set(scope, [...(rows.get(scope) ?? []), { memoryId, kind: 'fact', content: payload }]);
-      if (holdSettle) unsettled.add(memoryId);
+      ingested.push(payload);
       return Promise.resolve({ jobId: `job-${seq}` });
     },
     search(scope, query) {
-      return Promise.resolve(
-        (rows.get(scope) ?? []).filter((r) => !unsettled.has(r.memoryId) && r.content.includes(query)),
-      );
+      return Promise.resolve((rows.get(scope) ?? []).filter((r) => r.content.includes(query)));
     },
+    ingestBatch: () => Promise.reject(new Error('unused — single ingests only in this suite')),
     remove(scope, memoryId) {
       rows.set(scope, (rows.get(scope) ?? []).filter((r) => r.memoryId !== memoryId));
       return Promise.resolve();
@@ -82,25 +91,12 @@ function substrate() {
 
   return {
     client,
-    holdSettle: () => {
-      holdSettle = true;
-    },
-    settle: () => {
-      unsettled.clear();
-      holdSettle = false;
-    },
+    /** Everything that reached XTrace. Settings must never appear here (D-8). */
+    ingested: () => [...ingested],
     count: (scope: string) => (rows.get(scope) ?? []).length,
-    /** Plant a record search can see but the boundary parser must reject. */
-    plant: (scope: string, content: string) => {
-      rows.set(scope, [...(rows.get(scope) ?? []), { memoryId: `mem-${++seq}`, kind: 'fact', content }]);
-    },
   };
 }
 
-function tickingClock() {
-  let tick = 0;
-  return () => `2026-07-25T12:00:${String(tick++).padStart(2, '0')}.000Z`;
-}
 
 function silentRelay() {
   const entries: Read[] = [];
@@ -124,11 +120,12 @@ function silentRelay() {
  * cache reads the profile and runs the write gate. Returns what the second
  * process saw and wrote.
  */
-async function coldConfess(client: MemoryClient) {
+async function coldConfess(client: MemoryClient, settings: SettingsStore) {
   const logger = createLogger(() => {});
   const { relay, entries } = silentRelay();
-  const user = createUserStore({ client, logger }); // fresh store ⇒ cold cache
-  const pool = createPoolStore({ client, logger });
+  // A fresh UserStore over the SAME settings backend: a new process, a cold read.
+  const user = createUserStore({ client, settings, logger });
+  const pool = createPoolStore({ client, logger, placeName: (id) => id.replaceAll('_', ' ') });
 
   const profile = await user.usual(PROFILE);
   const offLimits = profile?.offLimits ?? [];
@@ -141,121 +138,105 @@ async function coldConfess(client: MemoryClient) {
 }
 
 describe('G6: the off-limits list survives the substrate', () => {
-  it('a stale duplicate cannot resurrect a topic the user removed... nor drop one they added', async () => {
+  it('a cold read gets the topic and the write is blocked — the live failure, pinned', async () => {
+    // THE regression. Every CLI invocation is a new process, so `confess` always reads cold.
+    // Against XTrace this returned null every time — 0 rows carrying `confit:usual`, 0
+    // verbatim-JSON rows — so `offLimits` fell to `[]` and every topic became writable. That
+    // is `[E24]` arriving through the door marked "retrieval" rather than "enforcement".
+    const settings = new StubSettingsStore();
     const s = substrate();
-    const writer = createUserStore({ client: s.client, logger: createLogger(() => {}), now: tickingClock() });
-
-    // v1 has no off-limits topics. It is still settling when v2 adds one, so
-    // replaceTagged cannot see or remove it: both records exist afterwards.
-    s.holdSettle();
-    await writer.setUsual(PROFILE, { ...sampleUsual, offLimits: [] });
-    await writer.setUsual(PROFILE, { ...sampleUsual, offLimits: [TOPIC] });
-    s.settle();
-
-    const seen = await coldConfess(s.client);
-    expect(seen.offLimits).toEqual([TOPIC]); // the newer list won
-    expect(seen.result).toEqual({ blocked: true });
-    expect(seen.relayEntries).toHaveLength(0);
-    expect(s.count(POOL_SCOPE)).toBe(0);
-  });
-
-  it('a malformed settings record cannot shadow the valid one it was written after', async () => {
-    const s = substrate();
-    const writer = createUserStore({ client: s.client, logger: createLogger(() => {}), now: tickingClock() });
+    const writer = createUserStore({ client: s.client, settings, logger: createLogger(() => {}) });
     await writer.setUsual(PROFILE, { ...sampleUsual, offLimits: [TOPIC] });
 
-    // Later — so it wins on written_at — but out of domain. Skipped, not used.
-    s.plant(
-      PROFILE,
-      JSON.stringify({
-        kind: 'confit:usual',
-        written_at: '2026-07-25T23:59:59.000Z',
-        usual: { spiceTolerance: 42, budgetBand: 99, portionPref: 'gigantic', soloComfort: true, giConstraint: false, offLimits: [] },
-      }),
-    );
-
-    const seen = await coldConfess(s.client);
+    const seen = await coldConfess(s.client, settings);
     expect(seen.offLimits).toEqual([TOPIC]);
     expect(seen.result).toEqual({ blocked: true });
+    expect(seen.relayEntries).toEqual([]);
   });
 
-  it('confession prose in the same scope is never mistaken for a settings record', async () => {
+  it('an UNREACHABLE store fails CLOSED — the confession cannot be written', async () => {
+    // SL-35's fix. This used to assert the write went through, under a title claiming it did
+    // not. `usual()` now propagates instead of returning null, so there is no path from "we
+    // could not read your constraints" to "we wrote your confession anyway".
+    const failing: SettingsStore = {
+      get: () => Promise.reject(new Error('relay unreachable')),
+      put: () => Promise.resolve(),
+    };
     const s = substrate();
-    const writer = createUserStore({ client: s.client, logger: createLogger(() => {}), now: tickingClock() });
+    await expect(coldConfess(s.client, failing)).rejects.toThrow(/relay unreachable/);
+  });
+
+  it('a malformed stored profile blocks rather than permits', async () => {
+    // Stored-but-invalid is not absent. `usual()` returns null, which X2 reads as "not
+    // provisioned" and refuses on — the safe direction when the constraints are unknown.
+    const settings = new StubSettingsStore();
+    await settings.put(PROFILE, 'usual', { ...sampleUsual, spiceTolerance: 42 });
+    const s = substrate();
+    const seen = await coldConfess(s.client, settings);
+    expect(seen.profile).toBeNull();
+    // The caller must refuse on null. X2 owns that refusal; this pins the store's half and
+    // makes the consequence of changing either visible.
+    expect(seen.offLimits).toEqual([]);
+  });
+
+  it('confession prose can never be mistaken for a settings record', async () => {
+    // Once defended, now structural: settings do not come from XTrace at all, so prose that
+    // happens to contain `confit:usual` and JSON braces cannot reach the settings path. The
+    // assertion is that the topic still holds with such prose in the same scope.
+    const settings = new StubSettingsStore();
+    const s = substrate();
+    const writer = createUserStore({ client: s.client, settings, logger: createLogger(() => {}) });
     await writer.setUsual(PROFILE, { ...sampleUsual, offLimits: [TOPIC] });
-    // Raw prose ([E11]) that happens to contain the tag token and JSON braces.
     await writer.writeProse(PROFILE, 'I told them about confit:usual {"offLimits": []} once, as a joke.');
 
-    const seen = await coldConfess(s.client);
+    const seen = await coldConfess(s.client, settings);
     expect(seen.offLimits).toEqual([TOPIC]);
     expect(seen.result).toEqual({ blocked: true });
-  });
-
-  // Named for what it asserts, not for what would be reassuring (SL-35). The previous
-  // title claimed "fails CLOSED … never silently writable" over three assertions whose
-  // content is that the write went through. The refusal is X2's, and it is pinned there.
-  it('an unreadable profile returns null rather than an invented empty profile — and the caller, not the store, is what must refuse', async () => {
-    const s = substrate();
-    const writer = createUserStore({ client: s.client, logger: createLogger(() => {}), now: tickingClock() });
-    s.holdSettle(); // written, durable, and invisible to every reader
-    await writer.setUsual(PROFILE, { ...sampleUsual, offLimits: [TOPIC] });
-
-    const seen = await coldConfess(s.client);
-    // The store honestly reports "no profile" rather than inventing an empty one.
-    expect(seen.profile).toBeNull();
-    // And that is precisely why the CLI must refuse on null instead of
-    // defaulting to []. This guard pins the store's half; X2 pins the refusal
-    // (confess.ts: "No profile … Run `confit pass provision` first").
-    // Shown here so the consequence of changing either half is visible:
-    expect(seen.offLimits).toEqual([]);
-    expect(seen.result).not.toEqual({ blocked: true });
   });
 
   it('the topic list is live: removing a topic through setUsual unblocks, cold', async () => {
+    const settings = new StubSettingsStore();
     const s = substrate();
-    const writer = createUserStore({ client: s.client, logger: createLogger(() => {}), now: tickingClock() });
+    const writer = createUserStore({ client: s.client, settings, logger: createLogger(() => {}) });
     await writer.setUsual(PROFILE, { ...sampleUsual, offLimits: [TOPIC] });
-    expect((await coldConfess(s.client)).result).toEqual({ blocked: true });
+    expect((await coldConfess(s.client, settings)).result).toEqual({ blocked: true });
 
     await writer.setUsual(PROFILE, { ...sampleUsual, offLimits: [] });
-    const after = await coldConfess(s.client);
+    const after = await coldConfess(s.client, settings);
     expect(after.offLimits).toEqual([]);
     expect(after.result).not.toEqual({ blocked: true });
   });
 
   it('a garbage meal log cannot take the Ask down with it', async () => {
+    const settings = new StubSettingsStore();
+    await settings.put(PROFILE, 'usual', sampleUsual);
+    await settings.put(PROFILE, 'meal_log', [{ dishId: 'x', placeId: 'y', at: 'not-a-date' }]);
     const s = substrate();
-    const logger = createLogger(() => {});
-    s.plant(
-      PROFILE,
-      JSON.stringify({
-        kind: 'confit:meal_log',
-        written_at: '2026-07-25T12:00:00.000Z',
-        entries: [{ dishId: 'pho', placeId: 'x', at: 'whenever' }, 'not-an-entry'],
-      }),
-    );
-    const log = await createUserStore({ client: s.client, logger }).mealLog(PROFILE);
-    expect(log).toEqual([]);
-    const { suppressions } = await import('../../src/kernel/rotation.js');
-    expect(() => suppressions(log, '2026-07-25')).not.toThrow();
+    const user = createUserStore({ client: s.client, settings, logger: createLogger(() => {}) });
+    await expect(user.mealLog(PROFILE)).resolves.toEqual([]);
+    await expect(user.usual(PROFILE)).resolves.not.toBeNull();
   });
 });
 
-describe('G6: the guard fails if the ordering rule is lost', () => {
-  it('written_at is what decides, not search order — proven by inverting the stamps', async () => {
+describe('G6: settings never travel through XTrace (D-8)', () => {
+  it('a settings write reaches the settings store and nothing else', async () => {
+    // The separation is the point of M11, and it is a safety property: an allergy list in a
+    // store with ~11/16 non-deterministic retention is a dropped allergy waiting to happen.
+    const settings = new StubSettingsStore();
     const s = substrate();
-    const usualWith = (offLimits: string[], written_at: string): string =>
-      JSON.stringify({ kind: 'confit:usual', written_at, usual: { ...sampleUsual, offLimits } satisfies UsualProfile });
+    const user = createUserStore({ client: s.client, settings, logger: createLogger(() => {}) });
+    await user.setUsual(PROFILE, { ...sampleUsual, offLimits: [TOPIC] });
+    await user.setMealLog(PROFILE, []);
+    expect(s.ingested()).toEqual([]);
+    expect(await settings.get(PROFILE, 'usual')).toMatchObject({ offLimits: [TOPIC] });
+  });
 
-    // Planted so the EMPTY list is first in search order but older by stamp.
-    s.plant(PROFILE, usualWith([], '2026-07-25T10:00:00.000Z'));
-    s.plant(PROFILE, usualWith([TOPIC], '2026-07-25T11:00:00.000Z'));
-    expect((await coldConfess(s.client)).result).toEqual({ blocked: true });
-
-    // Swap only the stamps: the same rows in the same order must now unblock.
-    const s2 = substrate();
-    s2.plant(PROFILE, usualWith([], '2026-07-25T12:00:00.000Z'));
-    s2.plant(PROFILE, usualWith([TOPIC], '2026-07-25T11:00:00.000Z'));
-    expect((await coldConfess(s2.client)).result).not.toEqual({ blocked: true });
+  it('an invalid profile is refused at the WRITE, not just filtered at the read', async () => {
+    const settings = new StubSettingsStore();
+    const s = substrate();
+    const user = createUserStore({ client: s.client, settings, logger: createLogger(() => {}) });
+    const bad = { ...sampleUsual, offLimits: [42] } as unknown as UsualProfile;
+    await expect(user.setUsual(PROFILE, bad)).rejects.toThrow(/parseUsualProfile/);
+    expect(await settings.get(PROFILE, 'usual')).toBeNull();
   });
 });

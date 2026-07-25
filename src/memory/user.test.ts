@@ -1,49 +1,38 @@
 import { describe, expect, it } from 'vitest';
 
-import type { MemoryClient } from '../contracts/modules.js';
-import type { IngestJobStatus, MemoryRow, UsualProfile } from '../contracts/types.js';
+import type { MemoryClient, SettingsStore } from '../contracts/modules.js';
+import type { IngestJobStatus, MealLogEntry, MemoryRow, UsualProfile } from '../contracts/types.js';
 import { sampleUsual } from '../contracts/fixtures/index.js';
+import { StubSettingsStore } from '../contracts/stubs/index.js';
 import { createLogger } from '../config/logger.js';
 import { createUserStore } from './user.js';
 
-/**
- * Fake substrate: per-scope rows, searchable by naive substring, removable,
- * with per-job controllable status, plus a manual settle mode — rows ingested
- * under it are invisible to search until settleAll(), simulating XTrace's
- * ingest→retrievable window (the condition behind the PR #22 review).
- */
+/** Fake XTrace: per-scope rows, per-job controllable status. Prose only, after M11. */
 function fakeSubstrate() {
   const rowsByScope = new Map<string, MemoryRow[]>();
   const jobStatuses = new Map<string, IngestJobStatus>();
   const ingests: Array<{ scope: string; payload: string; jobId: string }> = [];
-  const unsettled = new Set<string>();
-  let manualSettle = false;
   let seq = 0;
 
   const client: MemoryClient = {
     ingest(scope, payload) {
       const jobId = `job-${++seq}`;
       ingests.push({ scope, payload, jobId });
-      const rows = rowsByScope.get(scope) ?? [];
-      const memoryId = `mem-${seq}`;
-      rows.push({ memoryId, kind: 'fact', content: payload });
-      if (manualSettle) unsettled.add(memoryId);
-      rowsByScope.set(scope, rows);
+      rowsByScope.set(scope, [
+        ...(rowsByScope.get(scope) ?? []),
+        { memoryId: `mem-${seq}`, kind: 'fact', content: payload },
+      ]);
       jobStatuses.set(jobId, 'pending');
       return Promise.resolve({ jobId });
     },
+    ingestBatch: () => Promise.reject(new Error('the user tier writes one message at a time')),
     search(scope, query) {
-      const rows = rowsByScope.get(scope) ?? [];
       return Promise.resolve(
-        rows.filter((r) => !unsettled.has(r.memoryId) && r.content.includes(query)),
+        (rowsByScope.get(scope) ?? []).filter((r) => r.content.includes(query)),
       );
     },
     remove(scope, memoryId) {
-      const rows = rowsByScope.get(scope) ?? [];
-      rowsByScope.set(
-        scope,
-        rows.filter((r) => r.memoryId !== memoryId),
-      );
+      rowsByScope.set(scope, (rowsByScope.get(scope) ?? []).filter((r) => r.memoryId !== memoryId));
       return Promise.resolve();
     },
     jobStatus(jobId) {
@@ -51,278 +40,216 @@ function fakeSubstrate() {
     },
   };
 
-  return {
-    client,
-    rowsByScope,
-    jobStatuses,
-    ingests,
-    enableManualSettle: () => {
-      manualSettle = true;
-    },
-    settleAll: () => {
-      unsettled.clear();
-    },
-    countTagged: (scope: string, kind: string) =>
-      (rowsByScope.get(scope) ?? []).filter((r) => r.content.includes(kind)).length,
-  };
+  return { client, rowsByScope, jobStatuses, ingests };
 }
 
-/** Deterministic monotonic clock for written_at stamps. */
-function tickingClock() {
-  let tick = 0;
-  return () => `2026-07-25T12:00:${String(tick++).padStart(2, '0')}.000Z`;
-}
-
-function harness() {
+function harness(settings: SettingsStore = new StubSettingsStore()) {
   const lines: string[] = [];
   const logger = createLogger((m) => lines.push(m));
   const substrate = fakeSubstrate();
-  const store = createUserStore({ client: substrate.client, logger, now: tickingClock() });
-  return { store, lines, logger, ...substrate };
+  const store = createUserStore({ client: substrate.client, settings, logger });
+  return { store, lines, logger, settings, ...substrate };
 }
 
-describe('M3 writeProse', () => {
+describe('M3 writeProse — the EXPERIENCES half stays in XTrace (D-8)', () => {
   it('ingests the prose byte-identical to the input — raw, unmodified', async () => {
-    const { store, ingests } = harness();
-    const text = '  I pretend to like spice — crème brûlée after, every time.\n\ttabs and all ';
-    await store.writeProse('A', text);
-    expect(ingests).toHaveLength(1);
-    expect(ingests[0]?.scope).toBe('A');
-    expect(ingests[0]?.payload).toBe(text); // exact bytes: no trim, no wrap, no JSON
+    const h = harness();
+    const text = "  I ALWAYS get the pho, and honestly?? it's fine.  ";
+    await h.store.writeProse('A', text);
+    expect(h.ingests).toHaveLength(1);
+    expect(h.ingests[0]?.payload).toBe(text); // [E11]: no trim, no clean, no wrapper
+    expect(h.ingests[0]?.scope).toBe('A');
   });
 
   it('the unconfirmed-drop warning fires for prose the substrate never confirmed', async () => {
-    const { store, lines } = harness();
-    await store.writeProse('A', 'a confession the process will die holding');
-    const dropped = store.dropUnconfirmedProse();
-    expect(dropped).toBe(1);
-    expect(lines).toHaveLength(1);
-    expect(lines[0]).toContain('dropping unconfirmed prose');
-    expect(lines[0]).toContain('profile A');
+    const h = harness();
+    await h.store.writeProse('A', 'a true thing');
+    expect(h.store.dropUnconfirmedProse()).toBe(1);
+    expect(h.lines.some((l) => l.includes('unconfirmed'))).toBe(true);
   });
 
   it('confirmed prose is released — no warning, nothing to drop', async () => {
-    const { store, lines, jobStatuses, ingests } = harness();
-    await store.writeProse('A', 'a confession that settles');
-    const jobId = ingests[0]?.jobId ?? '';
-    jobStatuses.set(jobId, 'complete');
-    await store.verifyPendingProse();
-    expect(store.dropUnconfirmedProse()).toBe(0);
-    expect(lines).toEqual([]);
+    const h = harness();
+    const handle = await h.store.writeProse('A', 'a true thing');
+    h.jobStatuses.set(handle.jobId, 'complete');
+    await h.store.verifyPendingProse();
+    expect(h.store.dropUnconfirmedProse()).toBe(0);
   });
 
   it('a failed ingest is retried once with the same raw text, then dropped with a warning', async () => {
-    const { store, lines, jobStatuses, ingests } = harness();
-    const text = 'a confession the substrate keeps refusing';
-    await store.writeProse('A', text);
-    jobStatuses.set(ingests[0]?.jobId ?? '', 'failed');
-    await store.verifyPendingProse();
-    expect(ingests).toHaveLength(2); // the retry half of verify-and-retry
-    expect(ingests[1]?.payload).toBe(text);
-    jobStatuses.set(ingests[1]?.jobId ?? '', 'failed');
-    await store.verifyPendingProse();
-    expect(ingests).toHaveLength(2); // one retry, not a loop
-    expect(lines.some((l) => l.includes('failed after retry'))).toBe(true);
-    expect(store.dropUnconfirmedProse()).toBe(0); // already accounted for
+    const h = harness();
+    const handle = await h.store.writeProse('A', 'the same words');
+    h.jobStatuses.set(handle.jobId, 'failed');
+    await h.store.verifyPendingProse();
+    expect(h.ingests).toHaveLength(2);
+    expect(h.ingests[1]?.payload).toBe('the same words');
+
+    h.jobStatuses.set(h.ingests[1]?.jobId ?? '', 'failed');
+    await h.store.verifyPendingProse();
+    expect(h.ingests).toHaveLength(2); // one retry, not a loop
+    expect(h.lines.some((l) => l.includes('failed after retry'))).toBe(true);
   });
 });
 
-describe('M3 usual', () => {
+describe('M3 settings — the DECLARED half is NOT in XTrace (M11, D-8)', () => {
   it('setUsual then usual round-trips, including offLimits', async () => {
-    const { store } = harness();
-    const usual: UsualProfile = { ...sampleUsual, offLimits: ['fasting', 'creme brulee'] };
-    await store.setUsual('A', usual);
-    const back = await store.usual('A');
-    expect(back).toEqual(usual);
-    expect(back?.offLimits).toEqual(['fasting', 'creme brulee']);
+    const h = harness();
+    await h.store.setUsual('A', { ...sampleUsual, offLimits: ['shellfish', 'gluten'] });
+    expect(await h.store.usual('A')).toMatchObject({ offLimits: ['shellfish', 'gluten'] });
   });
 
   it('a fresh profile has no usual', async () => {
-    const { store } = harness();
-    expect(await store.usual('nobody')).toBeNull();
+    expect(await harness().store.usual('nobody')).toBeNull();
   });
 
-  it('persists through the substrate: a second store instance reads what the first wrote', async () => {
-    const { store, client } = harness();
-    await store.setUsual('B', sampleUsual);
-    const second = createUserStore({ client, logger: createLogger(() => {}) });
-    expect(await second.usual('B')).toEqual(sampleUsual);
+  it('reads what a DIFFERENT store instance wrote — the failure that broke ask and confess', async () => {
+    // The live bug, in one test. Every CLI invocation is a new process, so `confit confess`
+    // and `confit ask` are always cold reads. Against XTrace this returned null every time:
+    // `setUsual` wrote a tagged JSON record, extraction turned it into prose, and the tag and
+    // the structure both vanished — 0 rows carrying `confit:usual`, 0 verbatim-JSON rows.
+    const settings = new StubSettingsStore();
+    await harness(settings).store.setUsual('A', sampleUsual);
+    const second = harness(settings); // a different process, in effect
+    expect(await second.store.usual('A')).toMatchObject({ spiceTolerance: sampleUsual.spiceTolerance });
   });
 
-  it('replaces rather than accumulates — one usual record per profile', async () => {
-    const { store, rowsByScope } = harness();
-    await store.setUsual('A', sampleUsual);
-    await store.setUsual('A', { ...sampleUsual, spiceTolerance: 3 });
-    const usualRows = (rowsByScope.get('A') ?? []).filter((r) => r.content.includes('confit:usual'));
-    expect(usualRows).toHaveLength(1);
-    expect((await store.usual('A'))?.spiceTolerance).toBe(3);
+  it('writes settings to the settings store and NEVER to XTrace', async () => {
+    // The separation D-8 asks for, asserted rather than assumed. A settings write that also
+    // reached XTrace would put an allergy list into a store with ~11/16 retention.
+    const h = harness();
+    await h.store.setUsual('A', sampleUsual);
+    await h.store.setMealLog('A', []);
+    expect(h.ingests).toHaveLength(0);
+    expect(h.rowsByScope.size).toBe(0);
+  });
+
+  it('overwrites rather than accumulating — no duplicates to arbitrate', async () => {
+    // This replaces four tests that existed only because XTrace has no upsert: duplicate
+    // records were GUARANTEED, so reads had to pick a winner by `written_at`. A keyed store
+    // makes the whole class of bug unrepresentable, which is why that machinery is deleted
+    // rather than ported.
+    const h = harness();
+    await h.store.setUsual('A', { ...sampleUsual, budgetBand: 1 });
+    await h.store.setUsual('A', { ...sampleUsual, budgetBand: 4 });
+    expect(await h.store.usual('A')).toMatchObject({ budgetBand: 4 });
+  });
+
+  it('one profile cannot read another\'s settings', async () => {
+    const h = harness();
+    await h.store.setUsual('A', sampleUsual);
+    expect(await h.store.usual('B')).toBeNull();
   });
 
   it('returned objects are copies — mutating them does not corrupt the store', async () => {
-    const { store } = harness();
-    await store.setUsual('A', sampleUsual);
-    const first = await store.usual('A');
+    const h = harness();
+    await h.store.setUsual('A', sampleUsual);
+    const first = await h.store.usual('A');
     first?.offLimits.push('injected');
-    expect((await store.usual('A'))?.offLimits).toEqual(sampleUsual.offLimits);
-  });
-
-  it('ignores garbage and prose rows when reading the usual', async () => {
-    const { store, client } = harness();
-    await client.ingest('A', 'raw prose mentioning confit:usual in passing');
-    await client.ingest('A', '{"kind":"confit:usual","usual":{"broken":true}}');
-    expect(await store.usual('A')).toBeNull();
+    expect((await h.store.usual('A'))?.offLimits).not.toContain('injected');
   });
 });
 
-describe('M3 usual — duplicates and misses (PR #22 review)', () => {
-  it('two competing settings records: the NEWEST wins on a cold cache, even listed first-is-stale', async () => {
-    const h = harness();
-    h.enableManualSettle();
-    // Write v1; it is still inside the settle window when v2 is written, so
-    // replaceTagged cannot see it and cannot remove it — the review's stale-
-    // duplicate scenario. Both then settle; a fresh store reads cold.
-    await h.store.setUsual('A', { ...sampleUsual, offLimits: ['fasting'] });
-    await h.store.setUsual('A', { ...sampleUsual, offLimits: ['fasting', 'gluten'] });
-    h.settleAll();
-    expect(h.countTagged('A', 'confit:usual')).toBe(2); // the duplicate exists…
-
-    const cold = createUserStore({ client: h.client, logger: createLogger(() => {}) });
-    const usual = await cold.usual('A');
-    // …and written_at ordering, not luck, returns the newer list. The fake
-    // returns rows in insertion order with the stale record first.
-    expect(usual?.offLimits).toEqual(['fasting', 'gluten']);
+describe('M3 settings — a read failure must NOT look like "no constraints"', () => {
+  it('propagates a store failure instead of returning null', async () => {
+    // The safety property behind D-8. X2 reads `usual() === null` as "not provisioned" and
+    // proceeds; if an unreachable store produced null, an off-limits list would silently
+    // become empty and a confession that should be blocked would be written to the pool.
+    const failing: SettingsStore = {
+      get: () => Promise.reject(new Error('relay unreachable')),
+      put: () => Promise.resolve(),
+    };
+    await expect(harness(failing).store.usual('A')).rejects.toThrow(/relay unreachable/);
   });
 
-  it('a stamped record beats a legacy unstamped one regardless of order', async () => {
-    const h = harness();
-    // Hand-plant a legacy record (no written_at) first in insertion order.
-    await h.client.ingest(
-      'A',
-      JSON.stringify({ kind: 'confit:usual', usual: { ...sampleUsual, offLimits: ['old-topic'] } }),
-    );
-    const fresh = createUserStore({ client: h.client, logger: createLogger(() => {}), now: tickingClock() });
-    await fresh.setUsual('A', { ...sampleUsual, offLimits: ['new-topic'] });
-    const cold = createUserStore({ client: h.client, logger: createLogger(() => {}) });
-    expect((await cold.usual('A'))?.offLimits).toEqual(['new-topic']);
+  it('a stored-but-invalid profile reads as unprovisioned, loudly', async () => {
+    // Blocks rather than permits: null makes X2 refuse the confession, which is the safe
+    // direction when we cannot tell what the user's constraints are.
+    const settings = new StubSettingsStore();
+    await settings.put('A', 'usual', { spiceTolerance: 42 });
+    const h = harness(settings);
+    expect(await h.store.usual('A')).toBeNull();
+    expect(h.lines.some((l) => l.includes('failed the boundary parser'))).toBe(true);
   });
 
-  it('a search that omits the settings row entirely reads as null — the documented meaning', async () => {
+  it('refuses to STORE a profile that fails the parser', async () => {
+    // setUsual is the only write path for off-limits topics (G2, X7, U4). A caller with a
+    // hand-built object does not get to put an unhonourable constraint into durable storage.
     const h = harness();
-    h.enableManualSettle();
-    await h.store.setUsual('B', { ...sampleUsual, offLimits: ['fasting'] });
-    // The record exists but never settles: a cold reader gets null. What the
-    // WRITE path may do with null is an open contract question raised to the
-    // integrator (see user.ts docblock) — this pins the store's half only.
-    const cold = createUserStore({ client: h.client, logger: createLogger(() => {}) });
-    expect(await cold.usual('B')).toBeNull();
-  });
-
-  it('meal log follows the same newest-wins rule across a cold cache', async () => {
-    const h = harness();
-    h.enableManualSettle();
-    await h.store.setMealLog('A', [{ dishId: 'old_dish', placeId: 'p', at: '2026-07-01' }]);
-    await h.store.setMealLog('A', [{ dishId: 'new_dish', placeId: 'p', at: '2026-07-20' }]);
-    h.settleAll();
-    const cold = createUserStore({ client: h.client, logger: createLogger(() => {}) });
-    expect((await cold.mealLog('A'))[0]?.dishId).toBe('new_dish');
+    const bad = { ...sampleUsual, budgetBand: 9 } as unknown as UsualProfile;
+    await expect(h.store.setUsual('A', bad)).rejects.toThrow(/parseUsualProfile/);
+    expect(await h.store.usual('A')).toBeNull(); // nothing was written
   });
 });
 
 describe('M3 boundary parsing (SL-04)', () => {
-  it('an out-of-domain usual is skipped with a log line, never laundered into the types', async () => {
-    const h = harness();
-    await h.client.ingest(
-      'A',
-      JSON.stringify({
-        kind: 'confit:usual',
-        written_at: '2026-07-25T12:00:99.000Z', // newest by far
-        usual: { spiceTolerance: 42, budgetBand: 99, portionPref: 'gigantic', soloComfort: true, giConstraint: false, offLimits: [] },
-      }),
-    );
-    // A newer garbage record must not shadow an older valid one.
-    await h.client.ingest(
-      'A',
-      JSON.stringify({
-        kind: 'confit:usual',
-        written_at: '2026-07-25T11:00:00.000Z',
-        usual: { ...sampleUsual, offLimits: ['fasting'] },
-      }),
-    );
-    const cold = createUserStore({ client: h.client, logger: createLogger((m) => h.lines.push(m)) });
-    const usual = await cold.usual('A');
-    expect(usual?.spiceTolerance).toBe(sampleUsual.spiceTolerance);
-    expect(usual?.offLimits).toEqual(['fasting']);
-    expect(h.lines.some((l) => l.includes('skipping malformed confit:usual'))).toBe(true);
+  const cases: Array<[string, unknown]> = [
+    ['spiceTolerance out of domain', { ...sampleUsual, spiceTolerance: 42 }],
+    ['budgetBand out of domain', { ...sampleUsual, budgetBand: 0 }],
+    ['portionPref not in the enum', { ...sampleUsual, portionPref: 'gigantic' }],
+    ['soloComfort not a boolean', { ...sampleUsual, soloComfort: 'yes' }],
+    ['offLimits not an array of strings', { ...sampleUsual, offLimits: [1, 2] }],
+    ['defaultOrder missing a dishId', { ...sampleUsual, defaultOrder: { placeId: 'p' } }],
+    ['not an object at all', 'a sentence about my preferences'],
+    ['null', null],
+  ];
+
+  it.each(cases)('%s is never laundered into the types', async (_label, stored) => {
+    // The SL-04 failure: a predicate that checked `typeof` and claimed `value is UsualProfile`
+    // put `spiceTolerance: 42` into the type system, where it silently disabled K4's spice and
+    // budget constraints. These read as null.
+    const settings = new StubSettingsStore();
+    await settings.put('A', 'usual', stored);
+    expect(await harness(settings).store.usual('A')).toBeNull();
   });
 
-  it('garbage-only usual records read as null, not as a typed lie', async () => {
-    const h = harness();
-    await h.client.ingest(
-      'B',
-      JSON.stringify({ kind: 'confit:usual', usual: { spiceTolerance: 42 } }),
-    );
-    const cold = createUserStore({ client: h.client, logger: createLogger(() => {}) });
-    expect(await cold.usual('B')).toBeNull();
-  });
-
-  it('extra keys in a stored usual are stripped — the returned object is exactly the contract shape', async () => {
-    const h = harness();
-    await h.client.ingest(
-      'A',
-      JSON.stringify({
-        kind: 'confit:usual',
-        written_at: '2026-07-25T12:00:50.000Z',
-        usual: { ...sampleUsual, smuggled: 'not-a-contract-field' },
-      }),
-    );
-    const cold = createUserStore({ client: h.client, logger: createLogger(() => {}) });
-    const usual = await cold.usual('A');
+  it('strips extra keys — the returned object is exactly the contract shape', async () => {
+    const settings = new StubSettingsStore();
+    await settings.put('A', 'usual', { ...sampleUsual, smuggled: 'nope', written_at: 'x' });
+    const usual = await harness(settings).store.usual('A');
     expect(usual).not.toBeNull();
-    expect(Object.keys(usual ?? {})).not.toContain('smuggled');
-  });
-
-  it('a junk meal-log entry is skipped and logged — and K3 no longer throws (the SL-04 probe)', async () => {
-    const h = harness();
-    await h.client.ingest(
-      'A',
-      JSON.stringify({
-        kind: 'confit:meal_log',
-        written_at: '2026-07-25T12:00:50.000Z',
-        entries: [
-          { dishId: 'pho', placeId: 'x', at: '2026-07-20', felt: 'glad' },
-          { dishId: 'pho', placeId: 'x', at: 'whenever' },
-          'not-an-entry',
-          { dishId: 'pho', placeId: 'x', at: '2026-07-21', felt: 'meh' },
-        ],
-      }),
+    expect(Object.keys(usual ?? {}).sort()).toEqual(
+      [
+        'budgetBand',
+        'defaultOrder',
+        'giConstraint',
+        'offLimits',
+        'portionPref',
+        'soloComfort',
+        'spiceTolerance',
+      ].filter((k) => k !== 'defaultOrder' || sampleUsual.defaultOrder !== undefined),
     );
-    const cold = createUserStore({ client: h.client, logger: createLogger((m) => h.lines.push(m)) });
-    const log = await cold.mealLog('A');
-    expect(log).toEqual([{ dishId: 'pho', placeId: 'x', at: '2026-07-20', felt: 'glad' }]);
-    expect(h.lines.filter((l) => l.includes('skipping malformed meal-log entry'))).toHaveLength(3);
-    // The probe that motivated SL-04: this used to throw out of K3.
-    const { suppressions } = await import('../kernel/rotation.js');
-    expect(() => suppressions(log, '2026-07-25')).not.toThrow();
   });
 });
 
 describe('M3 meal log', () => {
+  const entry: MealLogEntry = { dishId: 'pho_ga', placeId: 'phos_deep', at: '2026-07-01' };
+
   it('setMealLog then mealLog round-trips; a fresh profile is empty', async () => {
-    const { store } = harness();
-    expect(await store.mealLog('A')).toEqual([]);
-    const entries = [
-      { dishId: 'shoyu_ramen', placeId: 'noodle_shrine', at: '2026-07-19', felt: 'glad' as const },
-      { dishId: 'shoyu_ramen', placeId: 'noodle_shrine', at: '2026-07-23' },
-    ];
-    await store.setMealLog('A', entries);
-    expect(await store.mealLog('A')).toEqual(entries);
+    const h = harness();
+    expect(await h.store.mealLog('A')).toEqual([]);
+    await h.store.setMealLog('A', [entry]);
+    expect(await h.store.mealLog('A')).toEqual([entry]);
   });
 
-  it('meal log persists to a second instance through the substrate', async () => {
-    const { store, client } = harness();
-    const entries = [{ dishId: 'al_pastor', placeId: 'rosas_taqueria', at: '2026-07-01' }];
-    await store.setMealLog('B', entries);
-    const second = createUserStore({ client, logger: createLogger(() => {}) });
-    expect(await second.mealLog('B')).toEqual(entries);
+  it('a junk entry is skipped and logged — K3 never sees an unparseable date', async () => {
+    const settings = new StubSettingsStore();
+    await settings.put('A', 'meal_log', [entry, { dishId: 'x', placeId: 'y', at: 'not-a-date' }]);
+    const h = harness(settings);
+    expect(await h.store.mealLog('A')).toEqual([entry]);
+    expect(h.lines.some((l) => l.includes('malformed meal-log entry'))).toBe(true);
+  });
+
+  it('a stored non-array reads as empty, with a line saying so', async () => {
+    const settings = new StubSettingsStore();
+    await settings.put('A', 'meal_log', { not: 'an array' });
+    const h = harness(settings);
+    expect(await h.store.mealLog('A')).toEqual([]);
+    expect(h.lines.some((l) => l.includes('is not an array'))).toBe(true);
+  });
+
+  it('reads across store instances, like every CLI invocation does', async () => {
+    const settings = new StubSettingsStore();
+    await harness(settings).store.setMealLog('A', [entry]);
+    expect(await harness(settings).store.mealLog('A')).toEqual([entry]);
   });
 });
