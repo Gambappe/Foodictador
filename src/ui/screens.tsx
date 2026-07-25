@@ -99,6 +99,16 @@ export function AskRoute({ backend }: { backend: UiBackend }) {
   return <AskCard card={card.value} />;
 }
 
+/**
+ * Settings holds two independent things, so it must not have one failure path.
+ *
+ * The nudge lives entirely in N1's in-memory state — `createNudge()` here, no profile,
+ * no network. The off-limits editor needs the profile. The first version returned
+ * `<Unavailable>` for the whole route when the profile failed to load, which took the
+ * nudge opt-in down with it: a control that cannot fail was hidden by an unrelated
+ * failure. Caught by screenshotting the built app, where Settings rendered nothing but
+ * an error while the toggle beside it would have worked fine.
+ */
 export function SettingsRoute({ backend }: { backend: UiBackend }) {
   const load = useCallback(() => backend.usual(), [backend]);
   const usual = useAsync<UsualProfile>(load);
@@ -106,14 +116,25 @@ export function SettingsRoute({ backend }: { backend: UiBackend }) {
   const [nudge] = useState(() => createNudge());
   const [now] = useState(() => new Date().toISOString());
 
-  if (usual.state === 'loading') return <Loading what="Settings" />;
-  if (usual.state === 'failed') return <Unavailable what="Settings" error={usual.error} />;
-
   return (
-    <>
+    <section aria-labelledby="screen-heading">
+      <h1 id="screen-heading" className="text-2xl font-semibold">
+        Settings
+      </h1>
       <NudgeBanner nudge={nudge} now={now} />
-      <OffLimitsEditor usual={usual.value} onSave={(next) => backend.saveUsual(next)} />
-    </>
+      {usual.state === 'loading' ? (
+        <p className="mt-3 text-muted">Loading your profile…</p>
+      ) : usual.state === 'failed' ? (
+        <p
+          data-testid="screen-unavailable"
+          className="mt-3 rounded border border-refusal/40 p-3 text-refusal"
+        >
+          {usual.error}
+        </p>
+      ) : (
+        <OffLimitsEditor usual={usual.value} onSave={(next) => backend.saveUsual(next)} />
+      )}
+    </section>
   );
 }
 

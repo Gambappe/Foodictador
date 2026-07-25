@@ -113,6 +113,16 @@ describe('U1: an unreachable backend is reported, not rendered as emptiness', ()
     expect(screen.queryByTestId('ask-card')).toBeNull();
   });
 
+  it('a failed profile load does not take the nudge opt-in down with it', async () => {
+    // Found by screenshotting the built app: Settings rendered nothing but an error,
+    // even though the nudge is N1 in-memory state that needs no profile and no network.
+    // Two independent concerns must not share one failure path.
+    renderAt('/settings', NOT_CONNECTED);
+    await waitFor(() => expect(screen.getByTestId('screen-unavailable')).toBeTruthy());
+    expect(screen.getByRole('checkbox')).toBeTruthy(); // the opt-in still works
+    expect(screen.queryByTestId('off-limits-list')).toBeNull(); // the profile half does not
+  });
+
   it('confess refuses rather than guessing an empty off-limits list', async () => {
     // Guessing `[]` would offer to pool a topic the author had forbidden.
     renderAt('/confess', NOT_CONNECTED);
