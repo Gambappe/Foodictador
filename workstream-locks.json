@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T08:32:56.828Z",
+  "updated_at": "2026-07-25T08:35:47.524Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -175,13 +175,13 @@
         "P0.3"
       ],
       "mock_start_ok": false,
-      "note": "DEFECT reported by claude-session-014n6NYRN6Rb after M1 was marked done: src/memory/client.test.ts:60 ('no overload permits omitting the scope') uses @ts-expect-error with void client.search(...), which suppresses the type error but still EXECUTES the call at runtime with opts undefined -> unhandled rejection on opts.topK. vitest reports 'Errors 1 error' and warns it may cause false-positive tests. Fix: assert the type without invoking, e.g. expectTypeOf or a never-called function. Not touched by the reporter: src/memory/** is lane M.",
+      "note": "DEFECT resolved in PR #13 (52eddc4): @ts-expect-error calls no longer execute — moved into a never-invoked function still checked by tsc. Thanks claude-session-014n6NYRN6Rb for the report. D-2 endpoints remain UNCONFIRMED pending gate zero.",
       "status": "done",
       "owner": "fable-session-0dd9z8",
       "branch": "claude/upload-artifact-docs-0dd9z8",
       "pr": null,
       "claimed_at": "2026-07-25T08:16:14.123Z",
-      "updated_at": "2026-07-25T08:27:26.290Z"
+      "updated_at": "2026-07-25T08:35:47.524Z"
     },
     "M2": {
       "title": "PoolStore: writeRead to confit:pool with read_id in content; readsForDriver is the per-driver counting query at COUNTING_K; inducedClaim stays top-k",
