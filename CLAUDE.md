@@ -1,10 +1,10 @@
 # Foodictador
 
-This repo builds the Confit slice per `docs/confit-implementation-plan.md` (the DAG):
-frozen contracts (§3), a parallelizable task DAG cut into six lanes (§4), the clock and
-gates (§6), and per-lane task specs (§7). The implementation plan is authoritative for
-the build; product decisions are governed by design doc v0.3 (referenced by the plan,
-not in this repo).
+This repo builds the Confit slice per `docs/confit-v0.8-task-dag.md` (the CLI-first task
+DAG): engineering rules (§1), exclusive lane/file ownership (§2), contract deltas (§3),
+the CLI surface (§5), and per-task specs (§7). The DAG is authoritative for the build;
+product decisions are governed by design doc v0.8 (`docs/confit-design-v0.8.md`). Plan
+v1.0 and designs v0.6–v0.7 are superseded — do not build against them.
 
 ## Before starting implementation work
 

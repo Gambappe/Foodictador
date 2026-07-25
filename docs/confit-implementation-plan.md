@@ -2,6 +2,8 @@
 
 **The DAG · July 24, 2026 · governed by design doc v0.3 (authoritative for product decisions)**
 
+> **Superseded by the [v0.8 task DAG](./confit-v0.8-task-dag.md)**, governed by design v0.8 — which falsified this plan's x-vec spike, encrypted vault, and sub-3s pot assumptions (v0.8 §14). Do not claim tasks from this plan; the lock registry is seeded from `confit-v0.8-tasks.seed.json`. Kept for history and for the sections the DAG imports by reference: scoring (§3.4), satiation (§3.5), the type shapes (§3.1), and the relay route shape (§8.4).
+
 **Audience:** the implementers. This document is the build. It freezes the interfaces, cuts the work into a DAG of parallelizable tasks with explicit dependencies, assigns lanes, sets the gates, and ships with the admin-panel manual and the demo script. If v0.3 says *what* and *why*, this says *who builds which file, against which interface, proven by which test, by which minute*.
 
 **Scope:** the full `[slice]` — every stated feature usable from the user's entry point (the app URL), plus the admin panel ("The Pass") that seeds data and orchestrates the demo, plus the demo guide ("Service").
