@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T10:10:11.175Z",
+  "updated_at": "2026-07-25T10:13:02.715Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -796,6 +796,23 @@
       "pr": "https://github.com/Gambappe/Foodictador/pull/51",
       "claimed_at": "2026-07-25T09:49:17.662Z",
       "updated_at": "2026-07-25T09:58:50.625Z"
+    },
+    "M9": {
+      "title": "Relay as durable pool (D-7): sweeper stops dropping, PoolView reads the relay as canonical, PoolStore keeps induction only",
+      "phase": "M",
+      "depends_on": [
+        "M4",
+        "M6",
+        "M7"
+      ],
+      "mock_start_ok": false,
+      "note": "D-7: the relay is now the store of record. URGENT half first — M7's verified-drop is DATA LOSS against a durable relay and must stop deleting before anything else changes. Then PoolView stops unioning (relay is canonical), and PoolStore's readsForDriver goes: XTrace cannot return a read, only prose about one. See docs/gate0-results.md for the evidence and DAG §4 D-7 for the consequences.",
+      "status": "available",
+      "owner": null,
+      "branch": null,
+      "pr": null,
+      "claimed_at": null,
+      "updated_at": "2026-07-25T10:13:02.714Z"
     }
   }
 }
