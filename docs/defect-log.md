@@ -4323,3 +4323,36 @@ warning on the theory that reads stay countable from the relay alone (D-7) — t
 false of the binary: `loadConfig` lists both in `REQUIRED_VARS`, so every command exits 1
 before it starts. Pre-flight said `READY, with 1 warning(s)` on a laptop where nothing runs.
 Now a hard failure.
+
+## SL-62 · MEDIUM · `pass flags --set` reports a transition it does not keep, and pre-flight advised it as a mitigation
+
+**Task:** DEPLOY.1 (found), P0.3 (owns the fix). **Files:** `src/config/flagStore.ts`,
+`scripts/preflight.mjs` (advice corrected here).
+
+Found while rehearsing the live demo — trying to compare a card with induction on and off:
+
+```
+$ confit pass flags --set pool=relay-only
+pool: live → relay-only
+$ confit ask --profile B          # still prints the induced pool claim
+$ confit pass flags --set pool=live
+pool already live — no change.
+```
+
+`createFlagStore` holds the flags in a closure (`let current`) and nothing writes them
+anywhere, so a `--set` mutates a process that exits immediately afterwards. The command
+prints a transition line that is true for a few milliseconds and false by the time the next
+command runs. Profile settings, by contrast, persist on the relay — so the CLI already has a
+durable home a flag could use (`/settings/{profile}/{key}`).
+
+**Why it mattered here.** Pre-flight offered exactly that command as the alternative to
+unsetting `ANTHROPIC_API_KEY` on a scripted laptop: "or set the flags explicitly: pass flags
+--set narrator=template and --set extraction=seeded". Following it leaves the laptop live and
+spending on every card, which is the outcome the check exists to prevent. The advice is now
+corrected to say unsetting the key is the only mitigation that holds; the persistence gap
+itself is P0.3's to close, and is not fixed here.
+
+Not a risk to the scripted demo as configured — `ANTHROPIC_API_KEY` is absent, and
+`initialFlags` derives `extraction: seeded` + `narrator: template` from that absence on every
+invocation, which is why the demo prints template copy consistently without anyone setting a
+flag.

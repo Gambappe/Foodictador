@@ -10,7 +10,7 @@
 # If you ever run `fly ips allocate-v4`, stop — that puts the store of record on the
 # public internet, and the operator token travels as a header on every request.
 
-app = "confit-relay"
+app = "foodictador"
 primary_region = "lhr" # change to the region nearest the venue
 
 [build]

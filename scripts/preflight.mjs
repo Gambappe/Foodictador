@@ -145,9 +145,10 @@ const scripted = env('CONFIT_SCRIPTED') === '1';
 
 if (scripted && anthropicKey !== null) {
   soft('CONFIT_SCRIPTED=1 but ANTHROPIC_API_KEY is set — the CLI goes LIVE by default and');
-  cont('will spend on every confess and every ask. Unset the key for a guaranteed-zero');
-  cont("spend, or set the flags explicitly: pass flags --set narrator=template");
-  cont('and --set extraction=seeded.');
+  cont('will spend on every confess and every ask. UNSET THE KEY — that is the only');
+  cont('mitigation that holds. `pass flags --set narrator=template` does not: the flag');
+  cont('store is per-process (src/config/flagStore.ts), so it is forgotten when that');
+  cont('command exits and the next `ask` starts live again (SL-62).');
 } else if (anthropicKey === null && scripted) {
   ok('ANTHROPIC_API_KEY unset — scripted demo: L1 template copy and seeded chips, zero spend');
 } else if (anthropicKey === null) {

@@ -41,9 +41,9 @@ fly auth login
 
 ```bash
 cd <repo root>
-fly apps create confit-relay
+fly apps create foodictador
 ```
-**Expect:** `New app created: confit-relay`.
+**Expect:** `New app created: foodictador`.
 
 > Do **not** run `fly launch`. It is interactive and will offer to allocate a public IP
 > and rewrite `fly.toml`. The committed `fly.toml` deliberately has no `[http_service]`
@@ -52,7 +52,7 @@ fly apps create confit-relay
 ### 1.3 Create the volume
 
 ```bash
-fly volumes create relay_data --region lhr --size 1 --app confit-relay --yes
+fly volumes create relay_data --region lhr --size 1 --app foodictador --yes
 ```
 **Expect:** a volume printed with `relay_data` and state `created`.
 
@@ -62,27 +62,40 @@ destroying it destroys every confession, permanently.**
 ### 1.4 Set the token
 
 ```bash
-fly secrets set RELAY_TOKEN=<the token from Part 0> --app confit-relay
+fly secrets set RELAY_TOKEN=<the token from Part 0> --app foodictador
 ```
 **Expect:** `Secrets are staged for the first deployment`.
 
 ### 1.5 Deploy
 
 ```bash
-fly deploy --app confit-relay
+fly deploy --app foodictador
 ```
-**Expect:** the build runs `npm ci` and `npm run build`, then `1 desired, 1 placed, 1
-healthy`. Takes a few minutes on first build.
+**Expect:** the build runs `npm ci` and `npm run build`, then a machine created and
+`update finished: success`. Takes a few minutes on first build.
+
+If the remote builder cannot be reached — a corporate proxy that terminates TLS breaks
+depot's gRPC connection, and an app-scoped deploy token cannot create fly's legacy builder
+app — build here and push the image instead:
+
+```bash
+docker build -f infra/relay/Dockerfile -t registry.fly.io/foodictador:deploy-1 .
+fly auth docker
+docker push registry.fly.io/foodictador:deploy-1
+fly deploy --app foodictador --image registry.fly.io/foodictador:deploy-1
+```
+Same image, same `fly.toml`; only the build location differs. This is how the relay
+currently running was deployed.
 
 ### 1.6 Confirm it is running and NOT public
 
 ```bash
-fly logs --app confit-relay | head -20
+fly logs --app foodictador | head -20
 ```
 **Expect:** `relay: listening on :8787 (durable → /data/relay.json)`
 
 ```bash
-fly checks list --app confit-relay
+fly checks list --app foodictador
 ```
 **Expect:** the `stats` check `passing`. It is an HTTP probe of `/stats` declared in
 `fly.toml`; fly ignores the Dockerfile `HEALTHCHECK`, so this is the only thing that
@@ -90,11 +103,11 @@ distinguishes "the machine is up" from "the relay answers". A `critical` check h
 the process is wedged — read the logs, do not proceed.
 
 ```bash
-fly ips list --app confit-relay
+fly ips list --app foodictador
 ```
 **Expect: an empty list, or only a private `v6` entry.** If a **public** IPv4 or IPv6 is
 listed, the relay is on the internet — remove it with
-`fly ips release <address> --app confit-relay` before continuing.
+`fly ips release <address> --app foodictador` before continuing.
 
 ### 1.7 Write one read and delete it — proves the volume is writable
 
@@ -103,7 +116,7 @@ first confession: `/stats` answers `200`, the machine reports healthy, and every
 fails. Prove it now, from the machine you deployed from:
 
 ```bash
-fly proxy 8787:8787 --app confit-relay &     # or a second terminal
+fly proxy 8787:8787 --app foodictador &     # or a second terminal
 curl -s -X POST http://127.0.0.1:8787/reads \
   -H 'content-type: application/json' \
   -d '{"token":"<RELAY_TOKEN>","read":{"read_id":"00000000-0000-4000-8000-000000000000",
@@ -157,9 +170,9 @@ bash scripts/install.sh          # macOS
 
 ```bash
 fly auth login
-fly proxy 8787:8787 --app confit-relay
+fly proxy 8787:8787 --app foodictador
 ```
-**Expect:** `Proxying local port 8787 to remote [confit-relay.internal]:8787`.
+**Expect:** `Proxying local port 8787 to remote [foodictador.internal]:8787`.
 
 This is the whole network story: the relay has no public address, and `fly proxy` forwards
 a local port to it over fly's private WireGuard. Encrypted, outbound-only, so venue wifi
@@ -267,9 +280,9 @@ Rehearse these exact commands before the audience is in the room.
 | `Missing required environment variable(s)` | env not sourced in this terminal | `source .confit.env` |
 | `pool is EMPTY` | seed did not run, or ran against a different relay | re-run Part 3; check `RELAY_TOKEN` matches |
 | `pass census` exits 1 | seed did not fully land | re-run `pass seed`, then census again |
-| Relay unreachable, proxy fine | machine stopped | `fly status --app confit-relay`, then `fly machine start <id>` |
+| Relay unreachable, proxy fine | machine stopped | `fly status --app foodictador`, then `fly machine start <id>` |
 | `fly deploy` refuses: `config file … is not valid` | `fly.toml` was edited (or `fly launch` rewrote it) | `fly config validate -c fly.toml` names the field; do not deploy until it prints `Configuration is valid` |
-| Writes 500 with `EACCES … relay.json.tmp`, `/stats` still 200 | the volume is root-owned and the image's entrypoint was bypassed | confirm the machine runs `ENTRYPOINT /usr/local/bin/relay-entrypoint.sh`; `fly ssh console -a confit-relay -C 'ls -ldn /data'` should show uid 1000 |
+| Writes 500 with `EACCES … relay.json.tmp`, `/stats` still 200 | the volume is root-owned and the image's entrypoint was bypassed | confirm the machine runs `ENTRYPOINT /usr/local/bin/relay-entrypoint.sh`; `fly ssh console -a foodictador -C 'ls -ldn /data'` should show uid 1000 |
 | `pass seed`: `internal error: … relay: POST /seed failed with 500` | the relay could not write its snapshot — the same EACCES, seen from the CLI | fix the volume ownership above, then `pass seed` again; re-seeding is idempotent (keyed by `read_id`, `count` stays 220) |
 
 Recover the pool after an accidental `pass reset`:
