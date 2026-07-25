@@ -316,3 +316,23 @@ describe('the CommandHandler adapter', () => {
     expect(result.data).toMatchObject({ approved: false });
   });
 });
+
+describe('X2 confess — what off-limits does NOT do (D-9)', () => {
+  it('the refusal says off-limits gates recording, not recommendations', async () => {
+    // Option (c): Confit does not screen allergens, and the corpus carries no allergen data
+    // to screen with — six place tags, none of them an allergen. "Off-limits" plus a
+    // free-text box reads as "keep me away from this", so the refusal is the moment to say
+    // what it actually covers. A safety-shaped silence is a promise the user makes to
+    // themselves on our behalf.
+    for (const h of [
+      harness({ proposal: { blocked: true } }), // caught early, by L2
+      harness({ offLimits: ['sister'] }), // caught late, by M5
+    ]) {
+      const result = await confess(h.deps, input);
+      const printed = result.lines.join('\n');
+      expect(result.data['blocked']).toBe(true);
+      expect(printed).toMatch(/not where it sends you/);
+      expect(printed).toMatch(/does not check menus for allergens/i);
+    }
+  });
+});

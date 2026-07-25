@@ -18,7 +18,7 @@
 import { useState } from 'react';
 
 import { CADENCES, DRIVERS, SIGNALS, type ProposedRead, type Read } from '../../contracts/types.js';
-import { CHIP_LABELS, CONSENT, REFUSAL, STRUCK_NOTICE } from './copy.js';
+import { CHIP_LABELS, CONSENT, REFUSAL, REFUSAL_SCOPE, STRUCK_NOTICE } from './copy.js';
 
 type Chips = Omit<Read, 'read_id'>;
 
@@ -113,6 +113,11 @@ export function ConfessScreen({ offLimits, propose, submit }: ConfessScreenProps
         </h1>
         <p data-testid="refusal" className="mt-3 rounded border border-refusal/40 bg-refusal/5 p-3 text-refusal">
           {REFUSAL}
+        </p>
+        {/* D-9: what off-limits does not do. Separate element so a test can assert it is
+            present without matching on the refusal's own wording. */}
+        <p data-testid="refusal-scope" className="mt-2 text-sm text-muted">
+          {REFUSAL_SCOPE}
         </p>
       </section>
     );

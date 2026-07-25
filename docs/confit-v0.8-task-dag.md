@@ -187,6 +187,35 @@ Consequences:
 - **`[E11]` survives intact.** The confession still goes in raw and unmodified; this decision reinforces that, because the synthesis is the point.
 - **`[E9]` is now formally retired.** The sole-substrate architecture is replaced by a two-store split with an explicit rule for which store owns what. D-7 retired it by evidence; this retires it by design.
 
+**D-8 amended by the product owner, on three questions raised against it.**
+
+1. **Soft preferences sit on similar footing to confession evidence.** A declared `spiceTolerance` does not outrank what the confessions say about the same thing — that asymmetry *is* the product ("I say I like it hot. I do not."). Hard constraints are unaffected and still win outright.
+
+   Mostly already true in code: K4 treats spice, portion and solo comfort as weighted sub-fits that cannot veto a candidate. **Two exceptions found while checking.** `budgetBand` is *both* a soft `priceFit` and a hard exclusion (`score.ts:89`), so a declared budget removes a candidate before evidence can weigh in — registered as **K8**, needs a call. And `allergy` is not implemented at all: `UsualProfile` has no allergy field, `offLimits` is a free-text topic list that `grep` finds nowhere in the ask path, and so a declared shellfish allergy does not stop a shellfish recommendation. D-8 names allergies as the *reason* settings became durable, and M11 built the home with nothing to put in it — registered as **M19**, and it needs a contract change.
+
+2. **No floor on the personal claim.** M16 ships without a minimum confession count: "let's see what happens." Implementation note, so that produces evidence rather than just an absence — log the confession count behind each claim, so a thin one is attributable instead of mysterious.
+
+3. **Claims need not be quotable yet.** So M17 stays a **spool** that drains once XTrace confirms the text, not a permanent second copy — which is what D-8 said before an interim recommendation argued otherwise. Not-quotable is not the same as losable: M17 still stands, because `~11/16` retention silently drops about three confessions in ten while X2's consent copy tells the user their words reached their private memory.
+
+**D-9 — Confit does not screen allergens, and says so.** Decided by the product owner after the corpus was checked against D-8's premise.
+
+D-8 named allergies as the reason declared settings must be durable, and M11 built that durable home. Then the obvious question — what would an allergy filter filter *on*? — turned out to have no answer:
+
+- `data/places.json` carries **six** place tags across all 40 records: `quiet`, `counter_seating`, `late_night`, `small_plates`, `solo_friendly`, `gi_safe_options`. Not one is an allergen, and `PlaceTag` is a closed union enforced by the type *and* `validate-corpus.ts`.
+- `Place` has no ingredient field. `signatureDishes` carries `spiceLevel` and nothing else.
+- `UsualProfile` has no allergy field either — `score.ts`'s own docblock already admitted this, and `allergy_constraint` is one of D-5's six unmatchable drivers.
+- `offLimits` is a free-text **topic** blocklist that gates recording ([E24]). `grep` finds it nowhere in the ask path, so it filters no recommendation.
+
+Three shapes were offered: (a) place-level allergen tags, deliberately over-exclusive; (b) dish-level allergens with place-level exclusion only when every signature dish carries one; (c) do not claim allergy filtering at all, and say so in the copy. **(c) was chosen** — for a demo over 40 fictional places, (b)'s extra fidelity is undone by the cross-contamination gap it still cannot express, and a half-filter presented as a filter is worse than an honest gap.
+
+What (c) required in code, none of it cosmetic:
+
+- **The disclaimer, in the two places a user forms a belief.** The off-limits editor is where someone types "shellfish" under a heading that invites "keep me away from shellfish"; the refusal is where they learn the feature exists. Both now say off-limits controls what Confit writes down, not where it sends you, and that Confit does not check menus for allergens.
+- **A safety claim removed from the substrate feed.** M14's prose for `allergy_constraint` read *"something on the menu is genuinely unsafe for them"*, and that text is fed to an extractor: the live API was measured synthesising it back as *"…explained by something on the menu being genuinely unsafe"*, bound for a card. Confit asserting what is safe to eat, on the strength of an LLM's paraphrase of a stranger's confession, is the worst available version of this failure. The prose now describes the avoidance and asserts nothing.
+- **`tests/guards/safetyClaims.test.ts`**, which checks the premise rather than trusting it (the tag set is asserted, so adding an allergen tag later turns it red and reopens this decision), holds the disclaimer in place at the source level, and sweeps all pool prose and card copy for screening language. Red-verified against both failures it exists for.
+
+`M19` is closed by this decision rather than built. If (a) is ever wanted, the cost is a `UsualProfile` contract change, a `PlaceTag` contract change, and a re-audit of all 40 corpus records — where a place mistagged as free of an allergen is exactly the failure the feature would exist to prevent, and no test can catch it.
+
 **D-6 — `AskEngine` is declared, stubbed, and implemented by nobody.** Found while implementing K4. `src/contracts/modules.ts` declares `AskEngine.ask(input) → Card`, P0.2 ships a fixture stub for it, and no task in lane K builds it: K1 is the read validator, K2 off-limits, K3 rotation, K4 scoring, K5 the linter, K6 cohorts. Meanwhile X3's spec has the CLI doing exactly that job — "assemble the card — candidates from the corpus, reads from `PoolView`, cohort counts from K6, suppressions from K3, scores from K4, copy from L3."
 
 That directly contradicts §1's "no behaviour may live in a front end", and it would leave the UI lane (U3) with a choice between importing from `src/cli/**` and reimplementing the assembly. It also splits ownership of the card's shape across two lanes, which is how the two front ends drift apart.

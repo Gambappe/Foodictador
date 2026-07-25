@@ -53,6 +53,19 @@ const REFUSAL =
   'That touches a topic you marked off-limits, so nothing was recorded — ' +
   'not the pot, not the relay, not your own memory.';
 
+/**
+ * What off-limits does NOT do (D-9).
+ *
+ * Printed with the refusal, because that is the moment a user learns the feature exists and
+ * forms a belief about what it covers. "Off-limits" plus a free-text box reads as "keep me
+ * away from this"; it gates RECORDING. Confit does not screen menus — `data/places.json`
+ * carries six tags and none of them is an allergen — so the copy says so rather than leaving
+ * a safety-shaped silence.
+ */
+const REFUSAL_SCOPE =
+  'Off-limits controls what Confit writes down, not where it sends you. ' +
+  'Confit does not check menus for allergens.';
+
 function humanise(value: string): string {
   return value.replaceAll('_', ' ');
 }
@@ -110,7 +123,7 @@ export async function confess(deps: ConfessDeps, input: ConfessInput): Promise<C
   const proposed = await deps.extractor.propose(input.text, offLimits);
   if ('blocked' in proposed) {
     return {
-      lines: [REFUSAL],
+      lines: [REFUSAL, REFUSAL_SCOPE],
       data: { blocked: true, wrote: null },
       exit: EXIT.expectedFailure,
     };
@@ -143,7 +156,11 @@ export async function confess(deps: ConfessDeps, input: ConfessInput): Promise<C
     // M5's check is the authoritative one; reaching here means L2's earlier pass missed
     // something. The refusal is identical either way — the author should not be able to
     // tell which layer stopped it.
-    return { lines: [REFUSAL], data: { blocked: true, wrote: null }, exit: EXIT.expectedFailure };
+    return {
+      lines: [REFUSAL, REFUSAL_SCOPE],
+      data: { blocked: true, wrote: null },
+      exit: EXIT.expectedFailure,
+    };
   }
 
   const pooled = result.wrote.relay;

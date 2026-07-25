@@ -26,6 +26,17 @@ export const REFUSAL =
   'That touches a topic you marked off-limits, so nothing was recorded — not the pot, ' +
   'not the relay, not your own memory.';
 
+/**
+ * What off-limits does NOT do (D-9). Shown with the refusal, because that is the moment a
+ * user learns the feature exists and decides what it covers. "Off-limits" plus a free-text
+ * box reads as "keep me away from this"; it gates RECORDING. Confit does not screen menus —
+ * the corpus carries six place tags and none is an allergen — so the copy says so rather
+ * than leaving a safety-shaped silence.
+ */
+export const REFUSAL_SCOPE =
+  'Off-limits controls what Confit writes down, not where it sends you. Confit does not ' +
+  'check menus for allergens.';
+
 /** Shown when a chip is struck: the pot takes all five fields or none. */
 export const STRUCK_NOTICE =
   'A struck field means there is nothing to add to the pot — the pot only ever takes all ' +

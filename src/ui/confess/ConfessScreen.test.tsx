@@ -266,3 +266,24 @@ describe('U2: the profile it writes as is the caller’s to decide', () => {
     expect(h.poolCount()).toBe(0);
   });
 });
+
+describe('U2 confess — the refusal carries its scope (D-9)', () => {
+  it('renders what off-limits does not do, beside what it did', async () => {
+    // Driven through the flow rather than asserted against the exported constant, because a
+    // constant can be correct while the element that shows it is missing — which is exactly
+    // what happened here on the first attempt at this test.
+    render(
+      <ConfessScreen
+        offLimits={['spicy']}
+        propose={() => Promise.resolve({ blocked: true })}
+        submit={() => Promise.resolve({})}
+      />,
+    );
+    await userEvent.type(screen.getByLabelText('Your confession'), CONFESSION);
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await waitFor(() => expect(screen.getByTestId('refusal')).toBeTruthy());
+    const scope = screen.getByTestId('refusal-scope');
+    expect(scope.textContent).toMatch(/not where it sends you/);
+    expect(scope.textContent).toMatch(/allergens/i);
+  });
+});
