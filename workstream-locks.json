@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T18:04:19.066Z",
+  "updated_at": "2026-07-25T18:04:20.583Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -1047,13 +1047,13 @@
       "phase": "P0",
       "depends_on": [],
       "mock_start_ok": false,
-      "note": "AskEngine DELETED, not re-specced: a Card carries narrated copy and copy needs a model call, so no synchronous pure function can return one. The stub plus its contract test formed a closed loop that agreed with itself while nothing real could comply. modules.ts now names the real seam (planAsk + assembleCard) and a test asserts the interface stays gone.",
-      "status": "in_review",
+      "note": "Merged to trunk via #71 (0293a0f), which landed the #65 branch intact after the announced takeover deadline; review record on #65. Ownership preserved.",
+      "status": "done",
       "owner": "claude-session-014n6NYRN6Rb",
       "branch": "claude/upload-code-artifact-zop9uz",
       "pr": "65",
       "claimed_at": "2026-07-25T15:33:56.223Z",
-      "updated_at": "2026-07-25T15:35:59.037Z"
+      "updated_at": "2026-07-25T18:04:20.583Z"
     },
     "M18": {
       "title": "SL-14: URL(...).pathname used as a filesystem path breaks on spaced checkouts",
