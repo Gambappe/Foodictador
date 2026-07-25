@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T16:32:23.920Z",
+  "updated_at": "2026-07-25T16:39:33.901Z",
   "tasks": {
     "P0.1": {
       "title": "Repo bootstrap, CLI-shaped: Node 20 + TS strict + vitest + tsx, npm scripts (incl. gate0 and gate:cli), no UI deps yet",
@@ -1155,13 +1155,13 @@
         "K4"
       ],
       "mock_start_ok": false,
-      "note": "DECIDED (delegated to the implementing session): option (d) — evidence can LIFT the ceiling; the exclusion is not removed. Rejected (a) purely soft, because priceFit contributes 0.5 vs 1.0 on one of four sub-fits inside one weighted component: removing the exclusion does not put budget on similar footing with evidence, it makes budget nearly irrelevant, and a band-1 declarer would routinely see band-4 places on unrelated merits. Rejected (b) widening the tolerance as moving an arbitrary wall. Rejected (c) an exception, which abandons the ruling for money with no reason beyond intuition. BUILD: an over-budget place survives exclusionsFor when a CITABLE cohort (k >= KFLOOR, on a driver the user's UsualProfile evidences) includes that place. The declaration holds until evidence contradicts it, and the override is gated on the k-floor so five strangers must have signalled about that place first — reusing K6's matched() and the privacy threshold the product already trusts. COST: exclusionsFor/candidates take (place, usual) today and need reads threaded in — a kernel signature change, still pure, still no clock. giConstraint stays hard regardless. Owner may overrule in favour of (b) for the demo.",
-      "status": "claimed",
+      "note": "D-11 recorded in the DAG (own commit). Lift gated on matched() at KFLOOR with [E20] dedup; polarity deliberately unconsulted (pool term weighs it); gi stays hard. Demo candidate sets measured unchanged under committed seeds; 913/913.",
+      "status": "in_review",
       "owner": "fable-session-0dd9z8",
       "branch": "feat/k8-budget-evidence-lift",
-      "pr": null,
+      "pr": "https://github.com/Gambappe/Foodictador/pull/69",
       "claimed_at": "2026-07-25T16:32:23.919Z",
-      "updated_at": "2026-07-25T16:32:23.919Z"
+      "updated_at": "2026-07-25T16:39:33.900Z"
     },
     "M20": {
       "title": "Personal synthesis is per-confession, not cross-confession: episodes are generated per INGEST CALL, so a stable conv_id is not enough",
