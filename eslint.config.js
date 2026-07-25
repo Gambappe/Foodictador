@@ -87,4 +87,17 @@ export default tseslint.config(
       globals: { process: 'readonly', URL: 'readonly', console: 'readonly' },
     },
   },
+
+  {
+    // The demo scripts (DEMO.2), linted for the same reason the bin is. `scripts/*.mjs` is
+    // ignored above, and that glob is one level deep — `scripts/demo/*.mjs` fell through it
+    // and was unchecked while looking covered, which is the P0.7 shape the note above names.
+    // Declaring globals rather than widening the ignore keeps the demo runner honest: it is
+    // the thing that decides whether a demo may go ahead.
+    files: ['scripts/demo/**/*.mjs'],
+    extends: [tseslint.configs.disableTypeChecked],
+    languageOptions: {
+      globals: { process: 'readonly', URL: 'readonly', console: 'readonly' },
+    },
+  },
 );
